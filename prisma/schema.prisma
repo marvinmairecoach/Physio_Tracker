@@ -128,7 +128,7 @@ model AthleteTeam {
   id           String   @id @default(uuid())
   athleteId    String   @map("athlete_id")
   teamId       String   @map("team_id")
-  joinedAt     DateTime @default(now()) @map("joined_at") @db.Date
+  joinedAt     DateTime @default(now()) @map("joined_at")
   leftAt       DateTime? @map("left_at") @db.Date
   jerseyNumber Int?     @map("jersey_number")
   position     String?
@@ -187,7 +187,7 @@ model TestResult {
   athleteId   String   @map("athlete_id")
   testTypeId  String   @map("test_type_id")
   value       Decimal  @db.Decimal(10, 2)
-  date        DateTime @default(now()) @db.Date
+  date        DateTime @default(now())
   notes       String?
   recordedById String  @map("recorded_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -204,7 +204,7 @@ model TestResult {
 model TrainingLoad {
   id           String   @id @default(uuid())
   athleteId    String   @map("athlete_id")
-  date         DateTime @default(now()) @db.Date
+  date         DateTime @default(now())
   rpe          Int      // 1-10
   durationMin  Int      @map("duration_min")
   load         Decimal? @db.Decimal(10, 2)
