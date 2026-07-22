@@ -1,0 +1,1 @@
+export type { SessionPayload } from "@/lib/auth";

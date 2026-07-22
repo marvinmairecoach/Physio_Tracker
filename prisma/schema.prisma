@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  coach
+  athlete
+}
+
+enum Gender {
+  M
+  F
+}
+
+enum SessionType {
+  TRAINING
+  MATCH
+  CLUB_EVENT
+  REATHLETISATION
+}
+
+enum ExerciseCategory {
+  PHYSIQUE
+  TECHNIQUE
+  TACTIQUE
+}
+
+enum Availability {
+  PRESENT
+  ABSENT
+  MAYBE
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  phone         String?
+  avatarUrl     String?  @map("avatar_url")
+  logoUrl       String?  @map("logo_url")
+  role          Role     @default(coach)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  teams         Team[]      @relation("TeamCreator")
+  coachedTeams  TeamCoach[]
+  athletes      Athlete[]   @relation("AthleteCreator")
+  results       TestResult[] @relation("TestRecorder")
+  loads         TrainingLoad[] @relation("LoadRecorder")
+  sessions      Session[] @relation("SessionCreator")
+  exercises     Exercise[]
+
+  @@map("User")
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  sport       String?
+  category    String?
+  gender      String?
+  notes       String?
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  creator    User           @relation("TeamCreator", fields: [createdById], references: [id])
+  athletes   AthleteTeam[]
+  coaches    TeamCoach[]
+  assignments SessionAssignment[]
+  sessions   Session[]
+
+  @@map("Team")
+}
+
+model Athlete {
+  id         String   @id @default(uuid())
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  birthDate  DateTime? @map("birth_date") @db.Date
+  phone      String?
+  email      String?
+  gender     Gender?
+  heightCm   Decimal?  @map("height_cm") @db.Decimal(5, 1)
+  weightKg   Decimal?  @map("weight_kg") @db.Decimal(5, 1)
+  notes      String?
+  photoUrl   String?   @map("photo_url")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdById String  @map("created_by_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  creator     User              @relation("AthleteCreator", fields: [createdById], references: [id])
+  teams       AthleteTeam[]
+  testResults TestResult[]
+  loads       TrainingLoad[]
+  alerts      Alert[]
+  assignments SessionAssignment[]
+  invitations SessionInvitation[]
+  injuries     Injury[]
+  bilans       Bilan[]
+
+  @@map("Athlete")
+}
+
+model TeamCoach {
+  id     String @id @default(uuid())
+  teamId String @map("team_id")
+  userId String @map("user_id")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@map("TeamCoach")
+}
+
+model AthleteTeam {
+  id           String   @id @default(uuid())
+  athleteId    String   @map("athlete_id")
+  teamId       String   @map("team_id")
+  joinedAt     DateTime @default(now()) @map("joined_at") @db.Date
+  leftAt       DateTime? @map("left_at") @db.Date
+  jerseyNumber Int?     @map("jersey_number")
+  position     String?
+  isActive     Boolean  @default(true) @map("is_active")
+  status       String   @default("actif")
+  injury       String?
+  injuryDate   DateTime? @map("injury_date") @db.Date
+  injuryNotes  String?   @map("injury_notes")
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  injuries Injury[]
+
+  @@unique([athleteId, teamId, joinedAt])
+  @@map("AthleteTeam")
+}
+
+model Injury {
+  id            String   @id @default(uuid())
+  athleteTeamId String   @map("athlete_team_id")
+  athleteId     String   @map("athlete_id")
+  injury        String
+  injuryDate    DateTime @map("injury_date") @db.Date
+  injuryNotes   String?  @map("injury_notes")
+  recoveryDate  DateTime? @map("recovery_date") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  athleteTeam AthleteTeam @relation(fields: [athleteTeamId], references: [id], onDelete: Cascade)
+  athlete     Athlete     @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, injuryDate])
+  @@index([athleteTeamId])
+  @@map("Injury")
+}
+
+model TestType {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  category       String   // 'field' | 'force_plate' | 'dynamometer' | 'anthropometric'
+  unit           String
+  higherIsBetter Boolean  @default(true) @map("higher_is_better")
+  description    String?
+  normMale       Decimal? @map("norm_male") @db.Decimal(10, 2)
+  normFemale     Decimal? @map("norm_female") @db.Decimal(10, 2)
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  results TestResult[]
+
+  @@map("TestType")
+}
+
+model TestResult {
+  id          String   @id @default(uuid())
+  athleteId   String   @map("athlete_id")
+  testTypeId  String   @map("test_type_id")
+  value       Decimal  @db.Decimal(10, 2)
+  date        DateTime @default(now()) @db.Date
+  notes       String?
+  recordedById String  @map("recorded_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  athlete  Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  testType TestType @relation(fields: [testTypeId], references: [id], onDelete: Restrict)
+  recorder User     @relation("TestRecorder", fields: [recordedById], references: [id])
+
+  @@index([athleteId, testTypeId, date(sort: Desc)])
+  @@index([testTypeId, date(sort: Desc)])
+  @@map("TestResult")
+}
+
+model TrainingLoad {
+  id           String   @id @default(uuid())
+  athleteId    String   @map("athlete_id")
+  date         DateTime @default(now()) @db.Date
+  rpe          Int      // 1-10
+  durationMin  Int      @map("duration_min")
+  load         Decimal? @db.Decimal(10, 2)
+  sessionType  String?  @map("session_type")
+  notes        String?
+  recordedById String   @map("recorded_by_id")
+
+  athlete  Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  recorder User    @relation("LoadRecorder", fields: [recordedById], references: [id])
+
+  @@unique([athleteId, date, sessionType])
+  @@index([athleteId, date(sort: Desc)])
+  @@map("TrainingLoad")
+}
+
+model Alert {
+  id        String   @id @default(uuid())
+  athleteId String   @map("athlete_id")
+  type      String   // 'load_spike' | 'dropoff' | 'injury_risk' | 'custom'
+  severity  String   @default("info") // 'info' | 'warning' | 'critical'
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@map("Alert")
+}
+
+model Session {
+  id              String      @id @default(uuid())
+  title           String
+  description     String      // Rich Text (HTML)
+  type            SessionType @default(TRAINING)
+  date            DateTime    @db.Date
+  startTime       DateTime?   @map("start_time")
+  endTime         DateTime?   @map("end_time")
+  location        String?
+  teamId          String?     @map("team_id")
+  status          String      @default("draft") // 'draft' | 'published'
+  isRecurring     Boolean     @default(false) @map("is_recurring")
+  recurrenceRule  String?     @map("recurrence_rule") // 'daily' | 'weekly' | 'biweekly' | 'monthly'
+  recurrenceEnd   DateTime?   @map("recurrence_end") @db.Date
+  createdById     String      @map("created_by_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  creator     User                 @relation("SessionCreator", fields: [createdById], references: [id])
+  team        Team?                @relation(fields: [teamId], references: [id])
+  assignments SessionAssignment[]
+  invitations SessionInvitation[]
+  exercises   SessionExercise[]
+
+  @@map("Session")
+}
+
+model SessionAssignment {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  teamId    String?  @map("team_id")
+  athleteId String?  @map("athlete_id")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team    Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  athlete Athlete? @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([athleteId])
+  @@map("SessionAssignment")
+}
+
+model SessionInvitation {
+  id           String       @id @default(uuid())
+  sessionId    String       @map("session_id")
+  athleteId    String       @map("athlete_id")
+  responseToken String      @unique @default(uuid()) @map("response_token")
+  sentAt       DateTime?    @map("sent_at")
+  respondedAt  DateTime?    @map("responded_at")
+  availability Availability?
+  physicalFeel Int?         @map("physical_feel") // 1-10
+  mentalFeel   Int?         @map("mental_feel")   // 1-10
+  sleepQuality  Int?        @map("sleep_quality") // 1-10
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, athleteId])
+  @@index([responseToken])
+  @@index([athleteId])
+  @@map("SessionInvitation")
+}
+
+model Exercise {
+  id          String           @id @default(uuid())
+  name        String
+  category    ExerciseCategory @default(PHYSIQUE)
+  description String?
+  imageUrl    String?          @map("image_url")
+  createdById String           @map("created_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  creator  User              @relation(fields: [createdById], references: [id])
+  sessions SessionExercise[]
+
+  @@map("Exercise")
+}
+
+model SessionExercise {
+  id        String @id @default(uuid())
+  sessionId String @map("session_id")
+  exerciseId String? @map("exercise_id")
+  order     Int    @default(0)
+  durationMin Int? @map("duration_min")
+  notes     String?
+  isRest    Boolean @default(false) @map("is_rest")
+  label     String? // "Récupération" ou personnalisé
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@map("SessionExercise")
+}
+
+model Bilan {
+  id          String   @id @default(uuid())
+  title       String
+  athleteId   String   @map("athlete_id")
+  description String?
+  config      Json     @default("{\"selectedTestIds\":[],\"radarTestCount\":6,\"showNorms\":true,\"showTeamComparison\":true}") // Selected test IDs + radar config
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@map("Bilan")
+}
