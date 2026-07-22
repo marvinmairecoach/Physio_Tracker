@@ -237,7 +237,7 @@ model Alert {
 model Session {
   id              String      @id @default(uuid())
   title           String
-  description     String      // Rich Text (HTML)
+  description     String      @db.Text // Rich Text (HTML)
   type            SessionType @default(TRAINING)
   date            DateTime    @db.Date
   startTime       DateTime?   @map("start_time")
