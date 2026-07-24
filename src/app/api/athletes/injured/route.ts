@@ -8,9 +8,16 @@ export async function GET(_request: NextRequest) {
   try {
     await requireAuth();
 
+    const url = new URL(_request.url)
+    const status = url.searchParams.get("status") || "active"
+
     // Active injuries = no recovery date yet
+    const where = status === "recovered" 
+      ? { recoveryDate: { not: null } }
+      : { recoveryDate: null }
+
     const injuries = await prisma.injury.findMany({
-      where: { recoveryDate: null },
+      where,
       include: {
         athleteTeam: {
           select: {

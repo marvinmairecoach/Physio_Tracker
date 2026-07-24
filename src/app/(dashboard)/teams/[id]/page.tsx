@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, UserPlus, Search, X, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowLeft, UserPlus, Search, X, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Minus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -110,6 +110,7 @@ export default function TeamDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [previousValues, setPreviousValues] = useState<Record<string, Record<string, number | null>>>({})
 
   const isAdmin = userRole === "admin"
   const canManage = userRole === "admin" || userRole === "coach"
@@ -162,6 +163,19 @@ export default function TeamDetailPage() {
           const meData = await meRes.json()
           setUserRole(meData.user?.role ?? null)
         }
+
+        // Fetch previous test values
+        try {
+          const prevRes = await fetch(`/api/teams/${teamId}/player-results?previous=true`)
+          if (prevRes.ok) {
+            const prevData = await prevRes.json()
+            const prevMap: Record<string, Record<string, number | null>> = {}
+            for (const p of (prevData.players ?? [])) {
+              prevMap[p.id] = p.previousResults ?? {}
+            }
+            setPreviousValues(prevMap)
+          }
+        } catch {}
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Une erreur est survenue")
       } finally {
@@ -249,6 +263,22 @@ export default function TeamDetailPage() {
       if (!res.ok) throw new Error("Erreur")
       setMembers((prev) =>
         prev.map((m) => (m.id === memberId ? { ...m, status: newStatus, isActive: newStatus !== "inactif" } : m))
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function handlePositionChange(memberId: string, position: string) {
+    try {
+      const res = await fetch(`/api/teams/${teamId}/athletes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, position: position || null }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, position: position || null } : m))
       )
     } catch (err) {
       console.error(err)
@@ -466,7 +496,22 @@ export default function TeamDetailPage() {
                         {m.athlete.firstName} {m.athlete.lastName}
                       </Link>
                     </TableCell>
-                    <TableCell>{m.position ?? "—"}</TableCell>
+                    <TableCell>
+                      {canManage ? (
+                        <select
+                          value={m.position ?? ""}
+                          onChange={(e) => handlePositionChange(m.id, e.target.value)}
+                          className="h-7 rounded-md border px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <option value="">—</option>
+                          {POSITIONS.map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        m.position ?? "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       {canManage ? (
                         <select
@@ -622,6 +667,17 @@ export default function TeamDetailPage() {
                           </div>
                           {(isBetter || isWorse) && (
                             <div className="text-xs opacity-70">{diffAbs} diff.</div>
+                          )}
+                          {previousValues[player.id]?.[tt.id] !== undefined && previousValues[player.id]?.[tt.id] !== null && (
+                            <div className="text-[10px] opacity-60 flex items-center justify-end gap-0.5">
+                              {((): React.ReactNode => {
+                                const prev = previousValues[player.id][tt.id] as number
+                                const diff = value - prev
+                                if (diff > 0) return <><ChevronUp className="h-3 w-3 text-green-500" />{diff.toFixed(1)}</>
+                                if (diff < 0) return <><ChevronDown className="h-3 w-3 text-red-400" />{Math.abs(diff).toFixed(1)}</>
+                                return <><Minus className="h-3 w-3 text-muted-foreground" />0</>
+                              })()}
+                            </div>
                           )}
                         </TableCell>
                       )

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Heart } from "lucide-react"
+import { ArrowLeft, Heart, UserPlus, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ interface InjuredAthlete {
   injury: string
   injuryDate: string
   injuryNotes: string | null
+  recoveryDate: string | null
   athlete: {
     id: string
     firstName: string
@@ -46,12 +48,42 @@ interface InjuredAthlete {
   }
 }
 
+interface Team {
+  id: string
+  name: string
+}
+
+interface AvailableAthlete {
+  id: string
+  athleteId: string
+  firstName: string
+  lastName: string
+  position: string | null
+  status: string
+}
+
 export default function InfirmeriePage() {
   const router = useRouter()
   const [injured, setInjured] = useState<InjuredAthlete[]>([])
+  const [recovered, setRecovered] = useState<InjuredAthlete[]>([])
   const [loading, setLoading] = useState(true)
   const [recoveryTarget, setRecoveryTarget] = useState<InjuredAthlete | null>(null)
   const [recovering, setRecovering] = useState(false)
+
+  // Add injury dialog
+  const [addOpen, setAddOpen] = useState(false)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [selectedTeamId, setSelectedTeamId] = useState("")
+  const [teamAthletes, setTeamAthletes] = useState<AvailableAthlete[]>([])
+  const [selectedAthleteId, setSelectedAthleteId] = useState("")
+  const [newInjuryName, setNewInjuryName] = useState("")
+  const [newInjuryDate, setNewInjuryDate] = useState(new Date().toISOString().split("T")[0])
+  const [newInjuryNotes, setNewInjuryNotes] = useState("")
+  const [addingInjury, setAddingInjury] = useState(false)
+
+  // Reopen dialog
+  const [reopenTarget, setReopenTarget] = useState<InjuredAthlete | null>(null)
+  const [reopening, setReopening] = useState(false)
 
   // Local draft values per row (key = injury id)
   const [drafts, setDrafts] = useState<Record<string, { injury: string; injuryDate: string; injuryNotes: string }>>({})
@@ -62,6 +94,7 @@ export default function InfirmeriePage() {
 
   useEffect(() => {
     fetchInjured()
+    fetchRecovered()
   }, [])
 
   useEffect(() => {
@@ -97,6 +130,18 @@ export default function InfirmeriePage() {
       // ignore
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchRecovered() {
+    try {
+      const res = await fetch("/api/athletes/injured?status=recovered")
+      if (res.ok) {
+        const data = await res.json()
+        setRecovered(data.injured ?? [])
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -180,10 +225,106 @@ export default function InfirmeriePage() {
       if (!res.ok) throw new Error("Erreur")
       setInjured((prev) => prev.filter((p) => p.id !== recoveryTarget.id))
       setRecoveryTarget(null)
+      // Refresh recovered list
+      fetchRecovered()
     } catch {
       // ignore
     } finally {
       setRecovering(false)
+    }
+  }
+
+  async function handleReopen() {
+    if (!reopenTarget) return
+    setReopening(true)
+    try {
+      const res = await fetch("/api/athletes/injured", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: reopenTarget.id,
+          recoveryDate: null,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      setRecovered((prev) => prev.filter((p) => p.id !== reopenTarget.id))
+      setReopenTarget(null)
+      // Refresh active injuries
+      fetchInjured()
+    } catch {
+      // ignore
+    } finally {
+      setReopening(false)
+    }
+  }
+
+  async function openAddDialog() {
+    setAddOpen(true)
+    setSelectedTeamId("")
+    setTeamAthletes([])
+    setSelectedAthleteId("")
+    setNewInjuryName("")
+    setNewInjuryDate(new Date().toISOString().split("T")[0])
+    setNewInjuryNotes("")
+    try {
+      const res = await fetch("/api/teams")
+      if (res.ok) {
+        const data = await res.json()
+        setTeams(Array.isArray(data) ? data : data.teams ?? [])
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleTeamChange(teamId: string) {
+    setSelectedTeamId(teamId)
+    setSelectedAthleteId("")
+    setTeamAthletes([])
+    if (!teamId) return
+    try {
+      const res = await fetch(`/api/teams/${teamId}/athletes`)
+      if (res.ok) {
+        const data = await res.json()
+        const athletes = (Array.isArray(data) ? data : data.athletes ?? [])
+          .filter((a: { status?: string }) => a.status !== "inactif")
+          .map((a: { athlete: { id: string; firstName: string; lastName: string }; id: string; position: string | null; status: string }) => ({
+            id: a.id,
+            athleteId: a.athlete.id,
+            firstName: a.athlete.firstName,
+            lastName: a.athlete.lastName,
+            position: a.position,
+            status: a.status,
+          }))
+        setTeamAthletes(athletes)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleAddInjury() {
+    if (!selectedTeamId || !selectedAthleteId || !newInjuryName) return
+    setAddingInjury(true)
+    try {
+      const res = await fetch(`/api/teams/${selectedTeamId}/athletes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: selectedAthleteId,
+          status: "blessé",
+          injury: newInjuryName,
+          injuryDate: newInjuryDate,
+          injuryNotes: newInjuryNotes || null,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      setAddOpen(false)
+      fetchInjured()
+    } catch {
+      // ignore
+    } finally {
+      setAddingInjury(false)
     }
   }
 
@@ -204,18 +345,25 @@ export default function InfirmeriePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Infirmerie</h1>
-          <p className="text-muted-foreground mt-1">
-            {injured.length} joueur(s) actuellement blessé(s)
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Infirmerie</h1>
+            <p className="text-muted-foreground mt-1">
+              {injured.length} joueur(s) actuellement blessé(s)
+            </p>
+          </div>
         </div>
+        <Button onClick={openAddDialog}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Ajouter un blessé
+        </Button>
       </div>
 
+      {/* Active injuries */}
       {injured.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -336,6 +484,68 @@ export default function InfirmeriePage() {
         </Card>
       )}
 
+      {/* Recovered injuries */}
+      {recovered.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-green-500">✅</span>
+              Blessures guéries
+            </CardTitle>
+            <CardDescription>
+              {recovered.length} joueur(s) guéri(s) — possibilité de ré-ouvrir si nécessaire.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap min-w-[140px]">Joueur</TableHead>
+                  <TableHead className="whitespace-nowrap w-[180px]">Blessure</TableHead>
+                  <TableHead className="whitespace-nowrap w-[120px]">Date blessure</TableHead>
+                  <TableHead className="whitespace-nowrap w-[120px]">Date guérison</TableHead>
+                  <TableHead className="whitespace-nowrap text-right w-[90px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recovered.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-green-50/50">
+                    <TableCell className="font-medium whitespace-nowrap">
+                      <button
+                        onClick={() => router.push(`/athletes/${item.athlete.id}`)}
+                        className="flex items-center gap-2 hover:text-primary transition-colors"
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 text-xs font-bold shrink-0">
+                          {item.athlete.firstName?.[0]}{item.athlete.lastName?.[0]}
+                        </div>
+                        <div className="text-sm leading-tight text-left">
+                          <div>{item.athlete.firstName} {item.athlete.lastName}</div>
+                          <div className="text-xs text-muted-foreground">{item.athleteTeam.team.name}</div>
+                        </div>
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-sm">{item.injury}</TableCell>
+                    <TableCell className="text-sm">{formatDate(item.injuryDate)}</TableCell>
+                    <TableCell className="text-sm text-green-600">{formatDate(item.recoveryDate)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReopenTarget(item)}
+                        className="h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                      >
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                        Ré-ouvrir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recovery confirmation */}
       <Dialog open={!!recoveryTarget} onOpenChange={(o) => !o && setRecoveryTarget(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -356,6 +566,122 @@ export default function InfirmeriePage() {
               disabled={recovering}
             >
               {recovering ? "..." : "✅ Guéri !"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen confirmation */}
+      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ré-ouvrir la blessure</DialogTitle>
+            <DialogDescription>
+              <strong>{reopenTarget?.athlete.firstName} {reopenTarget?.athlete.lastName}</strong> — la blessure <strong>{reopenTarget?.injury}</strong> sera ré-ouverte et son statut repassera à &laquo; Blessé &raquo;.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenTarget(null)}>
+              Annuler
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleReopen}
+              disabled={reopening}
+            >
+              {reopening ? "..." : "Ré-ouvrir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add injury dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un blessé</DialogTitle>
+            <DialogDescription>
+              Sélectionne une équipe, un joueur, puis renseigne la blessure.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="team">Équipe</Label>
+              <select
+                id="team"
+                value={selectedTeamId}
+                onChange={(e) => handleTeamChange(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Sélectionner une équipe</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedTeamId && (
+              <div className="space-y-2">
+                <Label htmlFor="athlete">Joueur</Label>
+                <select
+                  id="athlete"
+                  value={selectedAthleteId}
+                  onChange={(e) => setSelectedAthleteId(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Sélectionner un joueur</option>
+                  {teamAthletes.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.firstName} {a.lastName} {a.position ? `(${a.position})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="injuryName">Blessure</Label>
+              <Input
+                id="injuryName"
+                value={newInjuryName}
+                onChange={(e) => setNewInjuryName(e.target.value)}
+                placeholder="Ex: Entorse cheville"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="injuryDate">Date blessure</Label>
+              <Input
+                id="injuryDate"
+                type="date"
+                value={newInjuryDate}
+                onChange={(e) => setNewInjuryDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="injuryNotes">Notes (optionnel)</Label>
+              <textarea
+                id="injuryNotes"
+                value={newInjuryNotes}
+                onChange={(e) => setNewInjuryNotes(e.target.value)}
+                placeholder="Suivi, évolution..."
+                rows={2}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleAddInjury}
+              disabled={!selectedTeamId || !selectedAthleteId || !newInjuryName || addingInjury}
+            >
+              {addingInjury ? "Ajout..." : "Ajouter"}
             </Button>
           </DialogFooter>
         </DialogContent>

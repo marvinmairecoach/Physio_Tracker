@@ -12,6 +12,8 @@ export async function GET(
     await requireAuth();
 
     const { id } = params;
+    const url = new URL(_request.url)
+    const showPrevious = url.searchParams.get("previous") === "true"
 
     const team = await prisma.team.findUnique({ where: { id } });
     if (!team) {
@@ -75,12 +77,27 @@ export async function GET(
           results[tt.id] = latest ? Number(latest.value) : null;
         }
 
+        // For each player, also get previous value
+        const previousResults: Record<string, number | null> = {}
+        if (showPrevious) {
+          for (const tt of testTypes) {
+            const allResults = await prisma.testResult.findMany({
+              where: { athleteId: m.athlete.id, testTypeId: tt.id },
+              orderBy: { date: "desc" },
+              take: 2,
+              select: { value: true },
+            })
+            previousResults[tt.id] = allResults.length >= 2 ? Number(allResults[1].value) : null
+          }
+        }
+
         return {
           id: m.athlete.id,
           firstName: m.athlete.firstName,
           lastName: m.athlete.lastName,
           position: m.position,
           results,
+          ...(showPrevious ? { previousResults } : {}),
         };
       })
     );
