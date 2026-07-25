@@ -134,7 +134,7 @@ export default function AthleteDetailPage() {
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
   if (!athlete) return <div className="p-6 text-center text-gray-500">Athlète introuvable</div>
 
-  const teamName = (athlete.teams ?? [])[0]?.team?.name || "Aucune"
+  const teamName = (athlete.teams ?? [])[0]?.team?.name || "Individuel"
   const genderIcon = athlete.gender === "M" ? "♂" : athlete.gender === "F" ? "♀" : ""
 
   // Height & weight: from test results first, then athlete model
@@ -177,9 +177,14 @@ export default function AthleteDetailPage() {
           : "Obésité"
     : ""
 
+  // Filter comparison to only items where athlete has an actual value
+  const comparisonWithValues = comparison.filter(
+    (c) => (c.athleteValue ?? c.athleteLatestValue) != null
+  )
+
   // Format comparison data for radar chart
-  const comparisonChartData = comparison.map((c) => {
-    const athleteVal = c.athleteValue ?? c.athleteLatestValue ?? 0
+  const comparisonChartData = comparisonWithValues.map((c) => {
+    const athleteVal = c.athleteValue ?? c.athleteLatestValue!
     const teamAvg = c.teamAverage ?? 0
     const higherIsBetter = c.testType?.higherIsBetter ?? true
     const normValue =
@@ -212,6 +217,10 @@ export default function AthleteDetailPage() {
       _rawTeam: teamAvg.toFixed(1),
       _rawNorm: normValue !== undefined && normValue !== null ? Number(normValue).toFixed(1) : null,
       _unit: c.testType?.unit || "",
+      _testType: c.testType,
+      _higherIsBetter: higherIsBetter,
+      _athleteVal: athleteVal,
+      _teamAvg: teamAvg,
     }
   })
 
@@ -300,21 +309,21 @@ export default function AthleteDetailPage() {
         )}
       </div>
 
-      {/* Carte infos: Photo + date naissance / téléphone / email */}
+      {/* Carte infos: 3 colonnes — Photo (40%) | Personnel | Physique */}
       <Card shadow="sm" radius="md" withBorder>
         <div className="p-6">
-          <div className="flex flex-col gap-6 sm:flex-row">
+          <div className="flex flex-col gap-6 lg:flex-row">
             {/* Photo — cliquer pour uploader */}
-            <div className="relative shrink-0">
-              <label className={`flex cursor-pointer items-center justify-center h-32 w-32 rounded-xl overflow-hidden border-2 border-dashed transition-colors ${
+            <div className="relative shrink-0 w-full lg:w-[40%] max-w-[280px]">
+              <label className={`flex cursor-pointer items-center justify-center aspect-square rounded-xl overflow-hidden border-2 border-dashed transition-colors ${
                 uploadingPhoto ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-blue-300 hover:bg-blue-50/50"
               }`}>
                 {athlete.photoUrl ? (
                   <img src={athlete.photoUrl} alt="Photo" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-gray-400">
-                    <User className="h-8 w-8" />
-                    <span className="text-[10px]">Ajouter une photo</span>
+                    <User className="h-10 w-10" />
+                    <span className="text-xs">Ajouter une photo</span>
                   </div>
                 )}
                 <input
@@ -332,78 +341,66 @@ export default function AthleteDetailPage() {
               </label>
             </div>
 
-            {/* Infos */}
-            <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <Calendar className="h-3 w-3" /> Date de naissance
-                  </p>
-                  <p className="font-medium">
-                    {athlete.birthDate
-                      ? `${new Date(athlete.birthDate).toLocaleDateString("fr-FR")} (${calculateAge(athlete.birthDate)} ans)`
-                      : "—"}
-                  </p>
-                </div>
+            {/* Column 2: Personal info (naissance, téléphone, email) */}
+            <div className="flex-1 space-y-5">
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <Calendar className="h-3 w-3" /> Date de naissance
+                </p>
+                <p className="font-medium text-base">
+                  {athlete.birthDate
+                    ? `${new Date(athlete.birthDate).toLocaleDateString("fr-FR")} (${calculateAge(athlete.birthDate)} ans)`
+                    : "—"}
+                </p>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <Phone className="h-3 w-3" /> Téléphone
-                  </p>
-                  <p className="font-medium">{athlete.phone ?? "—"}</p>
-                </div>
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <Phone className="h-3 w-3" /> Téléphone
+                </p>
+                <p className="font-medium text-base">{athlete.phone ?? "—"}</p>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <Mail className="h-3 w-3" /> Mail
-                  </p>
-                  <p className="font-medium truncate">{athlete.email ?? "—"}</p>
-                </div>
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <Mail className="h-3 w-3" /> Mail
+                </p>
+                <p className="font-medium text-base truncate">{athlete.email ?? "—"}</p>
               </div>
             </div>
 
-            {/* 2nd row: Taille — Poids — IMC */}
-            <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3 mt-4 pt-4 border-t border-blue-100">
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <Ruler className="h-3 w-3" /> Taille
-                  </p>
-                  <p className="font-medium">
-                    {heightValue !== null
-                      ? `${heightValue.toFixed(1)} cm`
-                      : "—"}
-                  </p>
-                </div>
+            {/* Column 3: Physical info (taille, poids, IMC) */}
+            <div className="flex-1 space-y-5">
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <Ruler className="h-3 w-3" /> Taille
+                </p>
+                <p className="font-medium text-base">
+                  {heightValue !== null
+                    ? `${heightValue.toFixed(1)} cm`
+                    : "—"}
+                </p>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <Weight className="h-3 w-3" /> Poids
-                  </p>
-                  <p className="font-medium">
-                    {weightValue !== null
-                      ? `${weightValue.toFixed(1)} kg`
-                      : "—"}
-                  </p>
-                </div>
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <Weight className="h-3 w-3" /> Poids
+                </p>
+                <p className="font-medium text-base">
+                  {weightValue !== null
+                    ? `${weightValue.toFixed(1)} kg`
+                    : "—"}
+                </p>
               </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
-                    <span className="text-sm">📊</span> IMC
-                  </p>
-                  <p className="font-medium">
-                    {bmiValue !== null ? (
-                      <>
-                        <span className={bmiClass}>{bmiValue.toFixed(1)}</span>
-                        <span className="text-xs text-gray-400 ml-2">{bmiLabel}</span>
-                      </>
-                    ) : "—"}
-                  </p>
-                </div>
+              <div>
+                <p className="flex items-center gap-1 text-xs text-gray-400 uppercase tracking-wider">
+                  <span className="text-sm">📊</span> IMC
+                </p>
+                <p className="font-medium text-base">
+                  {bmiValue !== null ? (
+                    <>
+                      <span className={bmiClass}>{bmiValue.toFixed(1)}</span>
+                      <span className="text-xs text-gray-400 ml-2">{bmiLabel}</span>
+                    </>
+                  ) : "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -495,11 +492,7 @@ export default function AthleteDetailPage() {
           </p>
         </div>
         <div className="p-4">
-          {comparisonChartData.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">
-              Aucune donnée de test disponible
-            </p>
-          ) : (
+          {comparisonChartData.length >= 2 ? (
             <ResponsiveContainer width="100%" height={420}>
               <RadarChart data={comparisonChartData}>
                 <PolarGrid stroke="#e0d4f5" />
@@ -575,6 +568,32 @@ export default function AthleteDetailPage() {
                 />
               </RadarChart>
             </ResponsiveContainer>
+          ) : comparisonChartData.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {comparisonChartData.map((d, idx) => (
+                <Card key={idx} shadow="sm" radius="md" withBorder className="p-4">
+                  <div className="text-sm font-semibold text-gray-700 mb-1">{d.name}</div>
+                  <div className="text-3xl font-bold text-blue-700">
+                    {d._athleteVal.toFixed(1)}
+                    <span className="text-sm font-normal text-gray-400 ml-1">{d._unit}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-sm bg-amber-400" />
+                      Équipe: <strong>{d._teamAvg.toFixed(1)}</strong>
+                    </span>
+                    {d._rawNorm && (
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-2 w-2 rounded-sm bg-cyan-400" />
+                        Norme: <strong>{d._rawNorm}</strong>
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-400 py-8">Aucune donnée de test disponible</p>
           )}
         </div>
       </Card>

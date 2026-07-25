@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     await requireAuth();
 
     const body = await request.json();
-    const { name, category, unit, higherIsBetter, description, normMale, normFemale } = body;
+    const { name, category, unit, higherIsBetter, description, normMale, normFemale, showOnTeamPage } = body;
 
     if (!name || !category || !unit) {
       return NextResponse.json(
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         description,
         normMale: normMale ? Number(normMale) : null,
         normFemale: normFemale ? Number(normFemale) : null,
+        showOnTeamPage: showOnTeamPage ?? true,
       },
     });
 

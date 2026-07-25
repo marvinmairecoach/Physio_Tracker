@@ -108,6 +108,7 @@ export async function GET(
         name: tt.name,
         unit: tt.unit,
         higherIsBetter: tt.higherIsBetter,
+        showOnTeamPage: tt.showOnTeamPage,
         teamAverage: testTypeAverages[tt.id].average,
         normMale: tt.normMale ? Number(tt.normMale) : null,
         normFemale: tt.normFemale ? Number(tt.normFemale) : null,

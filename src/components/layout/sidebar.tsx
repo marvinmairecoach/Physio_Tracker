@@ -18,6 +18,7 @@ import {
   Shield,
   Activity,
   Dumbbell,
+  Timer,
 } from "lucide-react"
 
 interface NavItem {
@@ -100,9 +101,9 @@ export function Sidebar() {
         <div className="flex h-14 items-center border-b border-gray-100 px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold text-gray-900">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <Trophy className="h-4 w-4" />
+              <Timer className="h-4 w-4" />
             </div>
-            <span>PP Tracker</span>
+            <span>Physio Tracker</span>
           </Link>
         </div>
 

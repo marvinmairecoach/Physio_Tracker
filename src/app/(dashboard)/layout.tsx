@@ -15,7 +15,9 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="flex flex-1 flex-col">
           <Navbar />
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-6">
+            <div className="max-w-7xl mx-auto">{children}</div>
+          </main>
         </div>
       </div>
     </AuthGuard>

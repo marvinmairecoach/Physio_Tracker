@@ -33,6 +33,7 @@ interface TestTypeInfo {
   name: string
   unit: string
   higherIsBetter: boolean
+  showOnTeamPage: boolean
   teamAverage: number
   normMale: number | null
   normFemale: number | null
@@ -79,6 +80,7 @@ export default function TeamDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [previousValues, setPreviousValues] = useState<Record<string, Record<string, number | null>>>({})
+  const [showAllTests, setShowAllTests] = useState(false)
 
   const isAdmin = userRole === "admin"
   const canManage = userRole === "admin" || userRole === "coach"
@@ -338,6 +340,13 @@ export default function TeamDetailPage() {
   // Show only active members in the table by default (can toggle with sort)
   const visibleMembers = sortedMembers
 
+  // Filter test types based on showOnTeamPage
+  const teamPageTestTypes = useMemo(
+    () => testTypes.filter((tt) => tt.showOnTeamPage === true),
+    [testTypes]
+  )
+  const displayTestTypes = showAllTests ? testTypes : teamPageTestTypes
+
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
   if (!team) return <div className="p-6 text-center text-gray-500">Équipe introuvable</div>
@@ -507,13 +516,33 @@ export default function TeamDetailPage() {
       {testTypes.length > 0 && (
         <Card shadow="sm" padding="lg" radius="md" withBorder>
           <div className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl px-4 pt-4">
-            <h2 className="text-xl font-semibold">Résultats aux tests</h2>
-            <p className="text-sm text-gray-500">
-              Comparaison individuelle avec la moyenne de l'équipe
-              — <span className="text-green-600 font-medium">vert</span> = au-dessus,
-              <span className="text-red-500 font-medium"> rouge</span> = en dessous de la moyenne
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Résultats aux tests</h2>
+                <p className="text-sm text-gray-500">
+                  Comparaison individuelle avec la moyenne de l'équipe
+                  — <span className="text-green-600 font-medium">vert</span> = au-dessus,
+                  <span className="text-red-500 font-medium"> rouge</span> = en dessous de la moyenne
+                </p>
+              </div>
+              {teamPageTestTypes.length < testTypes.length && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setShowAllTests((prev) => !prev)}
+                >
+                  {showAllTests
+                    ? `Voir uniquement les ${teamPageTestTypes.length} test(s) sélectionné(s)`
+                    : `Voir tous les ${testTypes.length} tests`}
+                </Button>
+              )}
+            </div>
           </div>
+          {displayTestTypes.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              Aucun test sélectionné pour l'affichage dans l'équipe.
+            </div>
+          ) : (
           <div className="p-4 overflow-x-auto">
             <Table>
               <Table.Thead>
@@ -532,7 +561,7 @@ export default function TeamDetailPage() {
                     Poste
                     <SortIcon currentKey={resultsSort.key} sortKey="poste" dir={resultsSort.dir} />
                   </Table.Th>
-                  {testTypes.map((tt) => (
+                  {displayTestTypes.map((tt) => (
                     <Table.Th
                       key={tt.id}
                       className="text-right whitespace-nowrap min-w-[100px] cursor-pointer select-none hover:text-gray-600"
@@ -565,7 +594,7 @@ export default function TeamDetailPage() {
                   <Table.Td className="font-semibold text-sm" colSpan={2}>
                     Moyenne équipe
                   </Table.Td>
-                  {testTypes.map((tt) => (
+                  {displayTestTypes.map((tt) => (
                     <Table.Td key={tt.id} className="text-right font-semibold text-sm">
                       {tt.teamAverage > 0 ? tt.teamAverage.toFixed(2) : "—"}
                     </Table.Td>
@@ -574,7 +603,7 @@ export default function TeamDetailPage() {
 
                 {sortedPlayers.length === 0 && (
                   <Table.Tr>
-                    <Table.Td colSpan={2 + testTypes.length} className="text-center text-gray-500">
+                    <Table.Td colSpan={2 + displayTestTypes.length} className="text-center text-gray-500">
                       Aucun résultat de test pour cette équipe
                     </Table.Td>
                   </Table.Tr>
@@ -589,15 +618,20 @@ export default function TeamDetailPage() {
                     <Table.Td className="text-sm text-gray-500">
                       {player.position ?? "—"}
                     </Table.Td>
-                    {testTypes.map((tt) => {
+                    {displayTestTypes.map((tt) => {
                       const value = player.results[tt.id]
                       const avg = tt.teamAverage
                       const hasData = value !== null && value !== undefined
 
+                      // Determine which norm to use based on team gender
+                      const norm = team.gender === "M" ? tt.normMale : team.gender === "F" ? tt.normFemale : null
+
                       if (!hasData) {
                         return (
                           <Table.Td key={tt.id} className="text-right text-gray-400 text-sm">
-                            —
+                            <div>—</div>
+                            {avg > 0 && <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>}
+                            {norm != null && <div className="text-[10px] text-cyan-500">Norme: {norm.toFixed(1)}</div>}
                           </Table.Td>
                         )
                       }
@@ -626,14 +660,16 @@ export default function TeamDetailPage() {
                           {(isBetter || isWorse) && (
                             <div className="text-xs opacity-70">{diffAbs} diff.</div>
                           )}
+                          <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>
+                          {norm != null && <div className="text-[10px] text-cyan-500">Norme: {norm.toFixed(1)}</div>}
                           {previousValues[player.id]?.[tt.id] !== undefined && previousValues[player.id]?.[tt.id] !== null && (
                             <div className="text-[10px] opacity-60 flex items-center justify-end gap-0.5">
                               {(() => {
                                 const prev = previousValues[player.id][tt.id] as number
                                 const diff2 = value - prev
-                                if (diff2 > 0) return <><ChevronUp className="h-3 w-3 text-green-500" />{diff2.toFixed(1)}</>
-                                if (diff2 < 0) return <><ChevronDown className="h-3 w-3 text-red-400" />{Math.abs(diff2).toFixed(1)}</>
-                                return <><Minus className="h-3 w-3 text-gray-400" />0</>
+                                if (diff2 > 0) return <>Évol: <ChevronUp className="h-3 w-3 text-green-500 inline" />{diff2.toFixed(1)}</>
+                                if (diff2 < 0) return <>Évol: <ChevronDown className="h-3 w-3 text-red-400 inline" />{Math.abs(diff2).toFixed(1)}</>
+                                return <><Minus className="h-3 w-3 text-gray-400 inline" />Évol: 0</>
                               })()}
                             </div>
                           )}
@@ -645,6 +681,7 @@ export default function TeamDetailPage() {
               </Table.Tbody>
             </Table>
           </div>
+          )}
         </Card>
       )}
 

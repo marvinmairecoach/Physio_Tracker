@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Pencil, Plus, Check, X } from "lucide-react"
 
-import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal, Switch } from "@mantine/core"
 
 interface TestType {
   id: string
@@ -13,6 +13,7 @@ interface TestType {
   higherIsBetter: boolean
   normMale: number | null
   normFemale: number | null
+  showOnTeamPage: boolean
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -36,6 +37,7 @@ export default function TestTypesPage() {
     higherIsBetter: true,
     normMale: "",
     normFemale: "",
+    showOnTeamPage: true,
   })
   const [creating, setCreating] = useState(false)
 
@@ -48,6 +50,7 @@ export default function TestTypesPage() {
     higherIsBetter: true,
     normMale: "",
     normFemale: "",
+    showOnTeamPage: true,
   })
   const [saving, setSaving] = useState(false)
 
@@ -82,11 +85,12 @@ export default function TestTypesPage() {
           higherIsBetter: newType.higherIsBetter,
           normMale: newType.normMale || null,
           normFemale: newType.normFemale || null,
+          showOnTeamPage: newType.showOnTeamPage,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la création")
       setCreateOpen(false)
-      setNewType({ name: "", category: "field", unit: "", higherIsBetter: true, normMale: "", normFemale: "" })
+      setNewType({ name: "", category: "field", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true })
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -104,6 +108,7 @@ export default function TestTypesPage() {
       higherIsBetter: t.higherIsBetter,
       normMale: t.normMale !== null ? String(t.normMale) : "",
       normFemale: t.normFemale !== null ? String(t.normFemale) : "",
+      showOnTeamPage: t.showOnTeamPage,
     })
   }
 
@@ -125,6 +130,7 @@ export default function TestTypesPage() {
           higherIsBetter: editForm.higherIsBetter,
           normMale: editForm.normMale || null,
           normFemale: editForm.normFemale || null,
+          showOnTeamPage: editForm.showOnTeamPage,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la modification")
@@ -164,16 +170,17 @@ export default function TestTypesPage() {
                 <Table.Th>Nom</Table.Th>
                 <Table.Th>Catégorie</Table.Th>
                 <Table.Th>Unité</Table.Th>
-                <Table.Th>Supérieur = Meilleur</Table.Th>
-                <Table.Th className="text-right">Norme H</Table.Th>
-                <Table.Th className="text-right">Norme F</Table.Th>
-                <Table.Th className="text-right">Actions</Table.Th>
+                <Table.Th ta="center">Supérieur = Meilleur</Table.Th>
+                <Table.Th ta="center">Norme H</Table.Th>
+                <Table.Th ta="center">Norme F</Table.Th>
+                <Table.Th ta="center">Afficher équipe</Table.Th>
+                <Table.Th ta="center">Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {testTypes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7} className="text-center text-muted-foreground">
+                  <Table.Td colSpan={8} className="text-center text-muted-foreground">
                     Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
@@ -218,7 +225,7 @@ export default function TestTypesPage() {
                         t.unit
                       )}
                     </Table.Td>
-                    <Table.Td>
+                    <Table.Td ta="center">
                       {editingId === t.id ? (
                         <select
                           value={editForm.higherIsBetter ? "true" : "false"}
@@ -236,7 +243,7 @@ export default function TestTypesPage() {
                         </Badge>
                       )}
                     </Table.Td>
-                    <Table.Td className="text-right">
+                    <Table.Td ta="center">
                       {editingId === t.id ? (
                         <TextInput
                           type="number"
@@ -244,7 +251,7 @@ export default function TestTypesPage() {
                           value={editForm.normMale}
                           onChange={(e) => setEditForm((p) => ({ ...p, normMale: e.target.value }))}
                           placeholder="Ex: 4.5"
-                          className="h-8 w-24 ml-auto"
+                          className="h-8 w-24"
                         />
                       ) : (
                         <span className="text-sm font-medium">
@@ -252,7 +259,7 @@ export default function TestTypesPage() {
                         </span>
                       )}
                     </Table.Td>
-                    <Table.Td className="text-right">
+                    <Table.Td ta="center">
                       {editingId === t.id ? (
                         <TextInput
                           type="number"
@@ -260,7 +267,7 @@ export default function TestTypesPage() {
                           value={editForm.normFemale}
                           onChange={(e) => setEditForm((p) => ({ ...p, normFemale: e.target.value }))}
                           placeholder="Ex: 5.2"
-                          className="h-8 w-24 ml-auto"
+                          className="h-8 w-24"
                         />
                       ) : (
                         <span className="text-sm font-medium">
@@ -268,9 +275,27 @@ export default function TestTypesPage() {
                         </span>
                       )}
                     </Table.Td>
-                    <Table.Td className="text-right">
+                    <Table.Td ta="center">
                       {editingId === t.id ? (
-                        <div className="flex justify-end gap-1">
+                        <select
+                          value={editForm.showOnTeamPage ? "true" : "false"}
+                          onChange={(e) =>
+                            setEditForm((p) => ({ ...p, showOnTeamPage: e.target.value === "true" }))
+                          }
+                          className="flex h-8 rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="true">Oui</option>
+                          <option value="false">Non</option>
+                        </select>
+                      ) : (
+                        <Badge color={t.showOnTeamPage ? "green" : "gray"}>
+                          {t.showOnTeamPage ? "Oui" : "Non"}
+                        </Badge>
+                      )}
+                    </Table.Td>
+                    <Table.Td ta="center">
+                      {editingId === t.id ? (
+                        <div className="flex justify-center gap-1">
                           <Button
                             variant="subtle"
                             size="compact-sm"
@@ -342,6 +367,14 @@ export default function TestTypesPage() {
             <option value="true">Oui</option>
             <option value="false">Non</option>
           </TextInput>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Afficher dans les résultats de l'équipe"
+              id="new-show-team"
+              checked={newType.showOnTeamPage}
+              onChange={(e) => setNewType((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"

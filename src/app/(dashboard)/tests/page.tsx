@@ -1,14 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Save, Pencil, Trash2, X, Check } from "lucide-react"
 
-import { Button, Card, Table, TextInput, Modal } from "@mantine/core"
+import { Button, Card, Table, TextInput, Modal, Pagination, NativeSelect } from "@mantine/core"
 
 interface Athlete {
   id: string
   firstName: string
   lastName: string
+}
+
+interface Team {
+  id: string
+  name: string
+}
+
+interface TeamAthlete {
+  athlete: Athlete
 }
 
 interface TestType {
@@ -23,6 +32,7 @@ interface TestResult {
   value: number
   date: string
   athlete: {
+    id: string
     firstName: string
     lastName: string
   }
@@ -38,6 +48,15 @@ export default function TestsPage() {
   const [recentResults, setRecentResults] = useState<TestResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Team filter state
+  const [teams, setTeams] = useState<Team[]>([])
+  const [selectedTeamId, setSelectedTeamId] = useState("")
+  const [teamAthletes, setTeamAthletes] = useState<Athlete[]>([])
+
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   const [formData, setFormData] = useState({
     athleteId: "",
@@ -58,13 +77,18 @@ export default function TestsPage() {
   const [deleteTarget, setDeleteTarget] = useState<TestResult | null>(null)
   const [deleteSaving, setDeleteSaving] = useState(false)
 
+  // Refs
+  const valueRef = useRef<HTMLInputElement>(null)
+
+  // Fetch initial data
   useEffect(() => {
     async function fetchData() {
       try {
-        const [athletesRes, typesRes, resultsRes] = await Promise.all([
+        const [athletesRes, typesRes, resultsRes, teamsRes] = await Promise.all([
           fetch("/api/athletes"),
           fetch("/api/tests/types"),
-          fetch("/api/tests/results?limit=20"),
+          fetch("/api/tests/results?limit=100"),
+          fetch("/api/teams"),
         ])
 
         if (athletesRes.ok) {
@@ -79,6 +103,10 @@ export default function TestsPage() {
           const data = await resultsRes.json()
           setRecentResults(Array.isArray(data) ? data : data.results ?? [])
         }
+        if (teamsRes.ok) {
+          const data = await teamsRes.json()
+          setTeams(Array.isArray(data) ? data : [])
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Une erreur est survenue")
       } finally {
@@ -87,6 +115,63 @@ export default function TestsPage() {
     }
     fetchData()
   }, [])
+
+  // Fetch team athletes when selected team changes
+  useEffect(() => {
+    if (!selectedTeamId) {
+      setTeamAthletes([])
+      return
+    }
+    async function fetchTeamAthletes() {
+      try {
+        const res = await fetch(`/api/teams/${selectedTeamId}/athletes`)
+        if (res.ok) {
+          const data: TeamAthlete[] = await res.json()
+          setTeamAthletes(Array.isArray(data) ? data.map((ta) => ta.athlete) : [])
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchTeamAthletes()
+  }, [selectedTeamId])
+
+  // Auto-focus value field when both athlete and test type are selected
+  useEffect(() => {
+    if (formData.athleteId && formData.testTypeId && valueRef.current) {
+      valueRef.current.focus()
+    }
+  }, [formData.athleteId, formData.testTypeId])
+
+  // Reset page when team filter changes
+  useEffect(() => {
+    setPage(1)
+  }, [selectedTeamId])
+
+  // Compute which athletes to show in the dropdown
+  const filteredAthletes = selectedTeamId && teamAthletes.length > 0
+    ? teamAthletes
+    : athletes
+
+  // Compute which results to show (filter by selected team + paginate)
+  const teamAthleteIds = new Set(
+    selectedTeamId
+      ? teamAthletes.map((a) => a.id)
+      : athletes.map((a) => a.id)
+  )
+
+  const teamFilteredResults = selectedTeamId
+    ? recentResults.filter((r) => teamAthleteIds.has(r.athlete.id))
+    : recentResults
+
+  const totalPages = Math.ceil(teamFilteredResults.length / ITEMS_PER_PAGE)
+  const paginatedResults = teamFilteredResults.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  )
+
+  const resultStart = teamFilteredResults.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1
+  const resultEnd = Math.min(page * ITEMS_PER_PAGE, teamFilteredResults.length)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -122,7 +207,7 @@ export default function TestsPage() {
       }))
 
       // Refresh results
-      const resultsRes = await fetch("/api/tests/results?limit=20")
+      const resultsRes = await fetch("/api/tests/results?limit=100")
       if (resultsRes.ok) {
         const data = await resultsRes.json()
         setRecentResults(Array.isArray(data) ? data : data.results ?? [])
@@ -161,7 +246,7 @@ export default function TestsPage() {
       if (!res.ok) throw new Error("Erreur")
 
       // Refresh
-      const resultsRes = await fetch("/api/tests/results?limit=20")
+      const resultsRes = await fetch("/api/tests/results?limit=100")
       if (resultsRes.ok) {
         const data = await resultsRes.json()
         setRecentResults(Array.isArray(data) ? data : data.results ?? [])
@@ -209,7 +294,19 @@ export default function TestsPage() {
         </div>
         <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div>
+                <NativeSelect
+                  label="Équipe"
+                  id="teamFilter"
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.currentTarget.value)}
+                  data={[
+                    { value: "", label: "Toutes les équipes" },
+                    ...teams.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                />
+              </div>
               <div>
                 <TextInput
                   label="Athlète"
@@ -221,7 +318,7 @@ export default function TestsPage() {
                   component="select"
                 >
                   <option value="">Sélectionner...</option>
-                  {athletes.map((a) => (
+                  {filteredAthletes.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.firstName} {a.lastName}
                     </option>
@@ -257,6 +354,7 @@ export default function TestsPage() {
                   onChange={handleChange}
                   placeholder="Ex: 10.5"
                   required
+                  ref={valueRef}
                 />
               </div>
               <div>
@@ -285,7 +383,11 @@ export default function TestsPage() {
       <Card withBorder className="max-w-none">
         <div className="px-6 pt-6 pb-3">
           <h2 className="text-xl font-semibold">Résultats récents</h2>
-          <p className="text-sm text-muted-foreground mt-1">Les 20 derniers résultats enregistrés</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedTeamId
+              ? `Résultats pour l'équipe sélectionnée — ${teamFilteredResults.length} au total`
+              : `${teamFilteredResults.length} résultat(s) au total`}
+          </p>
         </div>
         <div className="px-6 pb-6 overflow-x-auto">
           <Table>
@@ -299,14 +401,14 @@ export default function TestsPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {recentResults.length === 0 ? (
+              {paginatedResults.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={5} className="text-center text-muted-foreground">
                     Aucun résultat enregistré
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                recentResults.map((r) => (
+                paginatedResults.map((r) => (
                   <Table.Tr key={r.id}>
                     <Table.Td className="font-medium">
                       {r.athlete.firstName} {r.athlete.lastName}
@@ -345,6 +447,20 @@ export default function TestsPage() {
               )}
             </Table.Tbody>
           </Table>
+
+          {/* Pagination */}
+          {teamFilteredResults.length > ITEMS_PER_PAGE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Résultats {resultStart}-{resultEnd} sur {teamFilteredResults.length}
+              </p>
+              <Pagination
+                total={totalPages}
+                value={page}
+                onChange={setPage}
+              />
+            </div>
+          )}
         </div>
       </Card>
 
