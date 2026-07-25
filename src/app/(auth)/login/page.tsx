@@ -3,10 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { TextInput, PasswordInput, Button, Card, Title, Text, Anchor } from "@mantine/core"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -43,46 +40,41 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">PP Tracker</CardTitle>
-          <CardDescription>Connectez-vous à votre espace</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="coach@exemple.fr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+      <Card withBorder padding="xl" className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <Title order={2}>PP Tracker</Title>
+          <Text c="dimmed" size="sm">Connectez-vous à votre espace</Text>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <TextInput
+              label="Email"
+              id="email"
+              type="email"
+              placeholder="coach@exemple.fr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <PasswordInput
+              label="Mot de passe"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {error && <Text size="sm" c="red">{error}</Text>}
+            <Button type="submit" fullWidth loading={loading}>
               {loading ? "Connexion..." : "Se connecter"}
             </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Pas encore de compte ?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Créer un compte
-            </Link>
-          </p>
-        </CardContent>
+          </div>
+        </form>
+        <Text ta="center" size="sm" c="dimmed" mt="md">
+          Pas encore de compte ?{" "}
+          <Anchor component={Link} href="/register">
+            Créer un compte
+          </Anchor>
+        </Text>
       </Card>
     </div>
   )

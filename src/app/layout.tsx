@@ -1,6 +1,10 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import "@mantine/core/styles.css"
+import "@mantine/dates/styles.css"
+import "@mantine/notifications/styles.css"
+import "@mantine/charts/styles.css"
 import { Providers } from "@/components/layout/providers"
 
 const inter = Inter({ subsets: ["latin"] })

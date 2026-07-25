@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { MantineProvider } from "@mantine/core"
+import { Notifications } from "@mantine/notifications"
 
 interface AuthUser {
   id: string
@@ -56,8 +58,11 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <SessionContext.Provider value={{ user, loading, refresh: fetchUser }}>
-      {children}
-    </SessionContext.Provider>
+    <MantineProvider>
+      <Notifications />
+      <SessionContext.Provider value={{ user, loading, refresh: fetchUser }}>
+        {children}
+      </SessionContext.Provider>
+    </MantineProvider>
   )
 }

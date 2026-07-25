@@ -55,3 +55,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mantine overrides for seamless integration */
+.mantine-Table-root {
+  --table-border-color: hsl(var(--border));
+}
+
+.mantine-Card-root {
+  border: 1px solid hsl(var(--border));
+}
