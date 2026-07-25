@@ -4,16 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Save, ClipboardCheck, CheckCircle, RotateCcw, Zap, ChevronDown } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button, Card, TextInput } from "@mantine/core"
 import { useSession } from "@/components/layout/providers"
 
 interface Team {
@@ -316,22 +307,21 @@ export default function FieldTestEntryPage() {
       </div>
 
       {/* Barre de configuration compacte */}
-      <Card>
-        <CardContent className="pt-6">
+      <Card withBorder className="max-w-none">
+        <div className="p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* Type de test */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                1. Test
-              </Label>
-              <select
+            <div>
+              <TextInput
+                label="1. Test"
+                id="test-select"
+                component="select"
                 value={selectedTestId}
                 onChange={(e) => {
                   setSelectedTestId(e.target.value)
                   setValues({})
                   setSavedCount(null)
                 }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Sélectionne un test</option>
                 {testTypes.map((tt) => (
@@ -339,18 +329,17 @@ export default function FieldTestEntryPage() {
                     {tt.name} ({tt.unit})
                   </option>
                 ))}
-              </select>
+              </TextInput>
             </div>
 
             {/* Équipe */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                2. Équipe
-              </Label>
-              <select
+            <div>
+              <TextInput
+                label="2. Équipe"
+                id="team-select"
+                component="select"
                 value={selectedTeamId}
                 onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 disabled={loadingTeams}
               >
                 <option value="">Sélectionne une équipe</option>
@@ -359,14 +348,14 @@ export default function FieldTestEntryPage() {
                     {t.name}
                   </option>
                 ))}
-              </select>
+              </TextInput>
               {user?.role === "coach" && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   Tes équipes uniquement
                 </p>
               )}
               {user?.role === "admin" && teams.length > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   {teams.length} équipe{teams.length > 1 ? "s" : ""} disponible
                   {teams.length > 1 ? "s" : ""}
                 </p>
@@ -374,36 +363,34 @@ export default function FieldTestEntryPage() {
             </div>
 
             {/* Date */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                3. Date
-              </Label>
-              <Input
+            <div>
+              <TextInput
+                label="3. Date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Grille de saisie */}
       {selectedTeamId && selectedTestId && members.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card withBorder className="max-w-none">
+          <div className="px-6 pt-6 pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
                   {selectedTest?.name}
                   <span className="text-sm font-normal text-muted-foreground">
                     ({selectedTest?.unit})
                   </span>
-                </CardTitle>
-                <CardDescription>
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   {selectedCount}/{members.length} athlète{members.length > 1 ? "s" : ""} présent
                   {selectedCount !== members.length ? `s — ${filledCount}/${selectedCount} saisi${selectedCount > 1 ? "s" : ""}` : ` — ${filledCount}/${totalAthletes} saisi${totalAthletes > 1 ? "s" : ""}`}
-                </CardDescription>
+                </p>
               </div>
               <div className="flex gap-2">
                 <div className="flex items-center gap-1 mr-2">
@@ -421,7 +408,7 @@ export default function FieldTestEntryPage() {
                   </button>
                 </div>
                 {filledCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={resetValues}>
+                  <Button variant="subtle" size="compact-sm" onClick={resetValues}>
                     <RotateCcw className="mr-1 h-3.5 w-3.5" />
                     Effacer
                   </Button>
@@ -429,15 +416,15 @@ export default function FieldTestEntryPage() {
                 <Button
                   onClick={handleSave}
                   disabled={saving || filledCount === 0}
-                  size="sm"
+                  size="compact-sm"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   {saving ? "Enregistrement..." : `Enregistrer (${filledCount})`}
                 </Button>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="px-6 pb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -532,7 +519,7 @@ export default function FieldTestEntryPage() {
                         </td>
                         <td className="py-2 align-middle">
                           {isSelected ? (
-                            <Input
+                            <input
                               ref={(el) => {
                                 inputRefs.current[m.athlete.id] = el
                                 if (idx === 0 && isSelected) setFirstInputRef(el)
@@ -545,7 +532,7 @@ export default function FieldTestEntryPage() {
                                 setAthleteValue(m.athlete.id, e.target.value)
                               }
                               onKeyDown={(e) => handleKeyDown(e, m.athlete.id)}
-                              className={`h-9 w-28 text-sm text-right ${
+                              className={`h-9 w-28 text-sm text-right rounded-md border border-input bg-background px-3 py-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                                 val.trim()
                                   ? "border-green-400 bg-green-50/50 focus-visible:ring-green-400"
                                   : ""
@@ -597,7 +584,7 @@ export default function FieldTestEntryPage() {
 
               <div className="flex gap-2">
                 {filledCount > 0 && (
-                  <Button variant="outline" size="sm" onClick={resetValues}>
+                  <Button variant="outline" size="compact-sm" onClick={resetValues}>
                     <RotateCcw className="mr-1 h-3.5 w-3.5" />
                     Tout effacer
                   </Button>
@@ -613,14 +600,14 @@ export default function FieldTestEntryPage() {
                 </Button>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Message : sélectionne équipe + test */}
       {(!selectedTeamId || !selectedTestId) && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Card withBorder className="max-w-none">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <ClipboardCheck className="mb-4 h-12 w-12" />
             <p className="text-lg font-medium mb-1">
               {!selectedTestId
@@ -632,20 +619,20 @@ export default function FieldTestEntryPage() {
                 ? "Commence par sélectionner le type de test (étape 1)"
                 : "Choisis l'équipe qui passe le test (étape 2)"}
             </p>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Message : pas d'athlètes */}
       {selectedTeamId && selectedTestId && members.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Card withBorder className="max-w-none">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <ClipboardCheck className="mb-4 h-12 w-12" />
             <p className="text-lg font-medium mb-1">Aucun athlète</p>
             <p className="text-sm">
               Cette équipe n&apos;a pas encore d&apos;athlètes
             </p>
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>

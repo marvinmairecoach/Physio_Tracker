@@ -6,23 +6,7 @@ import {
   ArrowLeft, FileText, Download, Mail, Trash2, Edit3, Save, X,
   Target, Printer, Send,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Slider } from "@/components/ui/slider"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, TextInput, Textarea, Badge, Switch, Slider, Checkbox, Modal } from "@mantine/core"
 import {
   RadarChart,
   Radar,
@@ -556,7 +540,6 @@ export default function BilanViewPage() {
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
                 <Svg width={350} height={350}>
-                  {/* 4 concentric grid polygons at 25/50/75/100% */}
                   {[25, 50, 75, 100].map((pct) => (
                     <Polygon
                       key={pct}
@@ -566,14 +549,12 @@ export default function BilanViewPage() {
                       strokeWidth={1}
                     />
                   ))}
-                  {/* Axis lines from center to each vertex */}
                   {Array.from({ length: radarCount }, (_, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
                     const x = 175 + 140 * Math.cos(angle)
                     const y = 175 + 140 * Math.sin(angle)
                     return <Line key={i} x1={175} y1={175} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                   })}
-                  {/* Norm data polygon (rendered first so athlete is on top) */}
                   {radarData.some(d => d.normPct !== null) && (
                     <Polygon
                       points={polyPoints(radarData.map(d => d.normPct ?? 0), 175, 175, 140)}
@@ -584,7 +565,6 @@ export default function BilanViewPage() {
                       strokeDasharray="4,3"
                     />
                   )}
-                  {/* Athlete data polygon */}
                   <Polygon
                     points={polyPoints(radarData.map(d => d.athletePct), 175, 175, 140)}
                     fill="#2563eb"
@@ -592,7 +572,6 @@ export default function BilanViewPage() {
                     stroke="#2563eb"
                     strokeWidth={2}
                   />
-                  {/* Labels positioned beyond the last grid ring */}
                   {radarData.map((d, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
                     const labelR = 165
@@ -606,7 +585,6 @@ export default function BilanViewPage() {
                     )
                   })}
                 </Svg>
-                {/* Legend */}
                 <View style={{ flexDirection: 'row', gap: 20, marginTop: 6, fontSize: 10, color: '#666' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Svg width={14} height={14}>
@@ -626,7 +604,6 @@ export default function BilanViewPage() {
               </View>
             </View>
 
-            {/* Test results section (second) */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Résultats des tests</Text>
               <View style={styles.headerRow}>
@@ -638,7 +615,6 @@ export default function BilanViewPage() {
               {testRows}
             </View>
 
-            {/* Analyse section (third, renamed from Description) */}
             {bilan?.description && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Analyse</Text>
@@ -646,7 +622,6 @@ export default function BilanViewPage() {
               </View>
             )}
 
-            {/* Legend with proper SVG circles */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Légende</Text>
               <View style={{ flexDirection: 'row', gap: 16, fontSize: 10, color: '#666' }}>
@@ -733,12 +708,12 @@ export default function BilanViewPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="subtle" size="compact-sm" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
           {editing ? (
-            <Input
+            <TextInput
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               className="text-2xl font-bold h-12 border-blue-300"
@@ -782,8 +757,8 @@ export default function BilanViewPage() {
       </div>
 
       {/* Athlete info card */}
-      <Card>
-        <CardContent className="p-4">
+      <Card withBorder className="max-w-none">
+        <div className="p-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white text-sm font-bold">
               {athlete?.firstName?.[0]}{athlete?.lastName?.[0]}
@@ -799,36 +774,36 @@ export default function BilanViewPage() {
               <p className="text-sm text-muted-foreground ml-auto max-w-md truncate">{bilan.description}</p>
             )}
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {editing && (
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Description</CardTitle></CardHeader>
-          <CardContent>
+        <Card withBorder className="max-w-none">
+          <div className="px-6 pt-6 pb-3"><h2 className="text-lg font-semibold">Description</h2></div>
+          <div className="px-6 pb-6">
             <Textarea
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
               placeholder="Description ou commentaire..."
               rows={3}
             />
-          </CardContent>
+          </div>
         </Card>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Radar */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl">
-            <CardTitle className="flex items-center gap-2">
+        <Card withBorder className="lg:col-span-2 max-w-none">
+          <div className="px-6 pt-6 pb-3 bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
               <span className="text-indigo-500">📊</span>
               Radar des performances
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
               {effectiveShowNorms ? "Comparaison avec les normes" : "Valeurs normalisées"} — {effectiveIdsArray.length} test{effectiveIdsArray.length > 1 ? "s" : ""}
             </p>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="px-6 pb-6">
             {radarData.length < 3 ? (
               <p className="text-center text-muted-foreground py-8">
                 Sélectionnez au moins 3 tests pour afficher le radar
@@ -848,54 +823,55 @@ export default function BilanViewPage() {
                 </RadarChart>
               </ResponsiveContainer>
             )}
-          </CardContent>
+          </div>
         </Card>
 
         {/* Config sidebar */}
         <div className="space-y-6">
           {editing && (
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Configuration radar</CardTitle></CardHeader>
-              <CardContent className="space-y-5">
+            <Card withBorder className="max-w-none">
+              <div className="px-6 pt-6 pb-3"><h2 className="text-lg font-semibold">Configuration radar</h2></div>
+              <div className="px-6 pb-6 space-y-5">
                 <div>
-                  <Label className="flex items-center justify-between">
-                    <span>Tests visibles</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Tests visibles</span>
                     <span className="text-lg font-bold text-blue-600">{editRadarCount}</span>
-                  </Label>
-                  <Slider
-                    value={[editRadarCount]}
-                    onValueChange={([v]) => setEditRadarCount(v)}
+                  </div>
+                  <input
+                    type="range"
+                    value={editRadarCount}
+                    onChange={(e) => setEditRadarCount(Number(e.target.value))}
                     min={3}
                     max={Math.max(editSelectedIds.size, 8)}
                     step={1}
-                    className="mt-2"
+                    className="mt-2 w-full"
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="edit-norms" className="cursor-pointer">Afficher les normes</Label>
-                  <Switch id="edit-norms" checked={editShowNorms} onCheckedChange={setEditShowNorms} />
+                  <label htmlFor="edit-norms" className="text-sm cursor-pointer">Afficher les normes</label>
+                  <Switch id="edit-norms" checked={editShowNorms} onChange={(e) => setEditShowNorms(e.currentTarget.checked)} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="edit-team" className="cursor-pointer">Comparaison équipe</Label>
-                  <Switch id="edit-team" checked={editShowTeam} onCheckedChange={setEditShowTeam} />
+                  <label htmlFor="edit-team" className="text-sm cursor-pointer">Comparaison équipe</label>
+                  <Switch id="edit-team" checked={editShowTeam} onChange={(e) => setEditShowTeam(e.currentTarget.checked)} />
                 </div>
-              </CardContent>
+              </div>
             </Card>
           )}
 
           {/* Test selection (in edit mode) */}
           {editing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+            <Card withBorder className="max-w-none">
+              <div className="px-6 pt-6 pb-3">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Target className="h-4 w-4 text-blue-500" />
                   Tests
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
                   {editSelectedIds.size} sélectionné{editSelectedIds.size > 1 ? "s" : ""}
                 </p>
-              </CardHeader>
-              <CardContent className="max-h-[400px] overflow-y-auto space-y-2">
+              </div>
+              <div className="px-6 pb-6 max-h-[400px] overflow-y-auto space-y-2">
                 {testTypesWithResults.map((tt) => {
                   const result = latestResults.get(tt.id)!
                   const isSelected = editSelectedIds.has(tt.id)
@@ -908,7 +884,7 @@ export default function BilanViewPage() {
                     >
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={() => {
+                        onChange={() => {
                           setEditSelectedIds((prev) => {
                             const next = new Set(prev)
                             if (next.has(tt.id)) next.delete(tt.id)
@@ -924,16 +900,16 @@ export default function BilanViewPage() {
                     </label>
                   )
                 })}
-              </CardContent>
+              </div>
             </Card>
           )}
 
           {/* Stats summary */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Résumé</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+          <Card withBorder className="max-w-none">
+            <div className="px-6 pt-6 pb-2">
+              <p className="text-sm font-medium text-muted-foreground">Résumé</p>
+            </div>
+            <div className="px-6 pb-6 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tests inclus</span>
                 <span className="font-medium">{effectiveIdsArray.length}</span>
@@ -950,20 +926,20 @@ export default function BilanViewPage() {
                 <span className="text-muted-foreground">Créé le</span>
                 <span className="font-medium">{new Date(bilan.createdAt).toLocaleDateString("fr-FR")}</span>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
 
       {/* Detailed results table */}
-      <Card>
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl">
-          <CardTitle className="flex items-center gap-2 text-lg">
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3 bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
             <Target className="h-5 w-5 text-blue-500" />
             Résultats détaillés
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+          </h2>
+        </div>
+        <div className="px-6 pb-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -1006,11 +982,11 @@ export default function BilanViewPage() {
                     </td>
                     <td className="py-3 text-right">
                       {beatsNorm === true ? (
-                        <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">✓ Norme</Badge>
+                        <Badge color="green" size="sm">✓ Norme</Badge>
                       ) : beatsNorm === false ? (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Sous norme</Badge>
+                        <Badge color="orange" size="sm">Sous norme</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground">—</Badge>
+                        <Badge color="gray" size="sm">—</Badge>
                       )}
                     </td>
                   </tr>
@@ -1021,73 +997,63 @@ export default function BilanViewPage() {
           {effectiveIdsArray.length === 0 && (
             <p className="text-center text-muted-foreground py-6">Aucun test sélectionné</p>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       {/* PDF Preview Dialog */}
-      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
-        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Aperçu PDF</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 bg-muted/30 rounded-lg overflow-hidden">
-            {pdfUrl && (
-              <iframe src={pdfUrl} className="w-full h-full rounded-lg" title="PDF Preview" />
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPdfDialogOpen(false)}>Fermer</Button>
-            {pdfUrl && (
-              <Button
-                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                onClick={() => {
-                  const a = document.createElement("a")
-                  a.href = pdfUrl
-                  a.download = `bilan_${athlete?.lastName?.toLowerCase()}_${athlete?.firstName?.toLowerCase()}.pdf`
-                  a.click()
-                }}
-              >
-                <Download className="mr-1 h-4 w-4" /> Télécharger
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Dialog */}
-      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Envoyer le bilan par email</DialogTitle>
-            <DialogDescription>
-              Un PDF du bilan sera généré et envoyé en pièce jointe
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Label>Adresse email</Label>
-            <Input
-              type="email"
-              placeholder="email@exemple.com"
-              value={emailAddr}
-              onChange={(e) => setEmailAddr(e.target.value)}
-            />
-            {emailSent && (
-              <p className="text-sm text-green-600 font-medium">✓ Email envoyé avec succès !</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={sendingEmail}>Fermer</Button>
+      <Modal opened={pdfDialogOpen} onClose={() => setPdfDialogOpen(false)} title="Aperçu PDF" size="xl">
+        <div className="h-[70vh] bg-muted/30 rounded-lg overflow-hidden">
+          {pdfUrl && (
+            <iframe src={pdfUrl} className="w-full h-full rounded-lg" title="PDF Preview" />
+          )}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setPdfDialogOpen(false)}>Fermer</Button>
+          {pdfUrl && (
             <Button
               className="bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-              onClick={handleEmail}
-              disabled={sendingEmail || !emailAddr.trim()}
+              onClick={() => {
+                const a = document.createElement("a")
+                a.href = pdfUrl
+                a.download = `bilan_${athlete?.lastName?.toLowerCase()}_${athlete?.firstName?.toLowerCase()}.pdf`
+                a.click()
+              }}
             >
-              <Send className="mr-1 h-4 w-4" />
-              {sendingEmail ? "Envoi..." : "Envoyer"}
+              <Download className="mr-1 h-4 w-4" /> Télécharger
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+        </div>
+      </Modal>
+
+      {/* Email Dialog */}
+      <Modal opened={emailDialogOpen} onClose={() => setEmailDialogOpen(false)} title="Envoyer le bilan par email" size="md">
+        <p className="text-sm text-muted-foreground mb-3">
+          Un PDF du bilan sera généré et envoyé en pièce jointe
+        </p>
+        <div className="space-y-3">
+          <TextInput
+            label="Adresse email"
+            type="email"
+            placeholder="email@exemple.com"
+            value={emailAddr}
+            onChange={(e) => setEmailAddr(e.target.value)}
+          />
+          {emailSent && (
+            <p className="text-sm text-green-600 font-medium">✓ Email envoyé avec succès !</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={sendingEmail}>Fermer</Button>
+          <Button
+            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+            onClick={handleEmail}
+            disabled={sendingEmail || !emailAddr.trim()}
+          >
+            <Send className="mr-1 h-4 w-4" />
+            {sendingEmail ? "Envoi..." : "Envoyer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

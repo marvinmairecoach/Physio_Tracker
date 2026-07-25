@@ -3,33 +3,7 @@
 import { useEffect, useState } from "react"
 import { Pencil, Plus, Check, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
 
 interface TestType {
   id: string
@@ -176,39 +150,39 @@ export default function TestTypesPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestion des types de tests</CardTitle>
-          <CardDescription>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Gestion des types de tests</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Définissez les types de tests utilisés pour évaluer les athlètes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+          </p>
+        </div>
+        <div className="px-6 pb-6 overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead>Unité</TableHead>
-                <TableHead>Supérieur = Meilleur</TableHead>
-                <TableHead className="text-right">Norme H</TableHead>
-                <TableHead className="text-right">Norme F</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Nom</Table.Th>
+                <Table.Th>Catégorie</Table.Th>
+                <Table.Th>Unité</Table.Th>
+                <Table.Th>Supérieur = Meilleur</Table.Th>
+                <Table.Th className="text-right">Norme H</Table.Th>
+                <Table.Th className="text-right">Norme F</Table.Th>
+                <Table.Th className="text-right">Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {testTypes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={7} className="text-center text-muted-foreground">
                     Aucun type de test défini
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 testTypes.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-medium">
+                  <Table.Tr key={t.id}>
+                    <Table.Td className="font-medium">
                       {editingId === t.id ? (
-                        <Input
+                        <TextInput
                           value={editForm.name}
                           onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                           className="h-8"
@@ -216,8 +190,8 @@ export default function TestTypesPage() {
                       ) : (
                         t.name
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {editingId === t.id ? (
                         <select
                           value={editForm.category}
@@ -232,10 +206,10 @@ export default function TestTypesPage() {
                       ) : (
                         CATEGORY_LABELS[t.category] ?? t.category
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {editingId === t.id ? (
-                        <Input
+                        <TextInput
                           value={editForm.unit}
                           onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
                           className="h-8 w-20"
@@ -243,8 +217,8 @@ export default function TestTypesPage() {
                       ) : (
                         t.unit
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {editingId === t.id ? (
                         <select
                           value={editForm.higherIsBetter ? "true" : "false"}
@@ -257,14 +231,14 @@ export default function TestTypesPage() {
                           <option value="false">Non</option>
                         </select>
                       ) : (
-                        <Badge variant={t.higherIsBetter ? "default" : "secondary"}>
+                        <Badge color={t.higherIsBetter ? "blue" : "gray"}>
                           {t.higherIsBetter ? "Oui" : "Non"}
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-right">
                       {editingId === t.id ? (
-                        <Input
+                        <TextInput
                           type="number"
                           step="0.01"
                           value={editForm.normMale}
@@ -277,10 +251,10 @@ export default function TestTypesPage() {
                           {t.normMale !== null ? t.normMale : "—"}
                         </span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-right">
                       {editingId === t.id ? (
-                        <Input
+                        <TextInput
                           type="number"
                           step="0.01"
                           value={editForm.normFemale}
@@ -293,128 +267,111 @@ export default function TestTypesPage() {
                           {t.normFemale !== null ? t.normFemale : "—"}
                         </span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-right">
                       {editingId === t.id ? (
                         <div className="flex justify-end gap-1">
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="subtle"
+                            size="compact-sm"
                             onClick={() => handleSave(t.id)}
                             disabled={saving}
                           >
                             <Check className="h-4 w-4 text-green-500" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={cancelEdit}>
+                          <Button variant="subtle" size="compact-sm" onClick={cancelEdit}>
                             <X className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => startEdit(t)}>
+                        <Button variant="outline" size="compact-sm" onClick={() => startEdit(t)}>
                           <Pencil className="mr-1 h-3 w-3" />
                           Modifier
                         </Button>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nouveau type de test</DialogTitle>
-            <DialogDescription>
-              Créez un nouveau type de test pour les évaluations.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-name">Nom</Label>
-              <Input
-                id="new-name"
-                value={newType.name}
-                onChange={(e) => setNewType((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Ex: Sprint 30m"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-category">Catégorie</Label>
-              <select
-                id="new-category"
-                value={newType.category}
-                onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="field">Terrain</option>
-                <option value="force_plate">Plateforme de force</option>
-                <option value="dynamometer">Dynamomètre</option>
-                <option value="anthropometric">Anthropométrique</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-unit">Unité</Label>
-              <Input
-                id="new-unit"
-                value={newType.unit}
-                onChange={(e) => setNewType((p) => ({ ...p, unit: e.target.value }))}
-                placeholder="Ex: secondes, cm, kg..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-higher">Supérieur = Meilleur</Label>
-              <select
-                id="new-higher"
-                value={newType.higherIsBetter ? "true" : "false"}
-                onChange={(e) =>
-                  setNewType((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
-                }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="true">Oui</option>
-                <option value="false">Non</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-norm-male">Norme Hommes</Label>
-                <Input
-                  id="new-norm-male"
-                  type="number"
-                  step="0.01"
-                  value={newType.normMale}
-                  onChange={(e) => setNewType((p) => ({ ...p, normMale: e.target.value }))}
-                  placeholder="Ex: 4.5"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-norm-female">Norme Femmes</Label>
-                <Input
-                  id="new-norm-female"
-                  type="number"
-                  step="0.01"
-                  value={newType.normFemale}
-                  onChange={(e) => setNewType((p) => ({ ...p, normFemale: e.target.value }))}
-                  placeholder="Ex: 5.2"
-                />
-              </div>
-            </div>
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md">
+        <p className="text-sm text-muted-foreground mb-4">
+          Créez un nouveau type de test pour les évaluations.
+        </p>
+        <div className="space-y-4">
+          <TextInput
+            label="Nom"
+            id="new-name"
+            value={newType.name}
+            onChange={(e) => setNewType((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Sprint 30m"
+          />
+          <TextInput
+            label="Catégorie"
+            id="new-category"
+            component="select"
+            value={newType.category}
+            onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
+          >
+            <option value="field">Terrain</option>
+            <option value="force_plate">Plateforme de force</option>
+            <option value="dynamometer">Dynamomètre</option>
+            <option value="anthropometric">Anthropométrique</option>
+          </TextInput>
+          <TextInput
+            label="Unité"
+            id="new-unit"
+            value={newType.unit}
+            onChange={(e) => setNewType((p) => ({ ...p, unit: e.target.value }))}
+            placeholder="Ex: secondes, cm, kg..."
+          />
+          <TextInput
+            label="Supérieur = Meilleur"
+            id="new-higher"
+            component="select"
+            value={newType.higherIsBetter ? "true" : "false"}
+            onChange={(e) =>
+              setNewType((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
+            }
+          >
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </TextInput>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput
+              label="Norme Hommes"
+              id="new-norm-male"
+              type="number"
+              step="0.01"
+              value={newType.normMale}
+              onChange={(e) => setNewType((p) => ({ ...p, normMale: e.target.value }))}
+              placeholder="Ex: 4.5"
+            />
+            <TextInput
+              label="Norme Femmes"
+              id="new-norm-female"
+              type="number"
+              step="0.01"
+              value={newType.normFemale}
+              onChange={(e) => setNewType((p) => ({ ...p, normFemale: e.target.value }))}
+              placeholder="Ex: 5.2"
+            />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Création..." : "Créer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            Annuler
+          </Button>
+          <Button onClick={handleCreate} disabled={creating}>
+            {creating ? "Création..." : "Créer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

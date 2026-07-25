@@ -3,32 +3,7 @@
 import { useEffect, useState } from "react"
 import { Save, Pencil, Trash2, X, Check } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, TextInput, Modal } from "@mantine/core"
 
 interface Athlete {
   id: string
@@ -224,26 +199,26 @@ export default function TestsPage() {
       <h1 className="text-3xl font-bold tracking-tight">Tests & Évaluations</h1>
 
       {/* Record Test Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Enregistrer un résultat</CardTitle>
-          <CardDescription>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Enregistrer un résultat</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Sélectionnez un athlète, un type de test, et saisissez la valeur obtenue.
             L&apos;athlète et le test restent sélectionnés après enregistrement.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="athleteId">Athlète</Label>
-                <select
+              <div>
+                <TextInput
+                  label="Athlète"
                   id="athleteId"
                   name="athleteId"
                   value={formData.athleteId}
                   onChange={handleChange}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   required
+                  component="select"
                 >
                   <option value="">Sélectionner...</option>
                   {athletes.map((a) => (
@@ -251,17 +226,17 @@ export default function TestsPage() {
                       {a.firstName} {a.lastName}
                     </option>
                   ))}
-                </select>
+                </TextInput>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="testTypeId">Type de test</Label>
-                <select
+              <div>
+                <TextInput
+                  label="Type de test"
                   id="testTypeId"
                   name="testTypeId"
                   value={formData.testTypeId}
                   onChange={handleChange}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   required
+                  component="select"
                 >
                   <option value="">Sélectionner...</option>
                   {testTypes.map((tt) => (
@@ -269,11 +244,11 @@ export default function TestsPage() {
                       {tt.name} ({tt.unit})
                     </option>
                   ))}
-                </select>
+                </TextInput>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="value">Valeur</Label>
-                <Input
+              <div>
+                <TextInput
+                  label="Valeur"
                   id="value"
                   name="value"
                   type="number"
@@ -284,9 +259,9 @@ export default function TestsPage() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input
+              <div>
+                <TextInput
+                  label="Date"
                   id="date"
                   name="date"
                   type="date"
@@ -303,143 +278,125 @@ export default function TestsPage() {
               {saving ? "Enregistrement..." : "Enregistrer le résultat"}
             </Button>
           </form>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Recent Results */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Résultats récents</CardTitle>
-          <CardDescription>Les 20 derniers résultats enregistrés</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Résultats récents</h2>
+          <p className="text-sm text-muted-foreground mt-1">Les 20 derniers résultats enregistrés</p>
+        </div>
+        <div className="px-6 pb-6 overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Athlète</TableHead>
-                <TableHead>Test</TableHead>
-                <TableHead>Valeur</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right w-24">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Athlète</Table.Th>
+                <Table.Th>Test</Table.Th>
+                <Table.Th>Valeur</Table.Th>
+                <Table.Th>Date</Table.Th>
+                <Table.Th className="text-right w-24">Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {recentResults.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={5} className="text-center text-muted-foreground">
                     Aucun résultat enregistré
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 recentResults.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">
+                  <Table.Tr key={r.id}>
+                    <Table.Td className="font-medium">
                       {r.athlete.firstName} {r.athlete.lastName}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {r.testType.name}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {r.value} {r.testType.unit}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {new Date(r.date).toLocaleDateString("fr-FR")}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant="subtle"
+                          size="compact-sm"
                           onClick={() => openEdit(r)}
                           className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant="subtle"
+                          size="compact-sm"
                           onClick={() => setDeleteTarget(r)}
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Modifier le résultat</DialogTitle>
-            <DialogDescription>
-              {editTarget?.athlete.firstName} {editTarget?.athlete.lastName} — {editTarget?.testType.name}
-            </DialogDescription>
-          </DialogHeader>
+      <Modal opened={!!editTarget} onClose={() => setEditTarget(null)} title="Modifier le résultat" size="sm">
+        {editTarget && (
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Valeur ({editTarget?.testType.unit})</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-              />
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {editTarget.athlete.firstName} {editTarget.athlete.lastName} — {editTarget.testType.name}
+            </p>
+            <TextInput
+              label={`Valeur (${editTarget.testType.unit})`}
+              type="number"
+              step="0.01"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+            />
+            <TextInput
+              label="Date"
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+            />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTarget(null)}>
-              Annuler
-            </Button>
-            <Button onClick={handleEditSave} disabled={editSaving}>
-              <Check className="mr-2 h-4 w-4" />
-              {editSaving ? "..." : "Enregistrer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setEditTarget(null)}>Annuler</Button>
+          <Button onClick={handleEditSave} disabled={editSaving}>
+            <Check className="mr-2 h-4 w-4" />
+            {editSaving ? "..." : "Enregistrer"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Supprimer le résultat de{" "}
-              <strong>{deleteTarget?.athlete.firstName} {deleteTarget?.athlete.lastName}</strong> —{" "}
-              <strong>{deleteTarget?.testType.name}</strong> ({deleteTarget?.value} {deleteTarget?.testType.unit}) ?
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteSaving}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {deleteSaving ? "..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm">
+        {deleteTarget && (
+          <p className="text-sm text-muted-foreground">
+            Supprimer le résultat de{" "}
+            <strong>{deleteTarget.athlete.firstName} {deleteTarget.athlete.lastName}</strong> —{" "}
+            <strong>{deleteTarget.testType.name}</strong> ({deleteTarget.value} {deleteTarget.testType.unit}) ?
+            Cette action est irréversible.
+          </p>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+          <Button color="red" onClick={handleDelete} disabled={deleteSaving}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            {deleteSaving ? "..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

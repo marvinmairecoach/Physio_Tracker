@@ -5,30 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Eye, Pencil, Trash2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, Badge, Modal } from "@mantine/core"
 
 interface Team {
   id: string
@@ -96,7 +73,7 @@ export default function TeamsPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
   return (
@@ -111,50 +88,46 @@ export default function TeamsPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Toutes les équipes</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card.Section withBorder inheritPadding py="sm">
+          <h2 className="text-xl font-semibold">Toutes les équipes</h2>
+        </Card.Section>
+        <div className="p-4">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Sport</TableHead>
-                <TableHead className="text-center">Actifs</TableHead>
-                <TableHead className="text-center">Blessés</TableHead>
-                <TableHead className="text-center">Inactifs</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Nom</Table.Th>
+                <Table.Th>Sport</Table.Th>
+                <Table.Th className="text-center">Actifs</Table.Th>
+                <Table.Th className="text-center">Blessés</Table.Th>
+                <Table.Th className="text-center">Inactifs</Table.Th>
+                <Table.Th className="text-right">Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {teams.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={6} className="text-center text-gray-500">
                     Aucune équipe trouvée
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 teams.map((team) => (
-                  <TableRow key={team.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/teams/${team.id}`} className="hover:text-primary transition-colors">
+                  <Table.Tr key={team.id}>
+                    <Table.Td className="font-medium">
+                      <Link href={`/teams/${team.id}`} className="hover:text-blue-600 transition-colors">
                         {team.name}
                       </Link>
-                    </TableCell>
-                    <TableCell>
-                      {team.sport ? <Badge variant="secondary">{team.sport}</Badge> : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">{team.actifCount ?? 0}</TableCell>
-                    <TableCell className="text-center">{team.blesseCount ?? 0}</TableCell>
-                    <TableCell className="text-center">{team.inactifCount ?? 0}</TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td>
+                      {team.sport ? <Badge color="gray">{team.sport}</Badge> : "—"}
+                    </Table.Td>
+                    <Table.Td className="text-center">{team.actifCount ?? 0}</Table.Td>
+                    <Table.Td className="text-center">{team.blesseCount ?? 0}</Table.Td>
+                    <Table.Td className="text-center">{team.inactifCount ?? 0}</Table.Td>
+                    <Table.Td className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/teams/${team.id}`)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/teams/${team.id}`)}>
                           <Eye className="mr-1 h-4 w-4" />
                           Voir
                         </Button>
@@ -170,7 +143,7 @@ export default function TeamsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                              color="red"
                               onClick={() => setDeleteTarget(team)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -178,36 +151,36 @@ export default function TeamsPage() {
                           </>
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer l&apos;équipe</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.name}</strong> ?
-              Cette action est irréversible. Tous les joueurs seront retirés de l&apos;équipe
-              mais les athlètes et leurs résultats seront conservés.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        opened={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Supprimer l'équipe"
+        size="md"
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.name}</strong> ?
+          Cette action est irréversible. Tous les joueurs seront retirés de l'équipe
+          mais les athlètes et leurs résultats seront conservés.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={handleDelete} loading={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -5,16 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "@/components/layout/providers"
 import { ArrowLeft, Save, Image as ImageIcon, Loader2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button, Card, TextInput } from "@mantine/core"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -93,19 +84,19 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="subtle" size="compact-sm" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">Mon profil</h1>
       </div>
 
       {/* Logo */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logo</CardTitle>
-          <CardDescription>Ce logo apparaîtra sur les PDF générés.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Logo</h2>
+          <p className="text-sm text-muted-foreground mt-1">Ce logo apparaîtra sur les PDF générés.</p>
+        </div>
+        <div className="px-6 pb-6">
           <div className="flex items-center gap-4">
             <label className="relative flex cursor-pointer items-center justify-center h-20 w-20 rounded-xl overflow-hidden border-2 border-dashed border-muted-foreground/20 hover:border-blue-300 hover:bg-blue-50/50 transition-colors">
               {user.logoUrl || logoPreview ? (
@@ -128,40 +119,28 @@ export default function ProfilePage() {
               <p className="text-xs">Le logo sera redimensionné automatiquement dans le PDF.</p>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations personnelles</CardTitle>
-          <CardDescription>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Informations personnelles</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Modifie ton email et ton numéro de téléphone.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prénom</Label>
-                <Input value={user.firstName} disabled className="bg-muted" />
-              </div>
-              <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input value={user.lastName} disabled className="bg-muted" />
-              </div>
+              <TextInput label="Prénom" value={user.firstName} disabled className="bg-muted" />
+              <TextInput label="Nom" value={user.lastName} disabled className="bg-muted" />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@exemple.com" required />
-            </div>
+            <TextInput label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@exemple.com" required withAsterisk />
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Téléphone</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="+33 6 12 34 56 78" />
-            </div>
+            <TextInput label="Téléphone" id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              placeholder="+33 6 12 34 56 78" />
 
             {error && <p className="text-sm text-red-500">{error}</p>}
             {success && <p className="text-sm text-green-600 bg-green-50 rounded-md px-3 py-2">Profil mis à jour avec succès</p>}
@@ -173,14 +152,14 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
-        </CardContent>
+        </div>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Résumé du compte</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Résumé du compte</h2>
+        </div>
+        <div className="px-6 pb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <p className="text-sm text-muted-foreground">Rôle</p>
             <p className="font-medium capitalize">
@@ -195,7 +174,7 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground">Téléphone</p>
             <p className="font-medium">{user.phone || "Non renseigné"}</p>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

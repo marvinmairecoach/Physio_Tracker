@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, FileText, Plus, Download, Mail, Trash2, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, FileText, Plus, Trash2, Eye } from "lucide-react"
+import { Button, Card, Badge } from "@mantine/core"
 
 interface BilanItem {
   id: string
@@ -64,22 +62,22 @@ export default function BilansListPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => router.push(`/athletes/${athleteId}`)}>
+        <Button variant="outline" onClick={() => router.push(`/athletes/${athleteId}`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Bilans</h1>
-          <p className="text-sm text-muted-foreground">{athleteName}</p>
+          <p className="text-sm text-gray-500">{athleteName}</p>
         </div>
         <Button
-          className="ml-auto bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700"
+          className="ml-auto"
           onClick={() => router.push(`/athletes/${athleteId}/bilans/create`)}
         >
           <Plus className="mr-1 h-4 w-4" />
@@ -89,42 +87,42 @@ export default function BilansListPage() {
 
       {/* Liste */}
       {bilans.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">Aucun bilan pour le moment</p>
-            <p className="text-sm text-muted-foreground mt-1">
+        <Card shadow="sm" radius="md" withBorder>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <FileText className="h-12 w-12 text-gray-300 mb-4" />
+            <p className="text-lg font-medium text-gray-500">Aucun bilan pour le moment</p>
+            <p className="text-sm text-gray-400 mt-1">
               Créez un bilan pour compiler les résultats de tests physiques
             </p>
             <Button
-              className="mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+              className="mt-4"
               onClick={() => router.push(`/athletes/${athleteId}/bilans/create`)}
             >
               <Plus className="mr-1 h-4 w-4" />
               Créer un bilan
             </Button>
-          </CardContent>
+          </div>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bilans.map((bilan) => (
-            <Card key={bilan.id} className="group hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
+            <Card key={bilan.id} shadow="sm" radius="md" withBorder className="group hover:shadow-md transition-shadow">
+              <Card.Section withBorder inheritPadding py="sm">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
+                  <h3 className="text-base font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4 text-blue-500" />
                     {bilan.title}
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  </h3>
+                  <Badge color="blue" variant="light" size="sm">
                     {bilan.config.selectedTestIds.length} test{bilan.config.selectedTestIds.length > 1 ? "s" : ""}
                   </Badge>
                 </div>
                 {bilan.description && (
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{bilan.description}</p>
+                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">{bilan.description}</p>
                 )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground mb-3">
+              </Card.Section>
+              <div className="p-4">
+                <p className="text-xs text-gray-400 mb-3">
                   Mis à jour le {new Date(bilan.updatedAt).toLocaleDateString("fr-FR")}
                 </p>
                 <div className="flex items-center gap-2">
@@ -140,13 +138,13 @@ export default function BilansListPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-red-500 border-red-200 hover:bg-red-50"
+                    color="red"
                     onClick={() => handleDelete(bilan.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>

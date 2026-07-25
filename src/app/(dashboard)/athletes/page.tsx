@@ -201,6 +201,7 @@ export default function AthletesPage() {
                           <Button
                             variant="outline"
                             size="compact-sm"
+                            color="orange"
                             onClick={() => router.push(`/athletes/${athlete.id}/edit`)}
                           >
                             <Pencil className="h-4 w-4" />

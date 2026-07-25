@@ -3,32 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Pencil, Check, X, Trash2, Image as ImageIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
 
 interface Exercise {
   id: string
@@ -53,12 +28,12 @@ function categoryLabel(category: string): string {
   }
 }
 
-function categoryVariant(category: string): "default" | "secondary" | "outline" {
+function categoryColor(category: string): "blue" | "green" | "yellow" {
   switch (category) {
-    case "PHYSIQUE": return "default"
-    case "TECHNIQUE": return "secondary"
-    case "TACTIQUE": return "outline"
-    default: return "outline"
+    case "PHYSIQUE": return "blue"
+    case "TECHNIQUE": return "green"
+    case "TACTIQUE": return "yellow"
+    default: return "blue"
   }
 }
 
@@ -234,34 +209,34 @@ export default function ExercisesPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des exercices</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Liste des exercices</h2>
+        </div>
+        <div className="px-6 pb-6 overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>Nom</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Image</Table.Th>
+                <Table.Th>Nom</Table.Th>
+                <Table.Th>Type</Table.Th>
+                <Table.Th>Description</Table.Th>
+                <Table.Th className="text-right">Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {exercises.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={5} className="text-center text-muted-foreground">
                     Aucun exercice trouvé
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 exercises.map((exercise) => (
-                  <TableRow key={exercise.id}>
+                  <Table.Tr key={exercise.id}>
                     {editingId === exercise.id ? (
                       <>
-                        <TableCell>
+                        <Table.Td>
                           <div className="flex flex-col gap-2 items-start">
                             {editImagePreview && (
                               <img src={editImagePreview} alt="Aperçu" className="h-12 w-12 rounded object-cover border" />
@@ -280,38 +255,38 @@ export default function ExercisesPage() {
                               </button>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nom" />
-                        </TableCell>
-                        <TableCell>
+                        </Table.Td>
+                        <Table.Td>
+                          <TextInput value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nom" />
+                        </Table.Td>
+                        <Table.Td>
                           <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                             {CATEGORIES.map((c) => (
                               <option key={c.value} value={c.value}>{c.label}</option>
                             ))}
                           </select>
-                        </TableCell>
-                        <TableCell>
+                        </Table.Td>
+                        <Table.Td>
                           <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)}
                             placeholder="Description" rows={2}
                             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                        </TableCell>
-                        <TableCell className="text-right">
+                        </Table.Td>
+                        <Table.Td className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="outline" size="sm" onClick={() => handleSave(exercise)}
+                            <Button variant="outline" size="compact-sm" onClick={() => handleSave(exercise)}
                               disabled={saving || !editName.trim()}>
                               <Check className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm" onClick={cancelEdit} disabled={saving}>
+                            <Button variant="outline" size="compact-sm" onClick={cancelEdit} disabled={saving}>
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
-                        </TableCell>
+                        </Table.Td>
                       </>
                     ) : (
                       <>
-                        <TableCell>
+                        <Table.Td>
                           {exercise.imageUrl ? (
                             <img src={exercise.imageUrl} alt={exercise.name} className="h-12 w-12 rounded object-cover border" />
                           ) : (
@@ -319,105 +294,102 @@ export default function ExercisesPage() {
                               <ImageIcon className="h-5 w-5 text-muted-foreground" />
                             </div>
                           )}
-                        </TableCell>
-                        <TableCell className="font-medium">{exercise.name}</TableCell>
-                        <TableCell>
-                          <Badge variant={categoryVariant(exercise.category)}>{categoryLabel(exercise.category)}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[250px] truncate">{exercise.description ?? "—"}</TableCell>
-                        <TableCell className="text-right">
+                        </Table.Td>
+                        <Table.Td className="font-medium">{exercise.name}</Table.Td>
+                        <Table.Td>
+                          <Badge color={categoryColor(exercise.category)} size="sm">
+                            {categoryLabel(exercise.category)}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td className="max-w-[250px] truncate">{exercise.description ?? "—"}</Table.Td>
+                        <Table.Td className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="outline" size="sm" onClick={() => startEdit(exercise)}>
+                            <Button variant="outline" size="compact-sm" onClick={() => startEdit(exercise)}>
                               <Pencil className="mr-1 h-4 w-4" />
                               Modifier
                             </Button>
-                            <Button variant="outline" size="sm"
+                            <Button variant="outline" size="compact-sm"
                               className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
                               onClick={() => setDeleteTarget(exercise)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </TableCell>
+                        </Table.Td>
                       </>
                     )}
-                  </TableRow>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={(o) => !o && setCreateOpen(false)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Créer un exercice</DialogTitle>
-            <DialogDescription>Remplissez les informations ci-dessous pour créer un nouvel exercice.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nom</Label>
-              <Input id="name" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Nom de l'exercice" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Catégorie</Label>
-              <select id="category" value={createCategory} onChange={(e) => setCreateCategory(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <textarea id="description" value={createDescription} onChange={(e) => setCreateDescription(e.target.value)}
-                placeholder="Description (optionnelle)" rows={3}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-            </div>
-            <div className="space-y-2">
-              <Label>Image</Label>
-              {createImagePreview && (
-                <img src={createImagePreview} alt="Aperçu" className="h-24 w-24 rounded object-cover border mb-2" />
-              )}
-              <label className="flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50">
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                <span>{createImagePreview ? "Changer d'image" : "Choisir une image"}</span>
-                <input type="file" accept="image/*" onChange={handleCreateImageFile} className="hidden" />
-              </label>
-              {createImagePreview && (
-                <button type="button" onClick={() => { setCreateImageUrl(""); setCreateImagePreview(null) }}
-                  className="text-xs text-red-500 hover:underline">
-                  Supprimer l'image
-                </button>
-              )}
-            </div>
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Créer un exercice" size="md">
+        <p className="text-sm text-muted-foreground mb-4">Remplissez les informations ci-dessous pour créer un nouvel exercice.</p>
+        <div className="space-y-4">
+          <TextInput
+            label="Nom"
+            id="name"
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            placeholder="Nom de l'exercice"
+          />
+          <TextInput
+            label="Catégorie"
+            id="category"
+            component="select"
+            value={createCategory}
+            onChange={(e) => setCreateCategory(e.target.value)}
+          >
+            {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
+          </TextInput>
+          <div>
+            <p className="text-sm font-medium mb-1">Description</p>
+            <textarea id="description" value={createDescription} onChange={(e) => setCreateDescription(e.target.value)}
+              placeholder="Description (optionnelle)" rows={3}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
-            <Button onClick={handleCreate} disabled={creating || !createName.trim()}>
-              {creating ? "Création..." : "Créer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div>
+            <p className="text-sm font-medium mb-1">Image</p>
+            {createImagePreview && (
+              <img src={createImagePreview} alt="Aperçu" className="h-24 w-24 rounded object-cover border mb-2" />
+            )}
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50">
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+              <span>{createImagePreview ? "Changer d'image" : "Choisir une image"}</span>
+              <input type="file" accept="image/*" onChange={handleCreateImageFile} className="hidden" />
+            </label>
+            {createImagePreview && (
+              <button type="button" onClick={() => { setCreateImageUrl(""); setCreateImagePreview(null) }}
+                className="text-xs text-red-500 hover:underline">
+                Supprimer l'image
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+          <Button onClick={handleCreate} disabled={creating || !createName.trim()}>
+            {creating ? "Création..." : "Créer"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Delete confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer l&apos;exercice</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.name}</strong> ?
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Supprimer l'exercice" size="md">
+        <p className="text-sm text-muted-foreground">
+          Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.name}</strong> ?
+          Cette action est irréversible.
+        </p>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+          <Button color="red" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

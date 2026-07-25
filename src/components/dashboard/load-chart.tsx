@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, Text } from "@mantine/core"
 import {
   LineChart,
   Line,
@@ -48,65 +48,57 @@ export function LoadChart({ athleteId = "all" }: { athleteId?: string }) {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Training Load (30 Days)</CardTitle>
-        </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Text fw={700} size="lg" mb="md">Training Load (30 Days)</Text>
+        <div className="flex h-[300px] items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </CardContent>
+        </div>
       </Card>
     )
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Training Load (30 Days)</CardTitle>
-        </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Text fw={700} size="lg" mb="md">Training Load (30 Days)</Text>
+        <div className="flex h-[300px] items-center justify-center">
           <p className="text-sm text-destructive">{error}</p>
-        </CardContent>
+        </div>
       </Card>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Training Load (30 Days)</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(val: string) => {
-                  const d = new Date(val)
-                  return `${d.getDate()}/${d.getMonth() + 1}`
-                }}
-              />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip
-                labelFormatter={(val: string) => new Date(val).toLocaleDateString()}
-                formatter={(value: number) => [`${value}`, "Load"]}
-              />
-              <Line
-                type="monotone"
-                dataKey="load"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Text fw={700} size="lg" mb="md">Training Load (30 Days)</Text>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 12 }}
+              tickFormatter={(val: string) => {
+                const d = new Date(val)
+                return `${d.getDate()}/${d.getMonth() + 1}`
+              }}
+            />
+            <YAxis tick={{ fontSize: 12 }} />
+            <Tooltip
+              labelFormatter={(val: string) => new Date(val).toLocaleDateString()}
+              formatter={(value: number) => [`${value}`, "Load"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="load"
+              stroke="hsl(var(--primary))"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </Card>
   )
 }

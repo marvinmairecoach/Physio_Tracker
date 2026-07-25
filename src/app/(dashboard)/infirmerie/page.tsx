@@ -2,34 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Heart, UserPlus, RefreshCw } from "lucide-react"
+import { ArrowLeft, UserPlus, RefreshCw } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, Modal, TextInput, NativeSelect } from "@mantine/core"
 
 interface InjuredAthlete {
   id: string
@@ -341,18 +316,18 @@ export default function InfirmeriePage() {
     return drafts[id] ?? { injury: "", injuryDate: "", injuryNotes: "" }
   }
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+          <Button variant="outline" onClick={() => router.push("/")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Infirmerie</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-gray-500 mt-1">
               {injured.length} joueur(s) actuellement blessé(s)
             </p>
           </div>
@@ -365,169 +340,168 @@ export default function InfirmeriePage() {
 
       {/* Active injuries */}
       {injured.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+        <Card shadow="sm" radius="md" withBorder>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
               <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-green-700 mb-1">Aucun blessé</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Tous les joueurs sont en bonne santé. L&apos;infirmerie est vide !
             </p>
-          </CardContent>
+          </div>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card shadow="sm" radius="md" withBorder>
+          <Card.Section withBorder inheritPadding py="sm">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
               <span className="text-amber-500">🩹</span>
               Joueurs blessés
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-sm text-gray-500">
               Modifie les champs directement — les modifications sont sauvegardées automatiquement.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+            </p>
+          </Card.Section>
+          <div className="p-4 overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap min-w-[140px]">Joueur</TableHead>
-                  <TableHead className="whitespace-nowrap w-[180px]">Blessure</TableHead>
-                  <TableHead className="whitespace-nowrap w-[120px]">Date blessure</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[220px]">Suivi</TableHead>
-                  <TableHead className="whitespace-nowrap text-right w-[90px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th className="whitespace-nowrap min-w-[140px]">Joueur</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[180px]">Blessure</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[120px]">Date blessure</Table.Th>
+                  <Table.Th className="whitespace-nowrap min-w-[220px]">Suivi</Table.Th>
+                  <Table.Th className="whitespace-nowrap text-right w-[90px]">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {injured.map((item) => {
                   const draft = getDraft(item.id)
                   const saving = savingRows.has(item.id)
 
                   return (
-                    <TableRow key={item.id} className="hover:bg-amber-50/50">
-                      <TableCell className="font-medium whitespace-nowrap">
+                    <Table.Tr key={item.id} className="hover:bg-amber-50/50">
+                      <Table.Td className="font-medium whitespace-nowrap">
                         <button
                           onClick={() => router.push(`/athletes/${item.athlete.id}`)}
-                          className="flex items-center gap-2 hover:text-primary transition-colors"
+                          className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold shrink-0">
                             {item.athlete.firstName?.[0]}{item.athlete.lastName?.[0]}
                           </div>
                           <div className="text-sm leading-tight text-left">
                             <div>{item.athlete.firstName} {item.athlete.lastName}</div>
-                            <div className="text-xs text-muted-foreground">{item.athleteTeam.team.name}</div>
+                            <div className="text-xs text-gray-400">{item.athleteTeam.team.name}</div>
                           </div>
                         </button>
-                      </TableCell>
+                      </Table.Td>
 
                       {/* Blessure — inline editable */}
-                      <TableCell>
+                      <Table.Td>
                         <div className="relative">
-                          <Input
+                          <TextInput
                             value={draft.injury}
                             onChange={(e) => updateDraft(item.id, "injury", e.target.value)}
                             placeholder="Ex: Entorse cheville"
-                            className="h-8 text-sm pr-6"
+                            size="xs"
                           />
                           {saving && (
                             <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
-                              <svg className="h-3.5 w-3.5 animate-spin text-muted-foreground" viewBox="0 0 24 24">
+                              <svg className="h-3.5 w-3.5 animate-spin text-gray-400" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                               </svg>
                             </span>
                           )}
                         </div>
-                      </TableCell>
+                      </Table.Td>
 
                       {/* Date blessure — inline editable */}
-                      <TableCell>
-                        <Input
+                      <Table.Td>
+                        <TextInput
                           type="date"
                           value={draft.injuryDate}
                           onChange={(e) => updateDraft(item.id, "injuryDate", e.target.value)}
-                          className="h-8 text-sm"
+                          size="xs"
                         />
-                      </TableCell>
+                      </Table.Td>
 
                       {/* Suivi — inline editable */}
-                      <TableCell>
+                      <Table.Td>
                         <textarea
                           value={draft.injuryNotes}
                           onChange={(e) => updateDraft(item.id, "injuryNotes", e.target.value)}
                           placeholder="Suivi, évolution..."
                           rows={2}
-                          className="flex w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none"
+                          className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none"
                         />
-                      </TableCell>
+                      </Table.Td>
 
                       {/* Actions : Guérison uniquement */}
-                      <TableCell className="text-right">
+                      <Table.Td className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setRecoveryTarget(item)}
                           className="h-8 text-xs border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
                         >
-                          <Heart className="mr-1 h-3 w-3" />
                           Guérison
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                      </Table.Td>
+                    </Table.Tr>
                   )
                 })}
-              </TableBody>
+              </Table.Tbody>
             </Table>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Recovered injuries */}
       {recovered.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card shadow="sm" radius="md" withBorder>
+          <Card.Section withBorder inheritPadding py="sm">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
               <span className="text-green-500">✅</span>
               Blessures guéries
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-sm text-gray-500">
               {recovered.length} joueur(s) guéri(s) — possibilité de ré-ouvrir si nécessaire.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+            </p>
+          </Card.Section>
+          <div className="p-4 overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap min-w-[140px]">Joueur</TableHead>
-                  <TableHead className="whitespace-nowrap w-[180px]">Blessure</TableHead>
-                  <TableHead className="whitespace-nowrap w-[120px]">Date blessure</TableHead>
-                  <TableHead className="whitespace-nowrap w-[120px]">Date guérison</TableHead>
-                  <TableHead className="whitespace-nowrap text-right w-[90px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th className="whitespace-nowrap min-w-[140px]">Joueur</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[180px]">Blessure</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[120px]">Date blessure</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[120px]">Date guérison</Table.Th>
+                  <Table.Th className="whitespace-nowrap text-right w-[90px]">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {recovered.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-green-50/50">
-                    <TableCell className="font-medium whitespace-nowrap">
+                  <Table.Tr key={item.id} className="hover:bg-green-50/50">
+                    <Table.Td className="font-medium whitespace-nowrap">
                       <button
                         onClick={() => router.push(`/athletes/${item.athlete.id}`)}
-                        className="flex items-center gap-2 hover:text-primary transition-colors"
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                       >
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 text-xs font-bold shrink-0">
                           {item.athlete.firstName?.[0]}{item.athlete.lastName?.[0]}
                         </div>
                         <div className="text-sm leading-tight text-left">
                           <div>{item.athlete.firstName} {item.athlete.lastName}</div>
-                          <div className="text-xs text-muted-foreground">{item.athleteTeam.team.name}</div>
+                          <div className="text-xs text-gray-400">{item.athleteTeam.team.name}</div>
                         </div>
                       </button>
-                    </TableCell>
-                    <TableCell className="text-sm">{item.injury}</TableCell>
-                    <TableCell className="text-sm">{formatDate(item.injuryDate)}</TableCell>
-                    <TableCell className="text-sm text-green-600">{formatDate(item.recoveryDate)}</TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-sm">{item.injury}</Table.Td>
+                    <Table.Td className="text-sm">{formatDate(item.injuryDate)}</Table.Td>
+                    <Table.Td className="text-sm text-green-600">{formatDate(item.recoveryDate)}</Table.Td>
+                    <Table.Td className="text-right">
                       <Button
                         variant="outline"
                         size="sm"
@@ -537,155 +511,138 @@ export default function InfirmeriePage() {
                         <RefreshCw className="mr-1 h-3 w-3" />
                         Ré-ouvrir
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))}
-              </TableBody>
+              </Table.Tbody>
             </Table>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Recovery confirmation */}
-      <Dialog open={!!recoveryTarget} onOpenChange={(o) => !o && setRecoveryTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Confirmer la guérison</DialogTitle>
-            <DialogDescription>
-              <strong>{recoveryTarget?.athlete.firstName} {recoveryTarget?.athlete.lastName}</strong> est guéri de <strong>{recoveryTarget?.injury}</strong> ?
-              La date de guérison sera enregistrée et son statut repassera à &laquo; Actif &raquo;.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRecoveryTarget(null)}>
-              Annuler
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
-              onClick={handleRecovery}
-              disabled={recovering}
-            >
-              {recovering ? "..." : "✅ Guéri !"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        opened={!!recoveryTarget}
+        onClose={() => setRecoveryTarget(null)}
+        title="Confirmer la guérison"
+        size="sm"
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          <strong>{recoveryTarget?.athlete.firstName} {recoveryTarget?.athlete.lastName}</strong> est guéri de <strong>{recoveryTarget?.injury}</strong> ?
+          La date de guérison sera enregistrée et son statut repassera à &laquo; Actif &raquo;.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setRecoveryTarget(null)}>
+            Annuler
+          </Button>
+          <Button
+            color="green"
+            onClick={handleRecovery}
+            loading={recovering}
+          >
+            {recovering ? "..." : "✅ Guéri !"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Reopen confirmation */}
-      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Ré-ouvrir la blessure</DialogTitle>
-            <DialogDescription>
-              <strong>{reopenTarget?.athlete.firstName} {reopenTarget?.athlete.lastName}</strong> — la blessure <strong>{reopenTarget?.injury}</strong> sera ré-ouverte et son statut repassera à &laquo; Blessé &raquo;.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReopenTarget(null)}>
-              Annuler
-            </Button>
-            <Button
-              className="bg-amber-600 hover:bg-amber-700"
-              onClick={handleReopen}
-              disabled={reopening}
-            >
-              {reopening ? "..." : "Ré-ouvrir"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        opened={!!reopenTarget}
+        onClose={() => setReopenTarget(null)}
+        title="Ré-ouvrir la blessure"
+        size="sm"
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          <strong>{reopenTarget?.athlete.firstName} {reopenTarget?.athlete.lastName}</strong> — la blessure <strong>{reopenTarget?.injury}</strong> sera ré-ouverte et son statut repassera à &laquo; Blessé &raquo;.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setReopenTarget(null)}>
+            Annuler
+          </Button>
+          <Button
+            color="orange"
+            onClick={handleReopen}
+            loading={reopening}
+          >
+            {reopening ? "..." : "Ré-ouvrir"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Add injury dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ajouter un blessé</DialogTitle>
-            <DialogDescription>
-              Sélectionne une équipe, un joueur, puis renseigne la blessure.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="team">Équipe</Label>
-              <select
-                id="team"
-                value={selectedTeamId}
-                onChange={(e) => handleTeamChange(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Sélectionner une équipe</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <Modal
+        opened={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Ajouter un blessé"
+        size="md"
+      >
+        <p className="text-sm text-gray-500 mb-4">
+          Sélectionne une équipe, un joueur, puis renseigne la blessure.
+        </p>
+        <div className="space-y-4">
+          <NativeSelect
+            label="Équipe"
+            value={selectedTeamId}
+            onChange={(e) => handleTeamChange(e.currentTarget.value)}
+            data={[
+              { value: "", label: "Sélectionner une équipe" },
+              ...teams.map((t) => ({ value: t.id, label: t.name })),
+            ]}
+          />
 
-            {selectedTeamId && (
-              <div className="space-y-2">
-                <Label htmlFor="athlete">Joueur</Label>
-                <select
-                  id="athlete"
-                  value={selectedAthleteId}
-                  onChange={(e) => setSelectedAthleteId(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Sélectionner un joueur</option>
-                  {teamAthletes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.firstName} {a.lastName} {a.position ? `(${a.position})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {selectedTeamId && (
+            <NativeSelect
+              label="Joueur"
+              value={selectedAthleteId}
+              onChange={(e) => setSelectedAthleteId(e.currentTarget.value)}
+              data={[
+                { value: "", label: "Sélectionner un joueur" },
+                ...teamAthletes.map((a) => ({
+                  value: a.id,
+                  label: `${a.firstName} ${a.lastName}${a.position ? ` (${a.position})` : ""}`,
+                })),
+              ]}
+            />
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="injuryName">Blessure</Label>
-              <Input
-                id="injuryName"
-                value={newInjuryName}
-                onChange={(e) => setNewInjuryName(e.target.value)}
-                placeholder="Ex: Entorse cheville"
-              />
-            </div>
+          <TextInput
+            label="Blessure"
+            value={newInjuryName}
+            onChange={(e) => setNewInjuryName(e.target.value)}
+            placeholder="Ex: Entorse cheville"
+          />
 
-            <div className="space-y-2">
-              <Label htmlFor="injuryDate">Date blessure</Label>
-              <Input
-                id="injuryDate"
-                type="date"
-                value={newInjuryDate}
-                onChange={(e) => setNewInjuryDate(e.target.value)}
-              />
-            </div>
+          <TextInput
+            label="Date blessure"
+            type="date"
+            value={newInjuryDate}
+            onChange={(e) => setNewInjuryDate(e.target.value)}
+          />
 
-            <div className="space-y-2">
-              <Label htmlFor="injuryNotes">Notes (optionnel)</Label>
-              <textarea
-                id="injuryNotes"
-                value={newInjuryNotes}
-                onChange={(e) => setNewInjuryNotes(e.target.value)}
-                placeholder="Suivi, évolution..."
-                rows={2}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Notes (optionnel)</label>
+            <textarea
+              value={newInjuryNotes}
+              onChange={(e) => setNewInjuryNotes(e.target.value)}
+              placeholder="Suivi, évolution..."
+              rows={2}
+              className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none"
+            />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              onClick={handleAddInjury}
-              disabled={!selectedTeamId || !selectedAthleteId || !newInjuryName || addingInjury}
-            >
-              {addingInjury ? "Ajout..." : "Ajouter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setAddOpen(false)}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleAddInjury}
+            disabled={!selectedTeamId || !selectedAthleteId || !newInjuryName || addingInjury}
+            loading={addingInjury}
+          >
+            {addingInjury ? "Ajout..." : "Ajouter"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

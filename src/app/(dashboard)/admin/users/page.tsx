@@ -3,33 +3,7 @@
 import { useEffect, useState } from "react"
 import { Shield, Trash2, Plus, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
 
 interface User {
   id: string
@@ -49,10 +23,10 @@ const ROLE_LABELS: Record<string, string> = {
   athlete: "Athlète",
 }
 
-const ROLE_COLORS: Record<string, "default" | "secondary" | "outline"> = {
-  admin: "default",
-  coach: "secondary",
-  athlete: "outline",
+const ROLE_COLORS: Record<string, "blue" | "green" | "gray"> = {
+  admin: "blue",
+  coach: "green",
+  athlete: "gray",
 }
 
 export default function AdminUsersPage() {
@@ -179,40 +153,40 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Utilisateurs ({users.length})</CardTitle>
-          <CardDescription>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Utilisateurs ({users.length})</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Gère les accès à l&apos;application. Les athlètes voient uniquement leur équipe et leur profil.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="px-6 pb-6 overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Créé le</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Nom</Table.Th>
+                <Table.Th>Email</Table.Th>
+                <Table.Th>Rôle</Table.Th>
+                <Table.Th>Statut</Table.Th>
+                <Table.Th>Créé le</Table.Th>
+                <Table.Th className="text-right">Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={6} className="text-center text-muted-foreground">
                     Aucun utilisateur
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">
+                  <Table.Tr key={u.id}>
+                    <Table.Td className="font-medium">
                       {u.firstName} {u.lastName}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td className="text-sm text-muted-foreground">{u.email}</Table.Td>
+                    <Table.Td>
                       <select
                         value={u.role}
                         onChange={(e) => handleRoleChange(u.id, e.target.value)}
@@ -223,129 +197,109 @@ export default function AdminUsersPage() {
                         <option value="coach">Coach</option>
                         <option value="athlete">Athlète</option>
                       </select>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={u.isActive ? "default" : "secondary"}>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge color={u.isActive ? "green" : "gray"} size="sm">
                         {u.isActive ? "Actif" : "Inactif"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    </Table.Td>
+                    <Table.Td className="text-xs text-muted-foreground">
                       {new Date(u.createdAt).toLocaleDateString("fr-FR")}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </Table.Td>
+                    <Table.Td className="text-right">
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="compact-sm"
                         className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
                         onClick={() => setDeleteTarget(u)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Create user dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nouvel utilisateur</DialogTitle>
-            <DialogDescription>
-              Crée un compte pour un coach, admin ou athlète.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="fn">Prénom</Label>
-                <Input
-                  id="fn"
-                  value={newUser.firstName}
-                  onChange={(e) => setNewUser((p) => ({ ...p, firstName: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ln">Nom</Label>
-                <Input
-                  id="ln"
-                  value={newUser.lastName}
-                  onChange={(e) => setNewUser((p) => ({ ...p, lastName: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pwd">Mot de passe</Label>
-              <Input
-                id="pwd"
-                type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))}
-                placeholder="Minimum 6 caractères"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Rôle</Label>
-              <select
-                id="role"
-                value={newUser.role}
-                onChange={(e) => setNewUser((p) => ({ ...p, role: e.target.value }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="admin">Admin</option>
-                <option value="coach">Coach</option>
-                <option value="athlete">Athlète</option>
-              </select>
-            </div>
-            <DialogFooter className="pt-2">
-              <Button variant="outline" type="button" onClick={() => setCreateOpen(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={creating}>
-                {creating ? "Création..." : "Créer"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer l&apos;utilisateur</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.firstName} {deleteTarget?.lastName}</strong> ?
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouvel utilisateur" size="md">
+        <p className="text-sm text-muted-foreground mb-4">
+          Crée un compte pour un coach, admin ou athlète.
+        </p>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              label="Prénom"
+              id="fn"
+              value={newUser.firstName}
+              onChange={(e) => setNewUser((p) => ({ ...p, firstName: e.target.value }))}
+              required
+            />
+            <TextInput
+              label="Nom"
+              id="ln"
+              value={newUser.lastName}
+              onChange={(e) => setNewUser((p) => ({ ...p, lastName: e.target.value }))}
+              required
+            />
+          </div>
+          <TextInput
+            label="Email"
+            id="email"
+            type="email"
+            value={newUser.email}
+            onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
+            required
+          />
+          <TextInput
+            label="Mot de passe"
+            id="pwd"
+            type="password"
+            value={newUser.password}
+            onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))}
+            placeholder="Minimum 6 caractères"
+            required
+          />
+          <TextInput
+            label="Rôle"
+            id="role"
+            component="select"
+            value={newUser.role}
+            onChange={(e) => setNewUser((p) => ({ ...p, role: e.target.value }))}
+          >
+            <option value="admin">Admin</option>
+            <option value="coach">Coach</option>
+            <option value="athlete">Athlète</option>
+          </TextInput>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" type="button" onClick={() => setCreateOpen(false)}>
               Annuler
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
+            <Button type="submit" disabled={creating}>
+              {creating ? "Création..." : "Créer"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete dialog */}
+      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Supprimer l'utilisateur" size="md">
+        <p className="text-sm text-muted-foreground">
+          Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.firstName} {deleteTarget?.lastName}</strong> ?
+          Cette action est irréversible.
+        </p>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

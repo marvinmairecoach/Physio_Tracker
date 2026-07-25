@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, User, Phone, Mail, Calendar, Pencil, Trash2, TrendingUp, Award, Target, FileText, Search, ArrowUpDown, Ruler, Weight, Loader2 } from "lucide-react"
+import { ArrowLeft, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X } from "lucide-react"
 import {
   RadarChart,
   Radar,
@@ -14,27 +14,7 @@ import {
   Legend,
 } from "recharts"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Check, X } from "lucide-react"
+import { Button, Card, Table, Badge, Modal, TextInput } from "@mantine/core"
 
 interface Athlete {
   id: string
@@ -150,9 +130,9 @@ export default function AthleteDetailPage() {
     fetchData()
   }, [athleteId])
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
-  if (!athlete) return <div className="p-6 text-center text-muted-foreground">Athlète introuvable</div>
+  if (!athlete) return <div className="p-6 text-center text-gray-500">Athlète introuvable</div>
 
   const teamName = (athlete.teams ?? [])[0]?.team?.name || "Aucune"
   const genderIcon = athlete.gender === "M" ? "♂" : athlete.gender === "F" ? "♀" : ""
@@ -274,7 +254,7 @@ export default function AthleteDetailPage() {
     <div className="space-y-6">
       {/* Header: NOM Prénom ♂ — Equipe */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/athletes")}>
+        <Button variant="outline" onClick={() => router.push("/athletes")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
@@ -283,13 +263,11 @@ export default function AthleteDetailPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
             {athlete.lastName?.toUpperCase()} {athlete.firstName}{" "}
-            {genderIcon && <span className="text-lg text-muted-foreground">{genderIcon}</span>}
+            {genderIcon && <span className="text-lg text-gray-400">{genderIcon}</span>}
           </h1>
         </div>
-        <Badge variant="outline" className="text-sm bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700">
-          {teamName}
-        </Badge>
-        <Badge variant={athlete.isActive ? "default" : "secondary"}>
+        <Badge color="blue" variant="light">{teamName}</Badge>
+        <Badge color={athlete.isActive ? "green" : "gray"}>
           {athlete.isActive ? "Actif" : "Inactif"}
         </Badge>
         {isAdmin && (
@@ -299,7 +277,6 @@ export default function AthleteDetailPage() {
               size="sm"
               onClick={() => router.push(`/athletes/${athleteId}/bilans`)}
             >
-              <FileText className="mr-1 h-4 w-4" />
               Bilans
             </Button>
             <Button
@@ -313,10 +290,10 @@ export default function AthleteDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+              color="red"
               onClick={() => setDeleteOpen(true)}
             >
-              <Trash2 className="mr-1 h-4 w-4" />
+              <TrashIcon className="mr-1 h-4 w-4" />
               Supprimer
             </Button>
           </div>
@@ -324,18 +301,18 @@ export default function AthleteDetailPage() {
       </div>
 
       {/* Carte infos: Photo + date naissance / téléphone / email */}
-      <Card>
-        <CardContent className="p-6">
+      <Card shadow="sm" radius="md" withBorder>
+        <div className="p-6">
           <div className="flex flex-col gap-6 sm:flex-row">
             {/* Photo — cliquer pour uploader */}
             <div className="relative shrink-0">
               <label className={`flex cursor-pointer items-center justify-center h-32 w-32 rounded-xl overflow-hidden border-2 border-dashed transition-colors ${
-                uploadingPhoto ? "border-blue-400 bg-blue-50" : "border-muted-foreground/20 hover:border-blue-300 hover:bg-blue-50/50"
+                uploadingPhoto ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-blue-300 hover:bg-blue-50/50"
               }`}>
                 {athlete.photoUrl ? (
                   <img src={athlete.photoUrl} alt="Photo" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-1 text-gray-400">
                     <User className="h-8 w-8" />
                     <span className="text-[10px]">Ajouter une photo</span>
                   </div>
@@ -359,7 +336,7 @@ export default function AthleteDetailPage() {
             <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <Calendar className="h-3 w-3" /> Date de naissance
                   </p>
                   <p className="font-medium">
@@ -371,7 +348,7 @@ export default function AthleteDetailPage() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <Phone className="h-3 w-3" /> Téléphone
                   </p>
                   <p className="font-medium">{athlete.phone ?? "—"}</p>
@@ -379,7 +356,7 @@ export default function AthleteDetailPage() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <Mail className="h-3 w-3" /> Mail
                   </p>
                   <p className="font-medium truncate">{athlete.email ?? "—"}</p>
@@ -391,7 +368,7 @@ export default function AthleteDetailPage() {
             <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3 mt-4 pt-4 border-t border-blue-100">
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <Ruler className="h-3 w-3" /> Taille
                   </p>
                   <p className="font-medium">
@@ -403,7 +380,7 @@ export default function AthleteDetailPage() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <Weight className="h-3 w-3" /> Poids
                   </p>
                   <p className="font-medium">
@@ -415,14 +392,14 @@ export default function AthleteDetailPage() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-gray-400">
                     <span className="text-sm">📊</span> IMC
                   </p>
                   <p className="font-medium">
                     {bmiValue !== null ? (
                       <>
                         <span className={bmiClass}>{bmiValue.toFixed(1)}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{bmiLabel}</span>
+                        <span className="text-xs text-gray-400 ml-2">{bmiLabel}</span>
                       </>
                     ) : "—"}
                   </p>
@@ -430,23 +407,23 @@ export default function AthleteDetailPage() {
               </div>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Convocations: Entraînement | Match */}
       {isPresentSomeData && (
-        <Card>
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl">
-            <CardTitle className="flex items-center gap-2">
+        <Card shadow="sm" radius="md" withBorder>
+          <div className="bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl px-4 pt-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
               <span className="text-blue-500">📋</span>
               Convocations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h2>
+          </div>
+          <div className="p-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-muted-foreground">
+                  <tr className="border-b text-left text-gray-400">
                     <th className="pb-3 font-medium"></th>
                     <th className="pb-3 font-medium text-right">Total</th>
                     <th className="pb-3 font-medium text-right">Présences</th>
@@ -502,24 +479,24 @@ export default function AthleteDetailPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Tests physique — Radar */}
-      <Card>
-        <CardHeader className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl">
-          <CardTitle className="flex items-center gap-2">
+      <Card shadow="sm" radius="md" withBorder>
+        <div className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl px-4 pt-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
             <span className="text-indigo-500">📊</span>
             Tests physiques
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Comparaison avec la moyenne de l&apos;équipe — les valeurs sont normalisées (100 % = moyenne équipe)
+          </h2>
+          <p className="text-sm text-gray-500">
+            Comparaison avec la moyenne de l'équipe — les valeurs sont normalisées (100 % = moyenne équipe)
           </p>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {comparisonChartData.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-gray-400 py-8">
               Aucune donnée de test disponible
             </p>
           ) : (
@@ -586,7 +563,7 @@ export default function AthleteDetailPage() {
                           </div>
                         ))}
                         {data?._rawAthlete && (
-                          <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-muted-foreground">
+                          <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
                             <div>Athlète : <strong>{data._rawAthlete} {data._unit}</strong></div>
                             <div>Équipe : <strong>{data._rawTeam} {data._unit}</strong></div>
                             {data._rawNorm && <div>Norme : <strong>{data._rawNorm} {data._unit}</strong></div>}
@@ -599,35 +576,35 @@ export default function AthleteDetailPage() {
               </RadarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       {/* Résultats détaillés des tests */}
       {comparison.length > 0 && (
-        <Card>
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl">
+        <Card shadow="sm" radius="md" withBorder>
+          <div className="bg-gradient-to-r from-blue-50 to-transparent rounded-t-xl px-4 pt-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <CardTitle className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
                 <span className="text-blue-500">🎯</span>
                 Résultats par test
-              </CardTitle>
+              </h2>
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Search filter */}
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Filtrer..."
                     value={searchFilter}
                     onChange={(e) => { setSearchFilter(e.target.value); setShowAllTests(false) }}
-                    className="h-8 w-36 rounded-md border border-input bg-background pl-8 pr-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-8 w-36 rounded-md border border-gray-300 bg-white pl-8 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 {/* Sort selector */}
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as "name" | "value" | "norm")}
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="name">Nom</option>
                   <option value="value">Valeur</option>
@@ -635,8 +612,8 @@ export default function AthleteDetailPage() {
                 </select>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
+          </div>
+          <div className="p-4 space-y-5">
             {(() => {
               // Build enriched items
               const items = comparison
@@ -697,12 +674,12 @@ export default function AthleteDetailPage() {
               return (
                 <>
                   {sorted.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-4">
+                    <p className="text-center text-gray-400 py-4">
                       {searchFilter.trim() ? "Aucun test ne correspond à votre recherche" : "Aucune donnée de test disponible"}
                     </p>
                   ) : (
                     <>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-400">
                         {totalCount} test{totalCount > 1 ? "s" : ""}
                         {!showAllTests && totalCount > 5 && ` — affichage des 5 premiers`}
                       </p>
@@ -723,13 +700,13 @@ export default function AthleteDetailPage() {
                                 </div>
                                 <div>
                                   <p className="font-semibold text-sm text-gray-800">{i.testName}</p>
-                                  <p className="text-xs text-muted-foreground">{i.unit}</p>
+                                  <p className="text-xs text-gray-400">{i.unit}</p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <p className="text-2xl font-bold tracking-tight text-blue-700">
                                   {i.athleteVal.toFixed(1)}
-                                  <span className="text-sm font-normal text-muted-foreground ml-1">{i.unit}</span>
+                                  <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
                                 </p>
                               </div>
                             </div>
@@ -750,14 +727,14 @@ export default function AthleteDetailPage() {
                               <div className="absolute bottom-0 left-0 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500"
                                 style={{ width: `${Math.min(athletePct, 100)}%` }}
                               />
-                              <div className="absolute bottom-0 left-0 h-3 w-full rounded-full bg-muted/50" />
+                              <div className="absolute bottom-0 left-0 h-3 w-full rounded-full bg-gray-100" />
                             </div>
 
                             <div className="flex items-center justify-between text-xs flex-wrap gap-x-4 gap-y-1">
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="flex items-center gap-1 text-muted-foreground">
+                                <span className="flex items-center gap-1 text-gray-400">
                                   <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" />
-                                  Équipe: <strong className="text-foreground">{i.teamAvg.toFixed(1)}</strong>
+                                  Équipe: <strong className="text-gray-700">{i.teamAvg.toFixed(1)}</strong>
                                   {i.athleteVsAvg !== null && (
                                     <span className={`text-[11px] font-medium ${
                                       Number(i.athleteVsAvg) >= 0 ? "text-green-600" : "text-red-500"
@@ -767,9 +744,9 @@ export default function AthleteDetailPage() {
                                   )}
                                 </span>
                                 {i.normValue !== undefined && i.normValue !== null && (
-                                  <span className="flex items-center gap-1 text-muted-foreground">
+                                  <span className="flex items-center gap-1 text-gray-400">
                                     <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cyan-400" />
-                                    Norme: <strong className="text-foreground">{Number(i.normValue).toFixed(1)}</strong>
+                                    Norme: <strong className="text-gray-700">{Number(i.normValue).toFixed(1)}</strong>
                                     {beatsNormVal !== null && (
                                       <span className={`text-[11px] font-medium ${
                                         beatsNormVal ? "text-cyan-600" : "text-orange-500"
@@ -800,69 +777,72 @@ export default function AthleteDetailPage() {
                 </>
               )
             })()}
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Historique des blessures */}
       {injuries.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-700">
+        <Card shadow="sm" radius="md" withBorder>
+          <Card.Section withBorder inheritPadding py="sm">
+            <div className="flex items-center gap-2 text-amber-700">
               <span>🩹</span>
-              Historique des blessures
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+              <h2 className="text-xl font-semibold">Historique des blessures</h2>
+            </div>
+          </Card.Section>
+          <div className="p-4 overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Blessure</TableHead>
-                  <TableHead className="whitespace-nowrap">Date</TableHead>
-                  <TableHead className="whitespace-nowrap">Guérison</TableHead>
-                  <TableHead>Suivi</TableHead>
-                  <TableHead>Équipe</TableHead>
-                  {isAdmin && <TableHead className="text-right w-[100px]">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Blessure</Table.Th>
+                  <Table.Th className="whitespace-nowrap">Date</Table.Th>
+                  <Table.Th className="whitespace-nowrap">Guérison</Table.Th>
+                  <Table.Th>Suivi</Table.Th>
+                  <Table.Th>Équipe</Table.Th>
+                  {isAdmin && <Table.Th className="text-right w-[100px]">Actions</Table.Th>}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {injuries.map((inj: any) => {
                   const isEditing = editingInjuryId === inj.id
                   return (
-                    <TableRow key={inj.id} className={!inj.recoveryDate ? "bg-amber-50/30" : ""}>
-                      <TableCell className="font-medium">
+                    <Table.Tr key={inj.id} className={!inj.recoveryDate ? "bg-amber-50/30" : ""}>
+                      <Table.Td className="font-medium">
                         <div className="flex items-center gap-2">
                           {!inj.recoveryDate && <span className="text-amber-500 text-xs">🩹</span>}
                           {isEditing ? (
-                            <Input
+                            <TextInput
                               value={editInjuryForm.injury}
                               onChange={(e) => setEditInjuryForm((p) => ({ ...p, injury: e.target.value }))}
-                              className="h-8 text-sm w-36"
+                              size="xs"
+                              className="w-36"
                             />
                           ) : (
                             inj.injury
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
+                      </Table.Td>
+                      <Table.Td className="whitespace-nowrap text-sm">
                         {isEditing ? (
-                          <Input
+                          <TextInput
                             type="date"
                             value={editInjuryForm.injuryDate}
                             onChange={(e) => setEditInjuryForm((p) => ({ ...p, injuryDate: e.target.value }))}
-                            className="h-8 text-sm w-32"
+                            size="xs"
+                            className="w-32"
                           />
                         ) : (
                           new Date(inj.injuryDate).toLocaleDateString("fr-FR")
                         )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
+                      </Table.Td>
+                      <Table.Td className="whitespace-nowrap text-sm">
                         {isEditing ? (
-                          <Input
+                          <TextInput
                             type="date"
                             value={editInjuryForm.recoveryDate}
                             onChange={(e) => setEditInjuryForm((p) => ({ ...p, recoveryDate: e.target.value }))}
-                            className="h-8 text-sm w-32"
+                            size="xs"
+                            className="w-32"
                           />
                         ) : inj.recoveryDate ? (
                           <span className="text-green-600 font-medium">
@@ -871,97 +851,89 @@ export default function AthleteDetailPage() {
                         ) : (
                           <span className="text-amber-500 font-medium">En cours</span>
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                      </Table.Td>
+                      <Table.Td className="text-sm text-gray-400 max-w-[200px]">
                         {isEditing ? (
                           <textarea
                             value={editInjuryForm.injuryNotes}
                             onChange={(e) => setEditInjuryForm((p) => ({ ...p, injuryNotes: e.target.value }))}
                             rows={2}
-                            className="flex w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                            className="flex w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs"
                           />
                         ) : (
                           <span className="line-clamp-2">{inj.injuryNotes || "—"}</span>
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      </Table.Td>
+                      <Table.Td className="text-sm text-gray-400">
                         {inj.athleteTeam?.team?.name || "—"}
-                      </TableCell>
+                      </Table.Td>
                       {isAdmin && (
-                        <TableCell className="text-right">
+                        <Table.Td className="text-right">
                           {isEditing ? (
                             <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              <button
                                 onClick={() => saveInjuryEdit(inj.id)}
                                 disabled={savingInjury}
-                                className="h-8 w-8 p-0 text-green-600 hover:bg-green-50"
+                                className="h-8 w-8 p-0 text-green-600 hover:bg-green-50 rounded"
                               >
                                 <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              </button>
+                              <button
                                 onClick={() => setEditingInjuryId(null)}
-                                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 rounded"
                               >
                                 <X className="h-4 w-4" />
-                              </Button>
+                              </button>
                             </div>
                           ) : (
                             <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              <button
                                 onClick={() => startInjuryEdit(inj)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 rounded"
                               >
                                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              </button>
+                              <button
                                 onClick={() => deleteInjury(inj.id)}
-                                className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              </button>
                             </div>
                           )}
-                        </TableCell>
+                        </Table.Td>
                       )}
-                    </TableRow>
+                    </Table.Tr>
                   )
                 })}
-              </TableBody>
+              </Table.Tbody>
             </Table>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Delete confirmation */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer l&apos;athlète</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{athlete.firstName} {athlete.lastName}</strong> ?
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        opened={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Supprimer l'athlète"
+        size="md"
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer <strong>{athlete.firstName} {athlete.lastName}</strong> ?
+          Cette action est irréversible.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={handleDelete} loading={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 

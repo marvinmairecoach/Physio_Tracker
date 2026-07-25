@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, Save, Target, Radar as RadarIcon, Check, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Slider } from "@/components/ui/slider"
+import { ArrowLeft, Save, Target, Radar as RadarIcon, Check } from "lucide-react"
+import { Button, Card, TextInput, Textarea, Badge, Switch } from "@mantine/core"
 import {
   RadarChart,
   Radar,
@@ -18,7 +11,6 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
-  Tooltip,
   Legend,
 } from "recharts"
 
@@ -162,7 +154,7 @@ export default function CreateBilanPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
 
   const selectedArray = Array.from(selectedIds)
 
@@ -170,17 +162,17 @@ export default function CreateBilanPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Nouveau bilan</h1>
-          <p className="text-sm text-muted-foreground">{athleteName}</p>
+          <p className="text-sm text-gray-500">{athleteName}</p>
         </div>
         <Button
-          className="ml-auto bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700"
+          className="ml-auto"
           onClick={handleSave}
-          disabled={saving}
+          loading={saving}
         >
           <Save className="mr-1 h-4 w-4" />
           {saving ? "Enregistrement..." : "Enregistrer"}
@@ -191,45 +183,40 @@ export default function CreateBilanPage() {
         {/* Left column: form */}
         <div className="space-y-6 lg:col-span-2">
           {/* Title + desc */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informations</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Titre du bilan</Label>
-                <Input
-                  placeholder="Bilan pré-saison 2025"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Description (optionnelle)</Label>
-                <Textarea
-                  placeholder="Résumé des capacités athlétiques..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </CardContent>
+          <Card shadow="sm" radius="md" withBorder>
+            <Card.Section withBorder inheritPadding py="sm">
+              <h2 className="text-lg font-semibold">Informations</h2>
+            </Card.Section>
+            <div className="p-4 space-y-4">
+              <TextInput
+                label="Titre du bilan"
+                placeholder="Bilan pré-saison 2025"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <Textarea
+                label="Description (optionnelle)"
+                placeholder="Résumé des capacités athlétiques..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
           </Card>
 
           {/* Test selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+          <Card shadow="sm" radius="md" withBorder>
+            <Card.Section withBorder inheritPadding py="sm">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Target className="h-4 w-4 text-blue-500" />
                 Sélection des tests
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
+              </h2>
+              <p className="text-sm text-gray-500">
                 {selectedArray.length} test{selectedArray.length > 1 ? "s" : ""} sélectionné{selectedArray.length > 1 ? "s" : ""}
               </p>
-            </CardHeader>
-            <CardContent>
+            </Card.Section>
+            <div className="p-4">
               {testTypesWithData.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
+                <p className="text-center text-gray-400 py-4">
                   Aucun résultat de test enregistré pour cet athlète
                 </p>
               ) : (
@@ -248,29 +235,25 @@ export default function CreateBilanPage() {
                         onClick={() => toggleTest(tt.id)}
                         className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
                           isSelected
-                            ? "border-blue-300 bg-blue-50/50 shadow-sm"
-                            : "border-border hover:border-blue-200"
+                            ? "border-blue-300 bg-blue-50 shadow-sm"
+                            : "border-gray-200 hover:border-blue-200"
                         }`}
                       >
                         <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                          isSelected ? "border-blue-500 bg-blue-500" : "border-muted-foreground/30"
+                          isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300"
                         }`}>
                           {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{tt.name}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-gray-400">
                             {val.toFixed(1)} {tt.unit}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <Badge variant="outline" className={`text-xs ${
-                            beatsNorm === true
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : beatsNorm === false
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-muted/50 text-muted-foreground"
-                          }`}>
+                          <Badge color={
+                            beatsNorm === true ? "green" : beatsNorm === false ? "orange" : "gray"
+                          } variant="light" size="sm">
                             {beatsNorm === true ? "✓ Norme" : beatsNorm === false ? "Sous norme" : "—"}
                           </Badge>
                         </div>
@@ -279,59 +262,60 @@ export default function CreateBilanPage() {
                   })}
                 </div>
               )}
-            </CardContent>
+            </div>
           </Card>
         </div>
 
         {/* Right column: config + preview */}
         <div className="space-y-6">
           {/* Radar config */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+          <Card shadow="sm" radius="md" withBorder>
+            <Card.Section withBorder inheritPadding py="sm">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <RadarIcon className="h-4 w-4 text-blue-500" />
                 Configuration radar
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
+              </h2>
+            </Card.Section>
+            <div className="p-4 space-y-5">
               <div>
-                <Label className="flex items-center justify-between">
-                  <span>Nombre de tests affichés</span>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Nombre de tests affichés</label>
                   <span className="text-lg font-bold text-blue-600">{radarCount}</span>
-                </Label>
-                <Slider
-                  value={[radarCount]}
-                  onValueChange={([v]) => setRadarCount(v)}
+                </div>
+                <input
+                  type="range"
+                  value={radarCount}
+                  onChange={(e) => setRadarCount(Number(e.target.value))}
                   min={3}
                   max={Math.max(selectedArray.length, 8)}
                   step={1}
-                  className="mt-2"
+                  className="w-full mt-2"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   {Math.min(radarCount, selectedArray.length)}/{selectedArray.length} tests visibles sur le radar
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="show-norms" className="cursor-pointer">Afficher les normes</Label>
-                <Switch id="show-norms" checked={showNorms} onCheckedChange={setShowNorms} />
+                <label className="text-sm font-medium cursor-pointer">Afficher les normes</label>
+                <Switch checked={showNorms} onChange={(e) => setShowNorms(e.currentTarget.checked)} />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="show-team" className="cursor-pointer">Comparaison équipe</Label>
-                <Switch id="show-team" checked={showTeamComparison} onCheckedChange={setShowTeamComparison} />
+                <label className="text-sm font-medium cursor-pointer">Comparaison équipe</label>
+                <Switch checked={showTeamComparison} onChange={(e) => setShowTeamComparison(e.currentTarget.checked)} />
               </div>
-            </CardContent>
+            </div>
           </Card>
 
           {/* Radar preview */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Aperçu radar</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card shadow="sm" radius="md" withBorder>
+            <Card.Section withBorder inheritPadding py="xs">
+              <h3 className="text-sm font-medium text-gray-400">Aperçu radar</h3>
+            </Card.Section>
+            <div className="p-4">
               {radarData.length < 3 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <RadarIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                  <p className="text-xs text-muted-foreground">
+                  <RadarIcon className="h-8 w-8 text-gray-200 mb-2" />
+                  <p className="text-xs text-gray-400">
                     Sélectionnez au moins 3 tests pour voir l&apos;aperçu
                   </p>
                 </div>
@@ -374,7 +358,7 @@ export default function CreateBilanPage() {
                   </RadarChart>
                 </ResponsiveContainer>
               )}
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>

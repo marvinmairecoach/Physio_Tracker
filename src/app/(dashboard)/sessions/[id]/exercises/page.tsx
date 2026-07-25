@@ -4,17 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, Save, Search, Dumbbell, GripVertical, ChevronUp, ChevronDown, Trash2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+import { Button, Card, TextInput, Badge } from "@mantine/core"
 
 interface Exercise {
   id: string
@@ -201,7 +191,7 @@ export default function EditSessionExercisesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push(`/sessions/${sessionId}`)}>
+          <Button variant="subtle" size="compact-sm" onClick={() => router.push(`/sessions/${sessionId}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">Exercices — {session.title}</h1>
@@ -228,18 +218,18 @@ export default function EditSessionExercisesPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Bibliothèque d'exercices */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card withBorder className="max-w-none">
+          <div className="px-6 pt-6 pb-3">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
               <Dumbbell className="h-5 w-5" />
               Bibliothèque d&apos;exercices
-            </CardTitle>
-            <CardDescription>Ajoute des exercices à la séance</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">Ajoute des exercices à la séance</p>
+          </div>
+          <div className="px-6 pb-6 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+              <TextInput
                 placeholder="Rechercher un exercice..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -270,27 +260,27 @@ export default function EditSessionExercisesPage() {
                       <span className={`text-[10px] rounded-full border px-2 py-0.5 ${catColor(ex.category)}`}>
                         {catLabel(ex.category)}
                       </span>
-                      {added && <Badge variant="outline" className="text-[10px]">Ajouté</Badge>}
+                      {added && <Badge size="xs">Ajouté</Badge>}
                     </div>
                   )
                 })
               )}
             </div>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Exercices de la séance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card withBorder className="max-w-none">
+          <div className="px-6 pt-6 pb-3">
+            <h2 className="text-xl font-semibold">
               Exercices de la séance
               {exercises.length > 0 && <span className="ml-2 text-muted-foreground">({exercises.length})</span>}
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
               Glisse-dépose ou utilise les flèches pour réordonner. Ajoute une durée à chaque exercice.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+          </div>
+          <div className="px-6 pb-6">
             {exercises.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Dumbbell className="h-10 w-10 mx-auto mb-2 opacity-30" />
@@ -332,7 +322,7 @@ export default function EditSessionExercisesPage() {
 
                       {/* Duration */}
                       <div className="flex items-center gap-1">
-                        <Input
+                        <TextInput
                           type="number"
                           min="0"
                           max="999"
@@ -384,7 +374,7 @@ export default function EditSessionExercisesPage() {
                 )}
               </div>
             )}
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>

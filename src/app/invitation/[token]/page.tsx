@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle, XCircle, Clock, ChevronLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
+import { Button, Card } from "@mantine/core"
 
 interface Session {
   id: string
@@ -106,11 +104,11 @@ export default function InvitationPage() {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="py-12 text-center">
+        <Card withBorder className="w-full max-w-md">
+          <div className="py-12 text-center">
             <XCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
             <p className="text-lg font-medium text-red-600">{error}</p>
-          </CardContent>
+          </div>
         </Card>
       </div>
     )
@@ -124,8 +122,8 @@ export default function InvitationPage() {
     }
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="py-12">
+        <Card withBorder className="w-full max-w-md text-center">
+          <div className="py-12">
             <CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" />
             <h2 className="mb-2 text-xl font-bold">Merci !</h2>
             <p className="text-muted-foreground">
@@ -134,7 +132,7 @@ export default function InvitationPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Disponibilité : <strong>{responseLabels[availability] || availability}</strong>
             </p>
-          </CardContent>
+          </div>
         </Card>
       </div>
     )
@@ -163,10 +161,10 @@ export default function InvitationPage() {
         </button>
 
         {/* En-tête */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">{session?.title}</CardTitle>
-            <CardDescription>
+        <Card withBorder>
+          <div className="px-6 pt-6 pb-3">
+            <h2 className="text-2xl font-bold">{session?.title}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
               {typeLabel} — {dateStr}
               {session?.startTime && (
                 <span>
@@ -179,34 +177,34 @@ export default function InvitationPage() {
                 </span>
               )}
               {session?.location && <span> — {session.location}</span>}
-            </CardDescription>
-          </CardHeader>
+            </p>
+          </div>
           {session?.description && (
-            <CardContent>
+            <div className="px-6 pb-3">
               <div
                 className="prose prose-sm max-w-none text-muted-foreground"
                 dangerouslySetInnerHTML={{ __html: session.description }}
               />
-            </CardContent>
+            </div>
           )}
           {athlete && (
-            <CardContent className="border-t pt-4">
+            <div className="px-6 pb-6 border-t pt-4">
               <p className="text-sm text-muted-foreground">
                 Bonjour <strong>{athlete.firstName} {athlete.lastName}</strong>,
                 merci de confirmer ta disponibilité.
               </p>
-            </CardContent>
+            </div>
           )}
         </Card>
 
         {/* Formulaire */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Disponibilité */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Disponibilité</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card withBorder>
+            <div className="px-6 pt-6 pb-3">
+              <h2 className="text-lg font-semibold">Disponibilité</h2>
+            </div>
+            <div className="px-6 pb-6">
               <div className="space-y-3">
                 <button
                   type="button"
@@ -266,20 +264,20 @@ export default function InvitationPage() {
                   </div>
                 </button>
               </div>
-            </CardContent>
+            </div>
           </Card>
 
           {/* Bien-être */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Comment te sens-tu aujourd'hui ?</CardTitle>
-              <CardDescription>Note chaque question de 1 à 10</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <Card withBorder>
+            <div className="px-6 pt-6 pb-3">
+              <h2 className="text-lg font-semibold">Comment te sens-tu aujourd'hui ?</h2>
+              <p className="text-sm text-muted-foreground mt-1">Note chaque question de 1 à 10</p>
+            </div>
+            <div className="px-6 pb-6 space-y-6">
               <div>
-                <Label className="mb-3 block">
+                <p className="text-sm font-medium mb-3">
                   Comment te sens-tu <strong>physiquement</strong> ?
-                </Label>
+                </p>
                 <div className="flex gap-1 justify-between">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
@@ -303,9 +301,9 @@ export default function InvitationPage() {
               </div>
 
               <div>
-                <Label className="mb-3 block">
+                <p className="text-sm font-medium mb-3">
                   Comment te sens-tu <strong>moralement</strong> ?
-                </Label>
+                </p>
                 <div className="flex gap-1 justify-between">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
@@ -329,9 +327,9 @@ export default function InvitationPage() {
               </div>
 
               <div>
-                <Label className="mb-3 block">
+                <p className="text-sm font-medium mb-3">
                   Comment as-tu <strong>dormi</strong> la nuit dernière ?
-                </Label>
+                </p>
                 <div className="flex gap-1 justify-between">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
@@ -353,7 +351,7 @@ export default function InvitationPage() {
                   <span>Parfaitement</span>
                 </div>
               </div>
-            </CardContent>
+            </div>
           </Card>
 
           {error && <p className="text-sm text-red-500">{error}</p>}

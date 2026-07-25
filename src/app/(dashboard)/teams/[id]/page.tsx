@@ -5,33 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, UserPlus, Search, X, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Minus } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button, Card, Table, Badge, Modal, TextInput, NativeSelect } from "@mantine/core"
 
 interface Team {
   id: string
@@ -87,12 +61,6 @@ const STATUS_LABELS: Record<string, string> = {
   actif: "Actif",
   blessé: "Blessé",
   inactif: "Inactif",
-}
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  actif: "default",
-  blessé: "outline",
-  inactif: "secondary",
 }
 
 type PlayersSortKey = "nom" | "poste" | "statut"
@@ -370,16 +338,16 @@ export default function TeamDetailPage() {
   // Show only active members in the table by default (can toggle with sort)
   const visibleMembers = sortedMembers
 
-  if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
-  if (!team) return <div className="p-6 text-center text-muted-foreground">Équipe introuvable</div>
+  if (!team) return <div className="p-6 text-center text-gray-500">Équipe introuvable</div>
 
   return (
     <div className="space-y-6">
       {/* Header with admin actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/teams")}>
+          <Button variant="outline" onClick={() => router.push("/teams")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">{team.name}</h1>
@@ -392,7 +360,7 @@ export default function TeamDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+              color="red"
               onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -403,49 +371,49 @@ export default function TeamDetailPage() {
       </div>
 
       {/* Team Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card.Section withBorder inheritPadding py="sm">
+          <h2 className="text-xl font-semibold">Informations</h2>
+        </Card.Section>
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
           <div>
-            <p className="text-sm text-muted-foreground">Sport</p>
+            <p className="text-sm text-gray-500">Sport</p>
             <p className="font-medium">{team.sport ?? "Non spécifié"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Genre</p>
+            <p className="text-sm text-gray-500">Genre</p>
             <p className="font-medium">{team.gender === "M" ? "Masculin" : team.gender === "F" ? "Féminin" : "Non spécifié"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Actifs</p>
+            <p className="text-sm text-gray-500">Actifs</p>
             <p className="font-medium">{team.actifCount}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Blessés</p>
+            <p className="text-sm text-gray-500">Blessés</p>
             <p className="font-medium">{team.blesseCount}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Inactifs</p>
+            <p className="text-sm text-gray-500">Inactifs</p>
             <p className="font-medium">{team.inactifCount}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Coachs</p>
+            <p className="text-sm text-gray-500">Coachs</p>
             <p className="font-medium">{team.coaches && team.coaches.length > 0 ? team.coaches.map(c => `${c.firstName} ${c.lastName}`).join(", ") : "—"}</p>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Players Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <div className="flex flex-row items-center justify-between px-4 pt-4">
           <div>
-            <CardTitle>Joueurs</CardTitle>
-            <CardDescription>
+            <h2 className="text-xl font-semibold">Joueurs</h2>
+            <p className="text-sm text-gray-500">
               {activeMemberCount} joueur(s) actif(s) dans cette équipe
               {members.length !== activeMemberCount && (
-                <span className="text-muted-foreground"> ({members.length} au total)</span>
+                <span className="text-gray-400"> ({members.length} au total)</span>
               )}
-            </CardDescription>
+            </p>
           </div>
           {canManage && (
             <Button onClick={openAssignDialog}>
@@ -453,184 +421,174 @@ export default function TeamDetailPage() {
               Ajouter un joueur
             </Button>
           )}
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  className="cursor-pointer select-none hover:text-foreground/80"
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th
+                  className="cursor-pointer select-none hover:text-gray-600"
                   onClick={() => togglePlayersSort("nom")}
                 >
                   Nom
                   <SortIcon currentKey={playersSort.key} sortKey="nom" dir={playersSort.dir} />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none hover:text-foreground/80"
+                </Table.Th>
+                <Table.Th
+                  className="cursor-pointer select-none hover:text-gray-600"
                   onClick={() => togglePlayersSort("poste")}
                 >
                   Poste
                   <SortIcon currentKey={playersSort.key} sortKey="poste" dir={playersSort.dir} />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none hover:text-foreground/80"
+                </Table.Th>
+                <Table.Th
+                  className="cursor-pointer select-none hover:text-gray-600"
                   onClick={() => togglePlayersSort("statut")}
                 >
                   Statut
                   <SortIcon currentKey={playersSort.key} sortKey="statut" dir={playersSort.dir} />
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {visibleMembers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                <Table.Tr>
+                  <Table.Td colSpan={3} className="text-center text-gray-500">
                     Aucun joueur dans cette équipe
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 visibleMembers.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/athletes/${m.athlete.id}`} className="hover:text-primary transition-colors">
+                  <Table.Tr key={m.id}>
+                    <Table.Td className="font-medium">
+                      <Link href={`/athletes/${m.athlete.id}`} className="hover:text-blue-600 transition-colors">
                         {m.athlete.firstName} {m.athlete.lastName}
                       </Link>
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {canManage ? (
-                        <select
+                        <NativeSelect
                           value={m.position ?? ""}
-                          onChange={(e) => handlePositionChange(m.id, e.target.value)}
-                          className="h-7 rounded-md border px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <option value="">—</option>
-                          {POSITIONS.map((p) => (
-                            <option key={p} value={p}>{p}</option>
-                          ))}
-                        </select>
+                          onChange={(e) => handlePositionChange(m.id, e.currentTarget.value)}
+                          data={[
+                            { value: "", label: "—" },
+                            ...POSITIONS.map((p) => ({ value: p, label: p })),
+                          ]}
+                          size="xs"
+                          className="w-32"
+                        />
                       ) : (
                         m.position ?? "—"
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {canManage ? (
-                        <select
+                        <NativeSelect
                           value={m.status}
-                          onChange={(e) => handleStatusChange(m.id, e.target.value)}
-                          className={`h-7 rounded-md border px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            m.status === "actif"
-                              ? "border-green-200 text-green-700 bg-green-50"
-                              : m.status === "blessé"
-                              ? "border-amber-200 text-amber-700 bg-amber-50"
-                              : "border-gray-200 text-gray-500 bg-gray-50"
-                          }`}
-                        >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {STATUS_LABELS[s]}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(e) => handleStatusChange(m.id, e.currentTarget.value)}
+                          data={STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
+                          size="xs"
+                          className="w-24"
+                        />
                       ) : (
-                        <Badge variant={STATUS_VARIANTS[m.status] || "secondary"}>
+                        <Badge color={m.status === "actif" ? "green" : m.status === "blessé" ? "orange" : "gray"}>
                           {STATUS_LABELS[m.status] || m.status}
                         </Badge>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Player Test Results */}
       {testTypes.length > 0 && (
-        <Card>
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl">
-            <CardTitle>Résultats aux tests</CardTitle>
-            <CardDescription>
-              Comparaison individuelle avec la moyenne de l&apos;équipe
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <div className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl px-4 pt-4">
+            <h2 className="text-xl font-semibold">Résultats aux tests</h2>
+            <p className="text-sm text-gray-500">
+              Comparaison individuelle avec la moyenne de l'équipe
               — <span className="text-green-600 font-medium">vert</span> = au-dessus,
               <span className="text-red-500 font-medium"> rouge</span> = en dessous de la moyenne
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+            </p>
+          </div>
+          <div className="p-4 overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="whitespace-nowrap min-w-[150px] cursor-pointer select-none hover:text-foreground/80"
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th
+                    className="whitespace-nowrap min-w-[150px] cursor-pointer select-none hover:text-gray-600"
                     onClick={() => toggleResultsSort("joueur")}
                   >
                     Joueur
                     <SortIcon currentKey={resultsSort.key} sortKey="joueur" dir={resultsSort.dir} />
-                  </TableHead>
-                  <TableHead
-                    className="whitespace-nowrap cursor-pointer select-none hover:text-foreground/80"
+                  </Table.Th>
+                  <Table.Th
+                    className="whitespace-nowrap cursor-pointer select-none hover:text-gray-600"
                     onClick={() => toggleResultsSort("poste")}
                   >
                     Poste
                     <SortIcon currentKey={resultsSort.key} sortKey="poste" dir={resultsSort.dir} />
-                  </TableHead>
+                  </Table.Th>
                   {testTypes.map((tt) => (
-                    <TableHead
+                    <Table.Th
                       key={tt.id}
-                      className="text-right whitespace-nowrap min-w-[100px] cursor-pointer select-none hover:text-foreground/80"
+                      className="text-right whitespace-nowrap min-w-[100px] cursor-pointer select-none hover:text-gray-600"
                       onClick={() => toggleResultsSort(tt.id)}
                     >
-                      <div className="text-xs text-muted-foreground font-normal">
+                      <div className="text-xs text-gray-400 font-normal">
                         Moy. équipe
                       </div>
                       {team.gender === "M" && tt.normMale != null && (
-                        <div className="text-xs text-muted-foreground font-normal">
+                        <div className="text-xs text-gray-400 font-normal">
                           Norme: {tt.normMale.toFixed(2)}
                         </div>
                       )}
                       {team.gender === "F" && tt.normFemale != null && (
-                        <div className="text-xs text-muted-foreground font-normal">
+                        <div className="text-xs text-gray-400 font-normal">
                           Norme: {tt.normFemale.toFixed(2)}
                         </div>
                       )}
                       <div>
                         {tt.name}
-                        <span className="text-xs text-muted-foreground ml-1">({tt.unit})</span>
+                        <span className="text-xs text-gray-400 ml-1">({tt.unit})</span>
                         <SortIcon currentKey={resultsSort.key} sortKey={tt.id} dir={resultsSort.dir} />
                       </div>
-                    </TableHead>
+                    </Table.Th>
                   ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow className="bg-muted/30">
-                  <TableCell className="font-semibold text-sm" colSpan={2}>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                <Table.Tr className="bg-gray-50">
+                  <Table.Td className="font-semibold text-sm" colSpan={2}>
                     Moyenne équipe
-                  </TableCell>
+                  </Table.Td>
                   {testTypes.map((tt) => (
-                    <TableCell key={tt.id} className="text-right font-semibold text-sm">
+                    <Table.Td key={tt.id} className="text-right font-semibold text-sm">
                       {tt.teamAverage > 0 ? tt.teamAverage.toFixed(2) : "—"}
-                    </TableCell>
+                    </Table.Td>
                   ))}
-                </TableRow>
+                </Table.Tr>
 
                 {sortedPlayers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={2 + testTypes.length} className="text-center text-muted-foreground">
+                  <Table.Tr>
+                    <Table.Td colSpan={2 + testTypes.length} className="text-center text-gray-500">
                       Aucun résultat de test pour cette équipe
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 )}
                 {sortedPlayers.map((player) => (
-                  <TableRow key={player.id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell className="font-medium whitespace-nowrap">
-                      <Link href={`/athletes/${player.id}`} className="hover:text-primary transition-colors">
+                  <Table.Tr key={player.id} className="hover:bg-gray-50 transition-colors">
+                    <Table.Td className="font-medium whitespace-nowrap">
+                      <Link href={`/athletes/${player.id}`} className="hover:text-blue-600 transition-colors">
                         {player.firstName} {player.lastName}
                       </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    </Table.Td>
+                    <Table.Td className="text-sm text-gray-500">
                       {player.position ?? "—"}
-                    </TableCell>
+                    </Table.Td>
                     {testTypes.map((tt) => {
                       const value = player.results[tt.id]
                       const avg = tt.teamAverage
@@ -638,9 +596,9 @@ export default function TeamDetailPage() {
 
                       if (!hasData) {
                         return (
-                          <TableCell key={tt.id} className="text-right text-muted-foreground text-sm">
+                          <Table.Td key={tt.id} className="text-right text-gray-400 text-sm">
                             —
-                          </TableCell>
+                          </Table.Td>
                         )
                       }
 
@@ -650,13 +608,13 @@ export default function TeamDetailPage() {
                       const diffAbs = Math.abs(diff).toFixed(2)
 
                       return (
-                        <TableCell
+                        <Table.Td
                           key={tt.id}
                           className={`text-right font-medium ${
                             isBetter
-                              ? "text-green-600 bg-green-50/50"
+                              ? "text-green-600 bg-green-50"
                               : isWorse
-                              ? "text-red-500 bg-red-50/50"
+                              ? "text-red-500 bg-red-50"
                               : ""
                           }`}
                         >
@@ -670,137 +628,129 @@ export default function TeamDetailPage() {
                           )}
                           {previousValues[player.id]?.[tt.id] !== undefined && previousValues[player.id]?.[tt.id] !== null && (
                             <div className="text-[10px] opacity-60 flex items-center justify-end gap-0.5">
-                              {((): React.ReactNode => {
+                              {(() => {
                                 const prev = previousValues[player.id][tt.id] as number
-                                const diff = value - prev
-                                if (diff > 0) return <><ChevronUp className="h-3 w-3 text-green-500" />{diff.toFixed(1)}</>
-                                if (diff < 0) return <><ChevronDown className="h-3 w-3 text-red-400" />{Math.abs(diff).toFixed(1)}</>
-                                return <><Minus className="h-3 w-3 text-muted-foreground" />0</>
+                                const diff2 = value - prev
+                                if (diff2 > 0) return <><ChevronUp className="h-3 w-3 text-green-500" />{diff2.toFixed(1)}</>
+                                if (diff2 < 0) return <><ChevronDown className="h-3 w-3 text-red-400" />{Math.abs(diff2).toFixed(1)}</>
+                                return <><Minus className="h-3 w-3 text-gray-400" />0</>
                               })()}
                             </div>
                           )}
-                        </TableCell>
+                        </Table.Td>
                       )
                     })}
-                  </TableRow>
+                  </Table.Tr>
                 ))}
-              </TableBody>
+              </Table.Tbody>
             </Table>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Assign Dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ajouter un joueur</DialogTitle>
-            <DialogDescription>
-              Recherche et sélectionne un joueur à ajouter à l&apos;équipe.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Rechercher un joueur</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Nom du joueur..."
-                  value={athleteSearch}
-                  onChange={(e) => {
-                    setAthleteSearch(e.target.value)
+      <Modal
+        opened={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        title="Ajouter un joueur"
+        size="md"
+      >
+        <p className="text-sm text-gray-500 mb-4">
+          Recherche et sélectionne un joueur à ajouter à l'équipe.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Rechercher un joueur</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <TextInput
+                placeholder="Nom du joueur..."
+                value={athleteSearch}
+                onChange={(e) => {
+                  setAthleteSearch(e.target.value)
+                  setSelectedAthlete(null)
+                }}
+                autoFocus
+              />
+              {athleteSearch && (
+                <button
+                  onClick={() => {
+                    setAthleteSearch("")
                     setSelectedAthlete(null)
                   }}
-                  className="pl-9"
-                  autoFocus
-                />
-                {athleteSearch && (
-                  <button
-                    onClick={() => {
-                      setAthleteSearch("")
-                      setSelectedAthlete(null)
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {athleteSearch && filteredAthletes.length > 0 && (
-              <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border p-1">
-                {filteredAthletes.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedAthlete(a)
-                      setAthleteSearch(`${a.firstName} ${a.lastName}`)
-                    }}
-                    className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                      selectedAthlete?.id === a.id
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "hover:bg-muted"
-                    }`}
-                  >
-                    {a.firstName} {a.lastName}
-                  </button>
-                ))}
-              </div>
-            )}
-            {athleteSearch && filteredAthletes.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucun joueur trouvé</p>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="position">Poste</Label>
-              <select
-                id="position"
-                value={assignPosition}
-                onChange={(e) => setAssignPosition(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Sélectionner un poste</option>
-                {POSITIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleAssign} disabled={!selectedAthlete || assigning}>
-              {assigning ? "Ajout..." : "Ajouter à l'équipe"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+          {athleteSearch && filteredAthletes.length > 0 && (
+            <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border p-1">
+              {filteredAthletes.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAthlete(a)
+                    setAthleteSearch(`${a.firstName} ${a.lastName}`)
+                  }}
+                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                    selectedAthlete?.id === a.id
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {a.firstName} {a.lastName}
+                </button>
+              ))}
+            </div>
+          )}
+          {athleteSearch && filteredAthletes.length === 0 && (
+            <p className="text-sm text-gray-500">Aucun joueur trouvé</p>
+          )}
+
+          <NativeSelect
+            label="Poste"
+            value={assignPosition}
+            onChange={(e) => setAssignPosition(e.currentTarget.value)}
+            data={[
+              { value: "", label: "Sélectionner un poste" },
+              ...POSITIONS.map((p) => ({ value: p, label: p })),
+            ]}
+          />
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setAssignOpen(false)}>
+            Annuler
+          </Button>
+          <Button onClick={handleAssign} disabled={!selectedAthlete || assigning} loading={assigning}>
+            {assigning ? "Ajout..." : "Ajouter à l'équipe"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Delete team confirmation */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer l&apos;équipe</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{team.name}</strong> ?
-              Cette action est irréversible. Les athlètes et leurs résultats seront conservés.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteTeam} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        opened={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Supprimer l'équipe"
+        size="md"
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer <strong>{team.name}</strong> ?
+          Cette action est irréversible. Les athlètes et leurs résultats seront conservés.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={handleDeleteTeam} loading={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

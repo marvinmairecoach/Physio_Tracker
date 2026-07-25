@@ -1,10 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, Badge, Button } from "@mantine/core"
 import { Bell, CheckCheck, AlertTriangle, Info, AlertCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface Alert {
   id: string
@@ -20,17 +18,17 @@ const severityConfig = {
   critical: {
     icon: AlertCircle,
     color: "border-l-red-500 bg-red-50 dark:bg-red-950/20",
-    badge: "destructive",
+    badge: "red" as const,
   },
   warning: {
     icon: AlertTriangle,
     color: "border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/20",
-    badge: "warning",
+    badge: "yellow" as const,
   },
   info: {
     icon: Info,
     color: "border-l-blue-500 bg-blue-50 dark:bg-blue-950/20",
-    badge: "secondary",
+    badge: "blue" as const,
   },
 }
 
@@ -103,21 +101,21 @@ export default function AlertsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
+            variant={filter === "all" ? "filled" : "outline"}
+            size="compact-sm"
             onClick={() => setFilter("all")}
           >
             Toutes
           </Button>
           <Button
-            variant={filter === "unread" ? "default" : "outline"}
-            size="sm"
+            variant={filter === "unread" ? "filled" : "outline"}
+            size="compact-sm"
             onClick={() => setFilter("unread")}
           >
             Non lues
           </Button>
           {alerts.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+            <Button variant="subtle" size="compact-sm" onClick={markAllAsRead}>
               <CheckCheck className="mr-1 h-4 w-4" />
               Tout marquer lu
             </Button>
@@ -132,16 +130,16 @@ export default function AlertsPage() {
       )}
 
       {error && (
-        <Card>
-          <CardContent className="py-8 text-center text-destructive">
+        <Card withBorder className="max-w-none">
+          <div className="py-8 text-center" style={{ color: 'var(--mantine-color-red-filled)' }}>
             {error}
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {!loading && !error && alerts.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <Card withBorder className="max-w-none">
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Bell className="mb-4 h-12 w-12" />
             <p className="text-lg font-medium">Aucune alerte</p>
             <p className="text-sm">
@@ -149,7 +147,7 @@ export default function AlertsPage() {
                 ? "Toutes les alertes ont été lues."
                 : "Aucune alerte pour le moment."}
             </p>
-          </CardContent>
+          </div>
         </Card>
       )}
 
@@ -173,7 +171,7 @@ export default function AlertsPage() {
                             ? `${alert.athlete.firstName} ${alert.athlete.lastName}`
                             : "Système"}
                         </span>
-                        <Badge variant={config.badge as "destructive" | "secondary"}>
+                        <Badge color={config.badge} size="sm">
                           {alert.severity}
                         </Badge>
                         {alert.type && (
@@ -197,8 +195,8 @@ export default function AlertsPage() {
                     </div>
                   </div>
                   <Button
-                    variant="ghost"
-                    size="sm"
+                    variant="subtle"
+                    size="compact-sm"
                     onClick={() => markAsRead(alert.id)}
                   >
                     <CheckCheck className="h-4 w-4" />

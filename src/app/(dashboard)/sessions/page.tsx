@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "@/components/layout/providers"
 import { Plus, List, CalendarDays, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button, Card, Badge } from "@mantine/core"
 
 interface Team {
   id: string
@@ -209,16 +202,16 @@ export default function SessionsPage() {
           {/* View toggle */}
           <div className="flex rounded-md border overflow-hidden">
             <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
+              variant={viewMode === "list" ? "filled" : "subtle"}
+              size="compact-sm"
               onClick={() => setViewMode("list")}
               className="rounded-none"
             >
               <List className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === "calendar" ? "default" : "ghost"}
-              size="sm"
+              variant={viewMode === "calendar" ? "filled" : "subtle"}
+              size="compact-sm"
               onClick={() => setViewMode("calendar")}
               className="rounded-none"
             >
@@ -237,25 +230,25 @@ export default function SessionsPage() {
 
       {/* Calendar View (default) */}
       {viewMode === "calendar" && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setCalDate(new Date(calYear, calMonth - 1, 1))}>
+        <Card withBorder>
+          <div className="flex flex-row items-center justify-between pb-2 px-6 pt-6">
+            <div className="flex items-center gap-3">
+              <Button variant="subtle" size="compact-sm" onClick={() => setCalDate(new Date(calYear, calMonth - 1, 1))}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <span className="text-xl font-semibold">{MONTHS[calMonth]} {calYear}</span>
-              <Button variant="ghost" size="icon" onClick={() => setCalDate(new Date(calYear, calMonth + 1, 1))}>
+              <Button variant="subtle" size="compact-sm" onClick={() => setCalDate(new Date(calYear, calMonth + 1, 1))}>
                 <ChevronRight className="h-5 w-5" />
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setCalDate(new Date())} className="ml-2">
+              <Button variant="outline" size="compact-sm" onClick={() => setCalDate(new Date())} className="ml-2">
                 Aujourd'hui
               </Button>
-            </CardTitle>
+            </div>
             <div className="text-sm text-muted-foreground">
               {calendarSessions.length} événement{calendarSessions.length !== 1 ? "s" : ""}
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="px-6 pb-6 pt-2">
             <div className="grid grid-cols-7 gap-px bg-muted rounded-lg overflow-hidden">
               {/* Day headers */}
               {DAYS.map((d) => (
@@ -314,17 +307,17 @@ export default function SessionsPage() {
                 )
               })}
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {/* List View */}
       {viewMode === "list" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Liste chronologique</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Card withBorder>
+          <div className="px-6 pt-6 pb-2">
+            <h2 className="text-xl font-semibold">Liste chronologique</h2>
+          </div>
+          <div className="px-6 pb-6 space-y-4">
             {paginatedSessions.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Aucune séance trouvée pour cette équipe
@@ -354,7 +347,7 @@ export default function SessionsPage() {
                           {session.type === "MATCH" ? `vs ${session.title}` : session.title}
                         </span>
                         {session.status === "draft" && (
-                          <Badge variant="secondary" className="text-[10px]">Brouillon</Badge>
+                          <Badge color="gray" size="xs">Brouillon</Badge>
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -428,7 +421,7 @@ export default function SessionsPage() {
               <div className="flex items-center justify-center gap-2 pt-4">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="compact-sm"
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
                 >
@@ -440,7 +433,7 @@ export default function SessionsPage() {
                 </span>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="compact-sm"
                   onClick={() => {
                     setPage(page + 1)
                     if (page * ITEMS_PER_PAGE >= filteredSessions.length) {
@@ -454,7 +447,7 @@ export default function SessionsPage() {
                 </Button>
               </div>
             )}
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "@/components/layout/providers"
 import { Bell, User, Key, Shield, LogOut, Settings } from "lucide-react"
 import Link from "next/link"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar } from "@mantine/core"
 
 export function Navbar() {
   const { user } = useSession()
@@ -44,9 +44,7 @@ export function Navbar() {
           <span className="text-sm font-medium hidden sm:block">
             {user?.firstName} {user?.lastName}
           </span>
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
+          <Avatar className="h-8 w-8" color="blue" radius="xl">{initials}</Avatar>
         </button>
 
         {dropdownOpen && (

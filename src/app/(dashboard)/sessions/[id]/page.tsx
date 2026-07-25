@@ -20,23 +20,7 @@ import {
   FileText,
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button, Card, Badge, TextInput, Modal, Text, Group } from "@mantine/core"
 
 // ── Interfaces ──────────────────────────────────
 interface Exercise {
@@ -563,7 +547,7 @@ export default function SessionDetailPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/sessions")}><ArrowLeft className="h-5 w-5" /></Button>
+          <Button variant="subtle" size="compact-xs" onClick={() => router.push("/sessions")}><ArrowLeft className="h-5 w-5" /></Button>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-3xl font-bold tracking-tight">
               {session.type === "MATCH" ? `vs ${session.title}` : session.title}
@@ -571,7 +555,7 @@ export default function SessionDetailPage() {
             <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${typeCfg.color}`}>
               <span>{typeCfg.icon}</span>{typeCfg.label}
             </span>
-            <Badge variant={session.status === "published" ? "default" : "secondary"}>
+            <Badge color={session.status === "published" ? "blue" : "gray"} size="xs">
               {session.status === "published" ? "Publié" : "Brouillon"}
             </Badge>
           </div>
@@ -583,17 +567,16 @@ export default function SessionDetailPage() {
               {generatingPdf ? "Génération..." : "PDF"}
             </Button>
           )}
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+          <Button color="red" size="compact-sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />Supprimer
           </Button>
         </div>
       </div>
 
       {/* ── Info Card ── */}
-      <Card>
-        <CardHeader><CardTitle>Informations</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Card withBorder padding="md" radius="md">
+        <Text fw={700} size="lg" mb="md">Informations</Text>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <p className="text-sm text-muted-foreground">Date</p>
               <p className="font-medium">{new Date(session.date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
@@ -626,17 +609,13 @@ export default function SessionDetailPage() {
               </div>
             )}
           </div>
-        </CardContent>
       </Card>
-
-      {/* ── Commentaire ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Commentaire</CardTitle>
+      <Card withBorder padding="md" radius="md">
+        <div className="flex items-center justify-between">
+          <Text fw={700} size="lg">Commentaire</Text>
           {descSaving && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Sauvegarde...</span>}
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border" onInput={handleDescChange}>
+        </div>
+        <div className="rounded-md border" onInput={handleDescChange}>
             <div className="flex flex-wrap gap-1 border-b bg-muted/50 px-3 py-2">
               <button type="button" onClick={() => descEditor?.chain().focus().toggleBold().run()}
                 className={`rounded px-2 py-1 text-sm font-medium ${descEditor?.isActive("bold") ? "bg-muted" : ""}`}>Gras</button>
@@ -649,32 +628,28 @@ export default function SessionDetailPage() {
             </div>
             <EditorContent editor={descEditor} />
           </div>
-        </CardContent>
       </Card>
-
-      {/* ── Exercices + Récupérations ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+      <Card withBorder padding="md" radius="md">
+        <div className="flex flex-row items-center justify-between">
+          <Text fw={700} size="lg" className="flex items-center gap-2">
             <Dumbbell className="h-5 w-5" />
             Exercices <span className="text-muted-foreground font-normal">({items.length})</span>
-          </CardTitle>
+          </Text>
           <div className="flex items-center gap-3">
             {itemsSaving && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Sauvegarde...</span>}
             {itemsLastSaved && !itemsSaving && <span className="flex items-center gap-1 text-xs text-green-600"><Check className="h-3 w-3" />Enregistré</span>}
             {totalDuration > 0 && <span className="flex items-center gap-1 text-sm text-muted-foreground"><Clock className="h-4 w-4" /><strong>{totalDuration} min</strong></span>}
-            <Button variant="outline" size="sm" onClick={() => setExoSearchOpen(true)}><Search className="mr-1 h-4 w-4" />Ajouter</Button>
-            <Button variant="outline" size="sm" onClick={addRestPeriod}><Clock className="mr-1 h-4 w-4" />Récup</Button>
+            <Button variant="outline" size="compact-sm" onClick={() => setExoSearchOpen(true)}><Search className="mr-1 h-4 w-4" />Ajouter</Button>
+            <Button variant="outline" size="compact-sm" onClick={addRestPeriod}><Clock className="mr-1 h-4 w-4" />Récup</Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {items.length === 0 ? (
+        </div>
+        {items.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Dumbbell className="h-8 w-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Aucun exercice ajouté</p>
               <div className="flex gap-2 justify-center mt-2">
-                <Button variant="link" size="sm" onClick={() => setExoSearchOpen(true)}>Ajouter des exercices</Button>
-                <Button variant="link" size="sm" onClick={addRestPeriod}>Ajouter une récupération</Button>
+                <Button variant="subtle" size="compact-sm" onClick={() => setExoSearchOpen(true)}>Ajouter des exercices</Button>
+                <Button variant="subtle" size="compact-sm" onClick={addRestPeriod}>Ajouter une récupération</Button>
               </div>
             </div>
           ) : (
@@ -712,7 +687,7 @@ export default function SessionDetailPage() {
                   )}
 
                   <div className="flex items-center gap-1">
-                    <Input type="number" min="0" max="999" placeholder="min"
+                    <TextInput type="number" min="0" max="999" placeholder="min"
                       value={item.durationMin ?? ""}
                       onChange={(e) => updateDuration(idx, e.target.value)}
                       className="w-16 h-7 text-xs text-center" />
@@ -740,20 +715,15 @@ export default function SessionDetailPage() {
               )}
             </div>
           )}
-        </CardContent>
       </Card>
 
       {/* ── Ajouter exercices dialog ── */}
-      <Dialog open={exoSearchOpen} onOpenChange={setExoSearchOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Ajouter des exercices</DialogTitle>
-            <DialogDescription>Sélectionne les exercices à ajouter à cette séance</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
+      <Modal opened={exoSearchOpen} onClose={() => setExoSearchOpen(false)} title="Ajouter des exercices" size="lg">
+        <Text size="sm" c="dimmed" mb="md">Sélectionne les exercices à ajouter à cette séance</Text>
+        <div className="space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" autoFocus />
+              <TextInput placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" autoFocus />
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1 rounded-lg border p-1">
               {filteredLibrary.length === 0 ? (
@@ -774,34 +744,28 @@ export default function SessionDetailPage() {
                       )}
                       <span className="font-medium flex-1 truncate">{ex.name}</span>
                       <span className={`text-[10px] rounded-full border px-2 py-0.5 shrink-0 ${catColor(ex.category)}`}>{catLabel(ex.category)}</span>
-                      {added && <Badge variant="outline" className="text-[10px] shrink-0">Ajouté</Badge>}
+                      {added && <Badge color="gray" variant="outline" size="xs">Ajouté</Badge>}
                     </div>
                   )
                 })
               )}
             </div>
           </div>
-          <DialogFooter>
+          <Group justify="flex-end" mt="md">
             <Button variant="outline" onClick={() => setExoSearchOpen(false)}>Terminé</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </Group>
+      </Modal>
 
       {/* ── Delete Dialog ── */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>Êtes-vous sûr de vouloir supprimer la session &ldquo;{session.title}&rdquo; ?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal opened={deleteOpen} onClose={() => setDeleteOpen(false)} title="Confirmer la suppression">
+        <Text size="sm" mb="md">Êtes-vous sûr de vouloir supprimer la session &ldquo;{session.title}&rdquo; ?</Text>
+        <Group justify="flex-end" mt="md">
+          <Button variant="outline" onClick={() => setDeleteOpen(false)}>Annuler</Button>
+          <Button color="red" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </Group>
+      </Modal>
     </div>
   )
 }

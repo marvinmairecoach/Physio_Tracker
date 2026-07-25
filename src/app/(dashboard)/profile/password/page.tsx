@@ -4,16 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Key, Eye, EyeOff } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button, Card, TextInput } from "@mantine/core"
 
 export default function ChangePasswordPage() {
   const router = useRouter()
@@ -71,82 +62,76 @@ export default function ChangePasswordPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="subtle" size="compact-sm" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">Changer le mot de passe</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Mot de passe</CardTitle>
-          <CardDescription>
+      <Card withBorder className="max-w-none">
+        <div className="px-6 pt-6 pb-3">
+          <h2 className="text-xl font-semibold">Mot de passe</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Saisis ton mot de passe actuel puis choisis un nouveau mot de passe.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-              <div className="relative">
-                <Input
-                  id="currentPassword"
-                  type={showCurrent ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Ton mot de passe actuel"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div>
+              <TextInput
+                label="Mot de passe actuel"
+                id="currentPassword"
+                type={showCurrent ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Ton mot de passe actuel"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(!showCurrent)}
+                className="text-muted-foreground hover:text-foreground mt-1 text-xs"
+              >
+                {showCurrent ? "Masquer" : "Afficher"}
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showNew ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 6 caractères"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div>
+              <TextInput
+                label="Nouveau mot de passe"
+                id="newPassword"
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Minimum 6 caractères"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="text-muted-foreground hover:text-foreground mt-1 text-xs"
+              >
+                {showNew ? "Masquer" : "Afficher"}
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmer le nouveau mot de passe</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirm ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Retaper le nouveau mot de passe"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div>
+              <TextInput
+                label="Confirmer le nouveau mot de passe"
+                id="confirmPassword"
+                type={showConfirm ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Retaper le nouveau mot de passe"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="text-muted-foreground hover:text-foreground mt-1 text-xs"
+              >
+                {showConfirm ? "Masquer" : "Afficher"}
+              </button>
             </div>
 
             {error && <p className="text-sm text-red-500">{error}</p>}
@@ -163,7 +148,7 @@ export default function ChangePasswordPage() {
               </Button>
             </div>
           </form>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

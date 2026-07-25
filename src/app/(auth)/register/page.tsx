@@ -3,11 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button, Card, TextInput, NativeSelect } from "@mantine/core"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -65,77 +61,65 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Créer un compte</CardTitle>
-          <CardDescription>Rejoignez PP Tracker</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card withBorder className="w-full max-w-md">
+        <div className="px-6 pt-6 pb-3 text-center">
+          <h2 className="text-2xl font-bold">Créer un compte</h2>
+          <p className="text-sm text-muted-foreground mt-1">Rejoignez PP Tracker</p>
+        </div>
+        <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
-                <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => handleChange("firstName", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
-                <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => handleChange("lastName", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="coach@exemple.fr"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
+              <TextInput
+                label="Prénom"
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+                required
+              />
+              <TextInput
+                label="Nom"
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleChange("lastName", e.target.value)}
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Rôle</Label>
-              <Select value={formData.role} onValueChange={(v) => handleChange("role", v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="coach">Coach</SelectItem>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                required
-              />
-            </div>
+            <TextInput
+              label="Email"
+              id="email"
+              type="email"
+              placeholder="coach@exemple.fr"
+              value={formData.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+              required
+            />
+            <NativeSelect
+              label="Rôle"
+              id="role"
+              value={formData.role}
+              onChange={(e) => handleChange("role", e.target.value)}
+              data={[
+                { value: "coach", label: "Coach" },
+                { value: "admin", label: "Administrateur" },
+              ]}
+            />
+            <TextInput
+              label="Mot de passe"
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+              required
+              minLength={8}
+            />
+            <TextInput
+              label="Confirmer le mot de passe"
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => handleChange("confirmPassword", e.target.value)}
+              required
+            />
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Inscription..." : "Créer mon compte"}
@@ -147,7 +131,7 @@ export default function RegisterPage() {
               Se connecter
             </Link>
           </p>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

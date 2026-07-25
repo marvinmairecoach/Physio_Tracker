@@ -8,16 +8,7 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button, Card, TextInput, NativeSelect } from "@mantine/core"
 
 interface Team {
   id: string
@@ -182,7 +173,7 @@ export default function CreateSessionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="subtle" size="compact-sm" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">
@@ -191,15 +182,15 @@ export default function CreateSessionPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Informations</CardTitle>
-            <CardDescription>Détails de l&apos;événement.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Card withBorder className="max-w-3xl">
+          <div className="px-6 pt-6 pb-3">
+            <h2 className="text-xl font-semibold">Informations</h2>
+            <p className="text-sm text-muted-foreground">Détails de l&apos;événement.</p>
+          </div>
+          <div className="px-6 pb-6 space-y-4">
             {/* Type */}
-            <div className="space-y-2">
-              <Label>Type d&apos;événement</Label>
+            <div>
+              <p className="text-sm font-medium mb-2">Type d&apos;événement</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
                   <label
@@ -227,43 +218,32 @@ export default function CreateSessionPage() {
             </div>
 
             {/* Titre / Adversaire */}
-            <div className="space-y-2">
-              <Label htmlFor="title">
-                {isMatch ? "Adversaire" : "Titre"} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder={isMatch ? "Nom de l'adversaire" : isTraining ? "Entrainement" : "Titre de l'événement"}
-                required
-              />
-            </div>
+            <TextInput
+              label={isMatch ? "Adversaire" : "Titre"}
+              withAsterisk
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder={isMatch ? "Nom de l'adversaire" : isTraining ? "Entrainement" : "Titre de l'événement"}
+              required
+            />
 
             {/* Date et horaires */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startTime">
-                  {isMatch ? "Heure du RDV" : "Début"}
-                </Label>
-                <Input id="startTime" name="startTime" type="time" value={formData.startTime} onChange={handleChange} />
-              </div>
+              <TextInput label="Date" id="date" name="date" type="date" value={formData.date} onChange={handleChange} />
+              <TextInput
+                label={isMatch ? "Heure du RDV" : "Début"}
+                id="startTime" name="startTime" type="time" value={formData.startTime} onChange={handleChange}
+              />
               {!isMatch && (
-                <div className="space-y-2">
-                  <Label htmlFor="endTime">Fin</Label>
-                  <Input id="endTime" name="endTime" type="time" value={formData.endTime} onChange={handleChange} />
-                </div>
+                <TextInput label="Fin" id="endTime" name="endTime" type="time" value={formData.endTime} onChange={handleChange} />
               )}
             </div>
 
             {/* Lieu */}
-            <div className="space-y-2">
-              <Label>Lieu</Label>
+            <div>
+              <p className="text-sm font-medium mb-2">Lieu</p>
               {isMatch ? (
                 <div className="flex gap-4">
                   <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
@@ -290,7 +270,7 @@ export default function CreateSessionPage() {
                   </label>
                 </div>
               ) : (
-                <Input
+                <TextInput
                   id="location"
                   name="location"
                   value={formData.location}
@@ -302,34 +282,34 @@ export default function CreateSessionPage() {
 
             {/* Statut */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="status">Statut</Label>
-                <select id="status" name="status" value={formData.status} onChange={handleChange}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="draft">Brouillon</option>
-                  <option value="published">Publié</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="teamId">Équipe <span className="text-red-500">*</span></Label>
-                <select
-                  id="teamId"
-                  name="teamId"
-                  value={formData.teamId}
-                  onChange={handleChange}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">Sélectionner une équipe</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
-                {user?.role !== "admin" && formData.teamId && (
-                  <p className="text-xs text-muted-foreground">Équipe automatiquement sélectionnée</p>
-                )}
-              </div>
+              <NativeSelect
+                label="Statut"
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                data={[
+                  { value: "draft", label: "Brouillon" },
+                  { value: "published", label: "Publié" },
+                ]}
+              />
+              <NativeSelect
+                label="Équipe"
+                withAsterisk
+                id="teamId"
+                name="teamId"
+                value={formData.teamId}
+                onChange={handleChange}
+                required
+                data={[
+                  { value: "", label: "Sélectionner une équipe", disabled: true },
+                  ...teams.map((team) => ({ value: team.id, label: team.name })),
+                ]}
+              />
             </div>
+            {user?.role !== "admin" && formData.teamId && (
+              <p className="text-xs text-muted-foreground">Équipe automatiquement sélectionnée</p>
+            )}
 
             {/* Récurrence — pas pour les matchs */}
             {!isMatch && (
@@ -340,28 +320,25 @@ export default function CreateSessionPage() {
                 </label>
                 {formData.isRecurring && (
                   <div className="grid grid-cols-2 gap-4 pl-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="recurrenceRule">Répéter</Label>
-                      <select id="recurrenceRule" name="recurrenceRule" value={formData.recurrenceRule} onChange={handleChange}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                        <option value="daily">Tous les jours</option>
-                        <option value="weekly">Toutes les semaines</option>
-                        <option value="biweekly">Toutes les 2 semaines</option>
-                        <option value="monthly">Tous les mois</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="recurrenceEnd">Jusqu&apos;au</Label>
-                      <Input id="recurrenceEnd" name="recurrenceEnd" type="date" value={formData.recurrenceEnd} onChange={handleChange} />
-                    </div>
+                    <NativeSelect
+                      label="Répéter"
+                      id="recurrenceRule" name="recurrenceRule" value={formData.recurrenceRule} onChange={handleChange}
+                      data={[
+                        { value: "daily", label: "Tous les jours" },
+                        { value: "weekly", label: "Toutes les semaines" },
+                        { value: "biweekly", label: "Toutes les 2 semaines" },
+                        { value: "monthly", label: "Tous les mois" },
+                      ]}
+                    />
+                    <TextInput label="Jusqu&apos;au" id="recurrenceEnd" name="recurrenceEnd" type="date" value={formData.recurrenceEnd} onChange={handleChange} />
                   </div>
                 )}
               </div>
             )}
 
             {/* Commentaire */}
-            <div className="space-y-2">
-              <Label>Commentaire</Label>
+            <div>
+              <p className="text-sm font-medium mb-2">Commentaire</p>
               <div className="rounded-md border">
                 <div className="flex flex-wrap gap-1 border-b bg-muted/50 px-3 py-2">
                   <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -376,7 +353,7 @@ export default function CreateSessionPage() {
                 <EditorContent editor={editor} />
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
