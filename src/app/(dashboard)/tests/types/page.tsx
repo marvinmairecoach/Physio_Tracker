@@ -27,6 +27,7 @@ export default function TestTypesPage() {
   const [testTypes, setTestTypes] = useState<TestType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [existingCategories, setExistingCategories] = useState<string[]>([])
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false)
@@ -56,7 +57,20 @@ export default function TestTypesPage() {
 
   useEffect(() => {
     fetchTestTypes()
+    fetchCategories()
   }, [])
+
+  async function fetchCategories() {
+    try {
+      const res = await fetch("/api/tests/categories")
+      if (res.ok) {
+        const data = await res.json()
+        setExistingCategories(Array.isArray(data) ? data : [])
+      }
+    } catch {
+      // Silent fail
+    }
+  }
 
   async function fetchTestTypes() {
     try {
@@ -143,6 +157,22 @@ export default function TestTypesPage() {
     }
   }
 
+  async function handleToggleShowOnTeamPage(testType: TestType) {
+    try {
+      const res = await fetch(`/api/tests/types/${testType.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          showOnTeamPage: !testType.showOnTeamPage,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    }
+  }
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
@@ -200,16 +230,20 @@ export default function TestTypesPage() {
                     </Table.Td>
                     <Table.Td>
                       {editingId === t.id ? (
-                        <select
-                          value={editForm.category}
-                          onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
-                          className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="field">Terrain</option>
-                          <option value="force_plate">Plateforme de force</option>
-                          <option value="dynamometer">Dynamomètre</option>
-                          <option value="anthropometric">Anthropométrique</option>
-                        </select>
+                        <>
+                          <input
+                            value={editForm.category}
+                            onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
+                            list="edit-categories"
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                            placeholder="Catégorie"
+                          />
+                          <datalist id="edit-categories">
+                            {existingCategories.map((cat) => (
+                              <option key={cat} value={cat} />
+                            ))}
+                          </datalist>
+                        </>
                       ) : (
                         CATEGORY_LABELS[t.category] ?? t.category
                       )}
@@ -276,22 +310,11 @@ export default function TestTypesPage() {
                       )}
                     </Table.Td>
                     <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <select
-                          value={editForm.showOnTeamPage ? "true" : "false"}
-                          onChange={(e) =>
-                            setEditForm((p) => ({ ...p, showOnTeamPage: e.target.value === "true" }))
-                          }
-                          className="flex h-8 rounded-md border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="true">Oui</option>
-                          <option value="false">Non</option>
-                        </select>
-                      ) : (
-                        <Badge color={t.showOnTeamPage ? "green" : "gray"}>
-                          {t.showOnTeamPage ? "Oui" : "Non"}
-                        </Badge>
-                      )}
+                      <Switch
+                        checked={t.showOnTeamPage}
+                        onChange={() => handleToggleShowOnTeamPage(t)}
+                        size="sm"
+                      />
                     </Table.Td>
                     <Table.Td ta="center">
                       {editingId === t.id ? (
@@ -336,18 +359,21 @@ export default function TestTypesPage() {
             onChange={(e) => setNewType((p) => ({ ...p, name: e.target.value }))}
             placeholder="Ex: Sprint 30m"
           />
-          <TextInput
-            label="Catégorie"
-            id="new-category"
-            component="select"
-            value={newType.category}
-            onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
-          >
-            <option value="field">Terrain</option>
-            <option value="force_plate">Plateforme de force</option>
-            <option value="dynamometer">Dynamomètre</option>
-            <option value="anthropometric">Anthropométrique</option>
-          </TextInput>
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <input
+              value={newType.category}
+              onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
+              list="create-categories"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              placeholder="Ex: field, force_plate..."
+            />
+            <datalist id="create-categories">
+              {existingCategories.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
+          </div>
           <TextInput
             label="Unité"
             id="new-unit"

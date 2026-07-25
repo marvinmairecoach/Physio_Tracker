@@ -93,7 +93,7 @@ model Athlete {
   heightCm   Decimal?  @map("height_cm") @db.Decimal(5, 1)
   weightKg   Decimal?  @map("weight_kg") @db.Decimal(5, 1)
   notes      String?
-  photoUrl   String?   @map("photo_url")
+  photoUrl   String?   @map("photo_url") @db.Text
   isActive   Boolean   @default(true) @map("is_active")
   createdById String  @map("created_by_id")
   createdAt  DateTime  @default(now()) @map("created_at")

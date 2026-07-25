@@ -481,19 +481,20 @@ export default function AthleteDetailPage() {
       )}
 
       {/* Tests physique — Radar */}
-      <Card shadow="sm" radius="md" withBorder>
-        <div className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl px-4 pt-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <span className="text-indigo-500">📊</span>
-            Tests physiques
-          </h2>
-          <p className="text-sm text-gray-500">
-            Comparaison avec la moyenne de l'équipe — les valeurs sont normalisées (100 % = moyenne équipe)
-          </p>
-        </div>
-        <div className="p-4">
-          {comparisonChartData.length >= 2 ? (
-            <ResponsiveContainer width="100%" height={420}>
+      {comparisonWithValues.length >= 3 && (
+        <Card shadow="sm" radius="md" withBorder>
+          <div className="bg-gradient-to-r from-indigo-50 to-transparent rounded-t-xl px-4 pt-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <span className="text-indigo-500">📊</span>
+              Profil physique
+            </h2>
+            <p className="text-sm text-gray-500">
+              Comparaison avec la moyenne de l'équipe — les valeurs sont normalisées (100 % = moyenne équipe)
+            </p>
+          </div>
+          <div className="p-4">
+            {comparisonChartData.length >= 3 ? (
+              <ResponsiveContainer width="100%" height={420}>
               <RadarChart data={comparisonChartData}>
                 <PolarGrid stroke="#e0d4f5" />
                 <PolarAngleAxis dataKey="name" fontSize={12} tick={{ fill: '#6b5b8c' }} />
@@ -597,6 +598,7 @@ export default function AthleteDetailPage() {
           )}
         </div>
       </Card>
+      )}
 
       {/* Résultats détaillés des tests */}
       {comparison.length > 0 && (
@@ -677,18 +679,8 @@ export default function AthleteDetailPage() {
               })
 
               // Limit
-              const visible = showAllTests ? sorted : sorted.slice(0, 5)
+              const visible = showAllTests ? sorted : sorted.slice(0, 6)
               const totalCount = sorted.length
-              const vsNorm = (normValue: number | undefined | null, athleteVal: number, higherIsBetter: boolean) => {
-                if (normValue === undefined || normValue === null || normValue <= 0) return null
-                return higherIsBetter
-                  ? ((athleteVal - normValue) / normValue * 100).toFixed(1)
-                  : ((normValue - athleteVal) / normValue * 100).toFixed(1)
-              }
-              const beatsNormCheck = (normValue: number | undefined | null, athleteVal: number, higherIsBetter: boolean) => {
-                if (normValue === undefined || normValue === null) return null
-                return higherIsBetter ? athleteVal >= normValue : athleteVal <= normValue
-              }
 
               return (
                 <>
@@ -698,95 +690,89 @@ export default function AthleteDetailPage() {
                     </p>
                   ) : (
                     <>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-400 mb-4">
                         {totalCount} test{totalCount > 1 ? "s" : ""}
-                        {!showAllTests && totalCount > 5 && ` — affichage des 5 premiers`}
+                        {!showAllTests && totalCount > 6 && ` — affichage des 6 premiers`}
                       </p>
-                      {visible.map((i, idx) => {
-                        const maxRef = Math.max(i.athleteVal, i.teamAvg, i.normValue ?? 0, 1)
-                        const athletePct = (i.athleteVal / maxRef) * 100
-                        const teamAvgPct = (i.teamAvg / maxRef) * 100
-                        const normPct = i.normValue ? (i.normValue / maxRef) * 100 : null
-                        const vsNormVal = vsNorm(i.normValue, i.athleteVal, i.higherIsBetter)
-                        const beatsNormVal = beatsNormCheck(i.normValue, i.athleteVal, i.higherIsBetter)
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {visible.map((i, idx) => {
+                          const pctDiff = i.teamAvg > 0
+                            ? ((i.athleteVal - i.teamAvg) / i.teamAvg * 100).toFixed(1)
+                            : null
+                          const isAboveAvg = pctDiff !== null && Number(pctDiff) >= 0
+                          const isAboveAvgStrict = pctDiff !== null && Number(pctDiff) > 0
+                          const beatsNormVal = i.normValue !== undefined && i.normValue !== null
+                            ? i.higherIsBetter ? i.athleteVal >= i.normValue : i.athleteVal <= i.normValue
+                            : null
+                          // Previous value delta if both athleteValue and athleteLatestValue exist
+                          const prevValue = i.c.athleteValue
+                          const currValue = i.c.athleteLatestValue
+                          const hasDelta = prevValue !== undefined && prevValue !== null && currValue !== undefined && currValue !== null && prevValue !== currValue
+                          const delta = hasDelta ? currValue! - prevValue! : null
 
-                        return (
-                          <div key={idx} className="space-y-2 pb-4 border-b border-blue-100/50 last:border-b-0 last:pb-0">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-100 text-sm shadow-sm">
-                                  <Target className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-sm text-gray-800">{i.testName}</p>
-                                  <p className="text-xs text-gray-400">{i.unit}</p>
-                                </div>
+                          // Color based on test name hash
+                          const colors = ["#7c5cbf", "#3b82f6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6"]
+                          const colorIdx = i.testName.length % colors.length
+                          const dotColor = colors[colorIdx]
+
+                          return (
+                            <Card key={idx} shadow="sm" radius="md" withBorder className="p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">{i.testName}</span>
                               </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold tracking-tight text-blue-700">
-                                  {i.athleteVal.toFixed(1)}
-                                  <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
-                                </p>
+                              <div className="text-3xl font-bold text-gray-900 mb-2">
+                                {i.athleteVal.toFixed(1)}
+                                <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
                               </div>
-                            </div>
-
-                            <div className="relative h-8">
-                              <div
-                                className="absolute bottom-0 h-full w-0.5 bg-amber-400 z-10 rounded-full"
-                                style={{ left: `${Math.min(teamAvgPct, 95)}%` }}
-                                title="Moyenne équipe"
-                              />
-                              {normPct !== null && (
-                                <div
-                                  className="absolute bottom-0 h-full w-0.5 bg-cyan-400 z-10 rounded-full"
-                                  style={{ left: `${Math.min(normPct, 95)}%` }}
-                                  title="Norme"
-                                />
-                              )}
-                              <div className="absolute bottom-0 left-0 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500"
-                                style={{ width: `${Math.min(athletePct, 100)}%` }}
-                              />
-                              <div className="absolute bottom-0 left-0 h-3 w-full rounded-full bg-gray-100" />
-                            </div>
-
-                            <div className="flex items-center justify-between text-xs flex-wrap gap-x-4 gap-y-1">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <span className="flex items-center gap-1 text-gray-400">
-                                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" />
-                                  Équipe: <strong className="text-gray-700">{i.teamAvg.toFixed(1)}</strong>
-                                  {i.athleteVsAvg !== null && (
-                                    <span className={`text-[11px] font-medium ${
-                                      Number(i.athleteVsAvg) >= 0 ? "text-green-600" : "text-red-500"
-                                    }`}>
-                                      ({Number(i.athleteVsAvg) >= 0 ? "+" : ""}{i.athleteVsAvg}%)
-                                    </span>
-                                  )}
-                                </span>
-                                {i.normValue !== undefined && i.normValue !== null && (
-                                  <span className="flex items-center gap-1 text-gray-400">
-                                    <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cyan-400" />
-                                    Norme: <strong className="text-gray-700">{Number(i.normValue).toFixed(1)}</strong>
-                                    {beatsNormVal !== null && (
-                                      <span className={`text-[11px] font-medium ${
-                                        beatsNormVal ? "text-cyan-600" : "text-orange-500"
+                              <div className="space-y-1 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-400">Équipe:</span>
+                                  <span className="font-medium text-gray-700">{i.teamAvg.toFixed(1)}
+                                    {pctDiff !== null && (
+                                      <span className={`ml-1.5 font-medium ${
+                                        isAboveAvg ? "text-green-600" : "text-red-500"
                                       }`}>
-                                        {beatsNormVal ? "(✓)" : "(✗)"}
+                                        {isAboveAvgStrict ? "+" : ""}{pctDiff}%
                                       </span>
                                     )}
                                   </span>
+                                </div>
+                                {i.normValue !== undefined && i.normValue !== null && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-400">Norme:</span>
+                                    <span className="font-medium text-gray-700">
+                                      {Number(i.normValue).toFixed(1)}
+                                      {beatsNormVal !== null && (
+                                        <span className={`ml-1.5 ${
+                                          beatsNormVal ? "text-green-600" : "text-red-500"
+                                        }`}>
+                                          {beatsNormVal ? "✓" : "✗"}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+                                {delta !== null && (
+                                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                                    <span className="text-gray-400">Évol:</span>
+                                    <span className={`font-medium ${delta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                                      {delta >= 0 ? "↑" : "↓"}{Math.abs(delta).toFixed(1)}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {totalCount > 5 && (
+                            </Card>
+                          )
+                        })}
+                      </div>
+                      {totalCount > 6 && (
                         <button
                           onClick={() => setShowAllTests(!showAllTests)}
-                          className="w-full py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-lg transition-colors"
+                          className="w-full mt-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-lg transition-colors"
                         >
                           {showAllTests
-                            ? `Afficher moins (5)`
+                            ? `Afficher moins (6)`
                             : `Voir tous les tests (${totalCount})`
                           }
                         </button>

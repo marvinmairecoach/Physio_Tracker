@@ -48,8 +48,8 @@ export async function PATCH(
 ) {
   try {
     const session = await requireAuth();
-    if (session.role !== "admin") {
-      return NextResponse.json({ error: "Seul un administrateur peut modifier un athlète" }, { status: 403 });
+    if (session.role !== "admin" && session.role !== "coach") {
+      return NextResponse.json({ error: "Seul un administrateur ou un coach peut modifier un athlète" }, { status: 403 });
     }
 
     const { id } = params;

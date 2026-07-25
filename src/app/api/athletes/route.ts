@@ -122,6 +122,42 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // If no team was selected, find or create "Individuel" team and assign
+    if (!teamId) {
+      let individuelTeam = await prisma.team.findFirst({
+        where: { name: "Individuel" },
+      })
+
+      if (!individuelTeam) {
+        individuelTeam = await prisma.team.create({
+          data: {
+            name: "Individuel",
+            createdById: session.userId,
+          },
+        })
+      }
+
+      await prisma.athleteTeam.create({
+        data: {
+          athleteId: athlete.id,
+          teamId: individuelTeam.id,
+        },
+      })
+
+      // Re-fetch athlete with team included
+      const updatedAthlete = await prisma.athlete.findUnique({
+        where: { id: athlete.id },
+        include: {
+          teams: {
+            where: { isActive: true },
+            include: { team: true },
+          },
+        },
+      })
+
+      return NextResponse.json(updatedAthlete, { status: 201 });
+    }
+
     return NextResponse.json(athlete, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
