@@ -310,6 +310,7 @@ export default function BilanViewPage() {
             </View>
 
             {/* Radar section (first) — SVG polygon chart */}
+            {radarCount >= 3 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -383,6 +384,7 @@ export default function BilanViewPage() {
                 </View>
               </View>
             </View>
+            )}
 
             {/* Test results section (second) */}
             <View style={styles.section}>
@@ -536,6 +538,7 @@ export default function BilanViewPage() {
             </View>
 
             {/* Radar section (first) — SVG polygon chart */}
+            {radarCount >= 3 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -603,6 +606,7 @@ export default function BilanViewPage() {
                 </View>
               </View>
             </View>
+            )}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Résultats des tests</Text>

@@ -1,7 +1,8 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Plus, Pencil, Check, X, Trash2 } from "lucide-react"
+import { Plus, Pencil, Check, X, Trash2, ArrowLeft } from "lucide-react"
 
 import { Button, Card, Table, TextInput, Modal } from "@mantine/core"
 
@@ -12,6 +13,7 @@ interface CategoryInfo {
 }
 
 export default function CategoriesPage() {
+  const router = useRouter()
   const [categories, setCategories] = useState<CategoryInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -149,10 +151,16 @@ export default function CategoriesPage() {
         <h1 className="text-3xl font-bold tracking-tight">
           Management des catégories de test
         </h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle catégorie
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push("/tests/types")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour aux types de données
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle catégorie
+          </Button>
+        </div>
       </div>
 
       <Card withBorder className="max-w-none">
