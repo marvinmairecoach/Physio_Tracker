@@ -268,6 +268,7 @@ export default function CreateBilanPage() {
                             onChange={(e) =>
                               setTestComments((prev) => ({ ...prev, [tt.id]: e.target.value }))
                             }
+                            autoFocus
                           />
                         )}
                       </div>

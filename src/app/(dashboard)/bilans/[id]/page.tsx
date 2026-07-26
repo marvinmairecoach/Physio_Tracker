@@ -248,7 +248,7 @@ export default function BilanViewPage() {
         testValue: { width: '20%', textAlign: 'center' },
         testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
-        testComment: { fontSize: 8, color: '#999', marginTop: 2, fontStyle: 'italic' },
+        testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -292,14 +292,14 @@ export default function BilanViewPage() {
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
           <View key={id}>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
-            {bilan?.config?.testComments?.[id] && (
-              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
-            )}
           </View>
         )
       }).filter(Boolean)
@@ -477,7 +477,7 @@ export default function BilanViewPage() {
         testValue: { width: '20%', textAlign: 'center' },
         testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
-        testComment: { fontSize: 8, color: '#999', marginTop: 2, fontStyle: 'italic' },
+        testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -521,14 +521,14 @@ export default function BilanViewPage() {
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
           <View key={id}>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
-            {bilan?.config?.testComments?.[id] && (
-              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
-            )}
           </View>
         )
       }).filter(Boolean)
