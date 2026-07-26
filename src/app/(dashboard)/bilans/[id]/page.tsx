@@ -402,9 +402,10 @@ export default function BilanViewPage() {
             </View>
             )}
 
-            {/* Legend — discrète avant les résultats */}
-            <View style={{ ...styles.section, fontSize: 9, color: '#999' }}>
-              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+            {/* Test results section (second) */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Résultats des tests</Text>
+              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999', marginBottom: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Svg width={10} height={10}>
                     <Circle cx="5" cy="5" r="4" fill="#22c55e" />
@@ -424,11 +425,6 @@ export default function BilanViewPage() {
                   <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
                 </View>
               </View>
-            </View>
-
-            {/* Test results section (second) */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Résultats des tests</Text>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
                 <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>
@@ -629,9 +625,9 @@ export default function BilanViewPage() {
             </View>
             )}
 
-            {/* Legend — discrète avant les résultats */}
-            <View style={{ ...styles.section, fontSize: 9, color: '#999' }}>
-              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Résultats des tests</Text>
+              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999', marginBottom: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Svg width={10} height={10}>
                     <Circle cx="5" cy="5" r="4" fill="#22c55e" />
@@ -651,10 +647,6 @@ export default function BilanViewPage() {
                   <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
                 </View>
               </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Résultats des tests</Text>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
                 <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>

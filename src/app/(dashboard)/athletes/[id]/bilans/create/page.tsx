@@ -43,9 +43,10 @@ export default function CreateBilanPage() {
   const [saving, setSaving] = useState(false)
 
   // Form state
-  const [title, setTitle] = useState("")
+  const [subtitle, setSubtitle] = useState("")
   const [description, setDescription] = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [testComments, setTestComments] = useState<Record<string, string>>({})
   const [radarCount, setRadarCount] = useState(6)
   const [showNorms, setShowNorms] = useState(true)
   const [showTeamComparison, setShowTeamComparison] = useState(true)
@@ -126,7 +127,6 @@ export default function CreateBilanPage() {
   }
 
   const handleSave = async () => {
-    if (!title.trim()) { alert("Donnez un titre au bilan"); return }
     if (selectedIds.size === 0) { alert("Sélectionnez au moins un test"); return }
     setSaving(true)
     try {
@@ -134,9 +134,11 @@ export default function CreateBilanPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
+          title: "Bilan",
           description: description.trim() || null,
           config: {
+            subtitle: subtitle.trim() || null,
+            testComments,
             selectedTestIds: Array.from(selectedIds),
             radarTestCount: radarCount,
             showNorms,
@@ -189,10 +191,10 @@ export default function CreateBilanPage() {
             </Card.Section>
             <div className="p-4 space-y-4">
               <TextInput
-                label="Titre du bilan"
+                label="Sous-titre (optionnel)"
                 placeholder="Bilan pré-saison 2025"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
               />
               <Textarea
                 label="Description (optionnelle)"
@@ -230,34 +232,45 @@ export default function CreateBilanPage() {
                       ? tt.higherIsBetter ? val >= Number(norm) : val <= Number(norm)
                       : null
                     return (
-                      <button
-                        key={tt.id}
-                        onClick={() => toggleTest(tt.id)}
-                        className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
-                          isSelected
-                            ? "border-blue-300 bg-blue-50 shadow-sm"
-                            : "border-gray-200 hover:border-blue-200"
-                        }`}
-                      >
-                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                          isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300"
-                        }`}>
-                          {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{tt.name}</p>
-                          <p className="text-xs text-gray-400">
-                            {val.toFixed(1)} {tt.unit}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <Badge color={
-                            beatsNorm === true ? "green" : beatsNorm === false ? "orange" : "gray"
-                          } variant="light" size="sm">
-                            {beatsNorm === true ? "✓ Norme" : beatsNorm === false ? "Sous norme" : "—"}
-                          </Badge>
-                        </div>
-                      </button>
+                      <div key={tt.id} className="flex flex-col gap-1">
+                        <button
+                          onClick={() => toggleTest(tt.id)}
+                          className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
+                            isSelected
+                              ? "border-blue-300 bg-blue-50 shadow-sm"
+                              : "border-gray-200 hover:border-blue-200"
+                          }`}
+                        >
+                          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                            isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300"
+                          }`}>
+                            {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{tt.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {val.toFixed(1)} {tt.unit}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <Badge color={
+                              beatsNorm === true ? "green" : beatsNorm === false ? "orange" : "gray"
+                            } variant="light" size="sm">
+                              {beatsNorm === true ? "✓ Norme" : beatsNorm === false ? "Sous norme" : "—"}
+                            </Badge>
+                          </div>
+                        </button>
+                        {isSelected && (
+                          <TextInput
+                            size="xs"
+                            placeholder="Commentaire..."
+                            value={testComments[tt.id] || ""}
+                            onChange={(e) =>
+                              setTestComments((prev) => ({ ...prev, [tt.id]: e.target.value }))
+                            }
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>
