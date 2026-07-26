@@ -196,24 +196,34 @@ export default function AthleteDetailPage() {
           ? c.testType?.normFemale
           : undefined
 
-    let normalizedAthlete = teamAvg > 0 ? (athleteVal / teamAvg) * 100 : 100
+    let normalizedAthlete = 100
     let normalizedNorm: number | undefined = undefined
 
-    if (!higherIsBetter && athleteVal > 0 && teamAvg > 0) {
-      normalizedAthlete = (teamAvg / athleteVal) * 100
+    if (teamSize > 1 && teamAvg > 0) {
+      normalizedAthlete = (athleteVal / teamAvg) * 100
+      if (!higherIsBetter) {
+        normalizedAthlete = (teamAvg / athleteVal) * 100
+      }
     }
 
-    if (normValue !== undefined && normValue !== null && teamAvg > 0 && teamSize > 1) {
-      normalizedNorm = (normValue / teamAvg) * 100
-      if (!higherIsBetter) {
-        normalizedNorm = (teamAvg / normValue) * 100
+    if (normValue !== undefined && normValue !== null && athleteVal > 0) {
+      if (teamSize > 1 && teamAvg > 0) {
+        normalizedNorm = (normValue / teamAvg) * 100
+        if (!higherIsBetter) {
+          normalizedNorm = (teamAvg / normValue) * 100
+        }
+      } else if (teamSize <= 1) {
+        normalizedNorm = (normValue / athleteVal) * 100
+        if (!higherIsBetter) {
+          normalizedNorm = (athleteVal / normValue) * 100
+        }
       }
     }
 
     return {
       name: c.testTypeName || c.testType?.name || "Test",
       Athlète: Math.round(normalizedAthlete),
-      "Moyenne équipe": 100,
+      ...(teamSize > 1 ? { "Moyenne équipe": 100 } : {}),
       ...(normalizedNorm !== undefined ? { Norme: Math.round(normalizedNorm) } : {}),
       _rawAthlete: athleteVal.toFixed(1),
       _rawTeam: teamAvg.toFixed(1),

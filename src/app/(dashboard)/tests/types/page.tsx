@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Plus, Check, X, FolderKanban } from "lucide-react"
+import { Pencil, Plus, Check, X, FolderKanban, Trash2 } from "lucide-react"
 
 import { Button, Card, Table, Badge, TextInput, Modal, Switch, NativeSelect } from "@mantine/core"
 
@@ -63,6 +63,10 @@ export default function TestTypesPage() {
   const [newCatModalOpen, setNewCatModalOpen] = useState(false)
   const [newCatName, setNewCatName] = useState("")
   const [creatingCategory, setCreatingCategory] = useState(false)
+
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<TestType | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchTestTypes()
@@ -208,6 +212,21 @@ export default function TestTypesPage() {
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/tests/types/${deleteTarget.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Erreur lors de la suppression")
+      setDeleteTarget(null)
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -396,10 +415,16 @@ export default function TestTypesPage() {
                           </Button>
                         </div>
                       ) : (
-                        <Button variant="outline" size="compact-sm" onClick={() => startEdit(t)}>
-                          <Pencil className="mr-1 h-3 w-3" />
-                          Modifier
-                        </Button>
+                        <div className="flex justify-center gap-1">
+                          <Button variant="outline" size="compact-sm" onClick={() => startEdit(t)}>
+                            <Pencil className="mr-1 h-3 w-3" />
+                            Modifier
+                          </Button>
+                          <Button variant="outline" size="compact-sm" color="red" onClick={() => setDeleteTarget(t)}>
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Supprimer
+                          </Button>
+                        </div>
                       )}
                     </Table.Td>
                   </Table.Tr>
@@ -499,6 +524,23 @@ export default function TestTypesPage() {
             {creating ? "Création..." : "Créer"}
           </Button>
         </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm">
+        {deleteTarget && (
+          <>
+            <p className="text-sm text-muted-foreground mb-4">
+              Êtes-vous sûr de vouloir supprimer le type de test <strong>{deleteTarget.name}</strong> ?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+              <Button color="red" onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Suppression..." : "Supprimer"}
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* New Category Modal */}
