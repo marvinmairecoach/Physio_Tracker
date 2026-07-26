@@ -252,8 +252,8 @@ export default function AthleteDetailPage() {
       if (!res.ok) throw new Error("Erreur")
       const updated = await res.json()
       setAthlete(updated)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Photo upload error:", err)
     } finally {
       setUploadingPhoto(false)
     }

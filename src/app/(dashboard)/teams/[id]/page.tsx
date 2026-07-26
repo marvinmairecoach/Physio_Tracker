@@ -337,6 +337,8 @@ export default function TeamDetailPage() {
 
   // Count active members (actif + blessé)
   const activeMemberCount = members.filter((m) => m.status !== "inactif").length
+  // Hide norms for "Individuel" teams or single-athlete teams
+  const showNorms = activeMemberCount > 1 && team?.name !== "Individuel"
   // Show only active members in the table by default (can toggle with sort)
   const visibleMembers = sortedMembers
 
@@ -567,9 +569,11 @@ export default function TeamDetailPage() {
                       className="text-right whitespace-nowrap min-w-[100px] cursor-pointer select-none hover:text-gray-600"
                       onClick={() => toggleResultsSort(tt.id)}
                     >
-                      <div className="text-xs text-gray-400 font-normal">
-                        Moy. équipe
-                      </div>
+                      {showNorms && (
+                        <div className="text-xs text-gray-400 font-normal">
+                          Moy. équipe
+                        </div>
+                      )}
                       {team.gender === "M" && tt.normMale != null && (
                         <div className="text-xs text-gray-400 font-normal">
                           Norme: {tt.normMale.toFixed(2)}
@@ -590,16 +594,18 @@ export default function TeamDetailPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                <Table.Tr className="bg-gray-50">
-                  <Table.Td className="font-semibold text-sm" colSpan={2}>
-                    Moyenne équipe
-                  </Table.Td>
-                  {displayTestTypes.map((tt) => (
-                    <Table.Td key={tt.id} className="text-right font-semibold text-sm">
-                      {tt.teamAverage > 0 ? tt.teamAverage.toFixed(2) : "—"}
+                {showNorms && (
+                  <Table.Tr className="bg-gray-50">
+                    <Table.Td className="font-semibold text-sm" colSpan={2}>
+                      Moyenne équipe
                     </Table.Td>
-                  ))}
-                </Table.Tr>
+                    {displayTestTypes.map((tt) => (
+                      <Table.Td key={tt.id} className="text-right font-semibold text-sm">
+                        {tt.teamAverage > 0 ? tt.teamAverage.toFixed(2) : "—"}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                )}
 
                 {sortedPlayers.length === 0 && (
                   <Table.Tr>
@@ -630,7 +636,7 @@ export default function TeamDetailPage() {
                         return (
                           <Table.Td key={tt.id} className="text-right text-gray-400 text-sm">
                             <div>—</div>
-                            {avg > 0 && <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>}
+                            {showNorms && avg > 0 && <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>}
                             {norm != null && <div className="text-[10px] text-cyan-500">Norme: {norm.toFixed(1)}</div>}
                           </Table.Td>
                         )
@@ -660,7 +666,7 @@ export default function TeamDetailPage() {
                           {(isBetter || isWorse) && (
                             <div className="text-xs opacity-70">{diffAbs} diff.</div>
                           )}
-                          <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>
+                          {showNorms && <div className="text-[10px] text-gray-400">Équipe: {avg.toFixed(1)}</div>}
                           {norm != null && <div className="text-[10px] text-cyan-500">Norme: {norm.toFixed(1)}</div>}
                           {previousValues[player.id]?.[tt.id] !== undefined && previousValues[player.id]?.[tt.id] !== null && (
                             <div className="text-[10px] opacity-60 flex items-center justify-end gap-0.5">

@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Pencil, Plus, Check, X } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Pencil, Plus, Check, X, FolderKanban } from "lucide-react"
 
 import { Button, Card, Table, Badge, TextInput, Modal, Switch } from "@mantine/core"
 
@@ -24,6 +25,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export default function TestTypesPage() {
+  const router = useRouter()
   const [testTypes, setTestTypes] = useState<TestType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -180,10 +182,16 @@ export default function TestTypesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Types de données</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau type
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push("/categories")}>
+            <FolderKanban className="mr-2 h-4 w-4" />
+            Gérer les catégories
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau type
+          </Button>
+        </div>
       </div>
 
       <Card withBorder className="max-w-none">

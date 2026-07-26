@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { Save, Pencil, Trash2, X, Check } from "lucide-react"
+import { Search, Save, Pencil, Trash2, X, Check } from "lucide-react"
 
 import { Button, Card, Table, TextInput, Modal, Pagination, NativeSelect } from "@mantine/core"
 
@@ -66,6 +66,9 @@ export default function TestsPage() {
     notes: "",
   })
   const [saving, setSaving] = useState(false)
+
+  // Athlete search state
+  const [athleteSearch, setAthleteSearch] = useState("")
 
   // Edit state
   const [editTarget, setEditTarget] = useState<TestResult | null>(null)
@@ -149,9 +152,25 @@ export default function TestsPage() {
   }, [selectedTeamId])
 
   // Compute which athletes to show in the dropdown
-  const filteredAthletes = selectedTeamId && teamAthletes.length > 0
+  const baseAthletes = selectedTeamId && teamAthletes.length > 0
     ? teamAthletes
     : athletes
+
+  // Filter by search text
+  const filteredAthletes = baseAthletes.filter((a) => {
+    if (!athleteSearch) return true
+    const q = athleteSearch.toLowerCase()
+    return (
+      a.firstName.toLowerCase().includes(q) ||
+      a.lastName.toLowerCase().includes(q) ||
+      `${a.firstName} ${a.lastName}`.toLowerCase().includes(q)
+    )
+  })
+
+  // Get selected athlete name
+  const selectedAthleteName = formData.athleteId
+    ? baseAthletes.find((a) => a.id === formData.athleteId)
+    : null
 
   // Compute which results to show (filter by selected team + paginate)
   const teamAthleteIds = new Set(
@@ -308,22 +327,78 @@ export default function TestsPage() {
                 />
               </div>
               <div>
-                <TextInput
-                  label="Athlète"
-                  id="athleteId"
-                  name="athleteId"
-                  value={formData.athleteId}
-                  onChange={handleChange}
-                  required
-                  component="select"
-                >
-                  <option value="">Sélectionner...</option>
-                  {filteredAthletes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.firstName} {a.lastName}
-                    </option>
-                  ))}
-                </TextInput>
+                <div className="relative mb-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <TextInput
+                    label="Athlète"
+                    id="athleteSearch"
+                    placeholder="Rechercher un athlète..."
+                    value={athleteSearch}
+                    onChange={(e) => setAthleteSearch(e.target.value)}
+                  />
+                  {athleteSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAthleteSearch("")}
+                      className="absolute right-3 top-[42px] -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {selectedAthleteName ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <TextInput
+                      id="athleteId"
+                      name="athleteId"
+                      value={formData.athleteId}
+                      onChange={handleChange}
+                      required
+                      component="select"
+                      className="flex-1"
+                    >
+                      <option value="">Sélectionner...</option>
+                      {filteredAthletes.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.firstName} {a.lastName}
+                        </option>
+                      ))}
+                    </TextInput>
+                  </div>
+                ) : (
+                  <TextInput
+                    id="athleteId"
+                    name="athleteId"
+                    value={formData.athleteId}
+                    onChange={handleChange}
+                    required
+                    component="select"
+                  >
+                    <option value="">Sélectionner...</option>
+                    {filteredAthletes.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.firstName} {a.lastName}
+                      </option>
+                    ))}
+                  </TextInput>
+                )}
+                {selectedAthleteName && (
+                  <div className="flex items-center gap-2 mt-1.5 px-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                      {selectedAthleteName.firstName} {selectedAthleteName.lastName}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, athleteId: "" }))
+                          setAthleteSearch("")
+                        }}
+                        className="ml-0.5 text-blue-400 hover:text-blue-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </div>
+                )}
               </div>
               <div>
                 <TextInput
