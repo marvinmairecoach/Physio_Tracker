@@ -69,6 +69,7 @@ export default function TestsPage() {
 
   // Athlete search state
   const [athleteSearch, setAthleteSearch] = useState("")
+  const [resultSearch, setResultSearch] = useState("")
 
   // Edit state
   const [editTarget, setEditTarget] = useState<TestResult | null>(null)
@@ -151,6 +152,11 @@ export default function TestsPage() {
     setPage(1)
   }, [selectedTeamId])
 
+  // Reset page when result search changes
+  useEffect(() => {
+    setPage(1)
+  }, [resultSearch])
+
   // Compute which athletes to show in the dropdown
   const baseAthletes = selectedTeamId && teamAthletes.length > 0
     ? teamAthletes
@@ -179,9 +185,24 @@ export default function TestsPage() {
       : athletes.map((a) => a.id)
   )
 
-  const teamFilteredResults = selectedTeamId
-    ? recentResults.filter((r) => teamAthleteIds.has(r.athlete.id))
-    : recentResults
+  const teamFilteredResults = (() => {
+    let results = selectedTeamId
+      ? recentResults.filter((r) => teamAthleteIds.has(r.athlete.id))
+      : recentResults
+
+    if (resultSearch) {
+      const q = resultSearch.toLowerCase()
+      results = results.filter(
+        (r) =>
+          r.athlete.firstName.toLowerCase().includes(q) ||
+          r.athlete.lastName.toLowerCase().includes(q) ||
+          `${r.athlete.firstName} ${r.athlete.lastName}`.toLowerCase().includes(q) ||
+          r.testType.name.toLowerCase().includes(q)
+      )
+    }
+
+    return results
+  })()
 
   const totalPages = Math.ceil(teamFilteredResults.length / ITEMS_PER_PAGE)
   const paginatedResults = teamFilteredResults.slice(
@@ -463,6 +484,15 @@ export default function TestsPage() {
               ? `Résultats pour l'équipe sélectionnée — ${teamFilteredResults.length} au total`
               : `${teamFilteredResults.length} résultat(s) au total`}
           </p>
+        </div>
+        <div className="px-6 pb-3">
+          <TextInput
+            placeholder="Rechercher par nom d'athlète ou type de test..."
+            leftSection={<Search className="h-4 w-4" />}
+            value={resultSearch}
+            onChange={(e) => setResultSearch(e.currentTarget.value)}
+            className="max-w-sm"
+          />
         </div>
         <div className="px-6 pb-6 overflow-x-auto">
           <Table>

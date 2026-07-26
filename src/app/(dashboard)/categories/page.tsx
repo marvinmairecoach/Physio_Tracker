@@ -6,6 +6,7 @@ import { Plus, Pencil, Check, X, Trash2 } from "lucide-react"
 import { Button, Card, Table, TextInput, Modal } from "@mantine/core"
 
 interface CategoryInfo {
+  id: string
   name: string
   count: number
 }
@@ -33,7 +34,8 @@ export default function CategoriesPage() {
     try {
       const res = await fetch("/api/tests/categories")
       if (!res.ok) throw new Error("Erreur lors du chargement")
-      const data: string[] = await res.json()
+      const data = await res.json()
+      const raw: { id: string; name: string }[] = data.categories ?? []
 
       // Fetch test types to get counts
       const typesRes = await fetch("/api/tests/types")
@@ -50,9 +52,10 @@ export default function CategoriesPage() {
       }
 
       setCategories(
-        data.map((name) => ({
-          name,
-          count: countMap.get(name) ?? 0,
+        raw.map((c) => ({
+          id: c.id,
+          name: c.name,
+          count: countMap.get(c.name) ?? 0,
         }))
       )
     } catch (err: unknown) {
@@ -86,8 +89,8 @@ export default function CategoriesPage() {
     }
   }
 
-  function startEdit(name: string) {
-    setEditingName(name)
+  function startEdit(id: string, name: string) {
+    setEditingName(id)
     setEditValue(name)
   }
 
@@ -96,11 +99,11 @@ export default function CategoriesPage() {
     setEditValue("")
   }
 
-  async function handleRename(oldName: string) {
+  async function handleRename(id: string) {
     if (!editValue.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/tests/categories/${encodeURIComponent(oldName)}`, {
+      const res = await fetch(`/api/tests/categories/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editValue.trim() }),
@@ -121,7 +124,7 @@ export default function CategoriesPage() {
     setDeleting(true)
     try {
       const res = await fetch(
-        `/api/tests/categories/${encodeURIComponent(deleteTarget.name)}`,
+        `/api/tests/categories/${deleteTarget.id}`,
         { method: "DELETE" }
       )
       if (!res.ok) {
@@ -182,9 +185,9 @@ export default function CategoriesPage() {
                 </Table.Tr>
               ) : (
                 categories.map((cat) => (
-                  <Table.Tr key={cat.name}>
+                  <Table.Tr key={cat.id}>
                     <Table.Td className="font-medium">
-                      {editingName === cat.name ? (
+                      {editingName === cat.id ? (
                         <div className="flex items-center gap-2">
                           <TextInput
                             value={editValue}
@@ -195,7 +198,7 @@ export default function CategoriesPage() {
                           <Button
                             variant="subtle"
                             size="compact-sm"
-                            onClick={() => handleRename(cat.name)}
+                            onClick={() => handleRename(cat.id)}
                             disabled={saving}
                           >
                             <Check className="h-4 w-4 text-green-500" />
@@ -222,7 +225,7 @@ export default function CategoriesPage() {
                         <Button
                           variant="outline"
                           size="compact-sm"
-                          onClick={() => startEdit(cat.name)}
+                          onClick={() => startEdit(cat.id, cat.name)}
                         >
                           <Pencil className="mr-1 h-3 w-3" />
                           Renommer

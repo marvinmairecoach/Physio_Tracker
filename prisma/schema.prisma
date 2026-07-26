@@ -165,6 +165,14 @@ model Injury {
   @@map("Injury")
 }
 
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("Category")
+}
+
 model TestType {
   id             String   @id @default(uuid())
   name           String   @unique

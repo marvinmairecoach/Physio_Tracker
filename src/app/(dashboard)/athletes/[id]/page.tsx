@@ -64,6 +64,7 @@ export default function AthleteDetailPage() {
 
   const [athlete, setAthlete] = useState<Athlete | null>(null)
   const [comparison, setComparison] = useState<ComparisonItem[]>([])
+  const [teamSize, setTeamSize] = useState(0)
   const [invitationStats, setInvitationStats] = useState<{
     total: number
     present: number
@@ -106,6 +107,7 @@ export default function AthleteDetailPage() {
         if (comparisonRes.ok) {
           const compData = await comparisonRes.json()
           setComparison(Array.isArray(compData) ? compData : compData.comparisons ?? [])
+          setTeamSize(compData.teamSize ?? 0)
         }
 
         if (invitationRes.ok) {
@@ -201,7 +203,7 @@ export default function AthleteDetailPage() {
       normalizedAthlete = (teamAvg / athleteVal) * 100
     }
 
-    if (normValue !== undefined && normValue !== null && teamAvg > 0) {
+    if (normValue !== undefined && normValue !== null && teamAvg > 0 && teamSize > 1) {
       normalizedNorm = (normValue / teamAvg) * 100
       if (!higherIsBetter) {
         normalizedNorm = (teamAvg / normValue) * 100
@@ -558,15 +560,17 @@ export default function AthleteDetailPage() {
                     strokeDasharray="8 4"
                   />
                 )}
-                <Radar
-                  name="Moyenne équipe"
-                  dataKey="Moyenne équipe"
-                  stroke="#f59e0b"
-                  fill="#f59e0b"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                />
+                {teamSize > 1 && (
+                  <Radar
+                    name="Moyenne équipe"
+                    dataKey="Moyenne équipe"
+                    stroke="#f59e0b"
+                    fill="#f59e0b"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                )}
                 <Legend
                   formatter={(value: string) => (
                     <span style={{ color: '#4a3f5c', fontWeight: 500 }}>{value}</span>

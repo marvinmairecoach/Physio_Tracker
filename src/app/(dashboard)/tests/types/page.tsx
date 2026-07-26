@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Pencil, Plus, Check, X, FolderKanban } from "lucide-react"
 
-import { Button, Card, Table, Badge, TextInput, Modal, Switch } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal, Switch, NativeSelect } from "@mantine/core"
 
 interface TestType {
   id: string
@@ -17,25 +17,27 @@ interface TestType {
   showOnTeamPage: boolean
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  field: "Terrain",
-  force_plate: "Plateforme de force",
-  dynamometer: "Dynamomètre",
-  anthropometric: "Anthropométrique",
+interface Category {
+  id: string
+  name: string
 }
+
+// Fallback — categories now come from the API as [{id, name}]
+// The category value is the name string directly (e.g., "Vitesse")
+const CATEGORY_LABELS: Record<string, string> = {}
 
 export default function TestTypesPage() {
   const router = useRouter()
   const [testTypes, setTestTypes] = useState<TestType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [existingCategories, setExistingCategories] = useState<string[]>([])
+  const [existingCategories, setExistingCategories] = useState<Category[]>([])
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false)
   const [newType, setNewType] = useState({
     name: "",
-    category: "field",
+    category: "",
     unit: "",
     higherIsBetter: true,
     normMale: "",
@@ -57,6 +59,11 @@ export default function TestTypesPage() {
   })
   const [saving, setSaving] = useState(false)
 
+  // New category modal
+  const [newCatModalOpen, setNewCatModalOpen] = useState(false)
+  const [newCatName, setNewCatName] = useState("")
+  const [creatingCategory, setCreatingCategory] = useState(false)
+
   useEffect(() => {
     fetchTestTypes()
     fetchCategories()
@@ -67,7 +74,7 @@ export default function TestTypesPage() {
       const res = await fetch("/api/tests/categories")
       if (res.ok) {
         const data = await res.json()
-        setExistingCategories(Array.isArray(data) ? data : [])
+        setExistingCategories(data.categories ?? [])
       }
     } catch {
       // Silent fail
@@ -84,6 +91,35 @@ export default function TestTypesPage() {
       setError(err instanceof Error ? err.message : "Une erreur est survenue")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleCreateCategory() {
+    if (!newCatName.trim()) return
+    setCreatingCategory(true)
+    try {
+      const res = await fetch("/api/tests/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      })
+      if (!res.ok) throw new Error("Erreur lors de la création de la catégorie")
+      await fetchCategories()
+      const createdName = newCatName.trim()
+      // If the create modal is open, select the new category
+      if (createOpen) {
+        setNewType((p) => ({ ...p, category: createdName }))
+      }
+      // If we're editing, select the new category
+      if (editingId) {
+        setEditForm((p) => ({ ...p, category: createdName }))
+      }
+      setNewCatModalOpen(false)
+      setNewCatName("")
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setCreatingCategory(false)
     }
   }
 
@@ -106,7 +142,7 @@ export default function TestTypesPage() {
       })
       if (!res.ok) throw new Error("Erreur lors de la création")
       setCreateOpen(false)
-      setNewType({ name: "", category: "field", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true })
+      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true })
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -175,6 +211,23 @@ export default function TestTypesPage() {
     }
   }
 
+  const categorySelectData = [
+    { value: "", label: "Sélectionner une catégorie" },
+    ...existingCategories.map((c) => ({ value: c.name, label: c.name })),
+  ]
+
+  function getEditCategoryData() {
+    const names = existingCategories.map((c) => c.name)
+    const data = [
+      { value: "", label: "Sélectionner une catégorie" },
+      ...existingCategories.map((c) => ({ value: c.name, label: c.name })),
+    ]
+    if (editForm.category && !names.includes(editForm.category)) {
+      data.push({ value: editForm.category, label: editForm.category })
+    }
+    return data
+  }
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
@@ -238,20 +291,23 @@ export default function TestTypesPage() {
                     </Table.Td>
                     <Table.Td>
                       {editingId === t.id ? (
-                        <>
-                          <input
+                        <div className="flex items-center gap-1">
+                          <NativeSelect
+                            data={getEditCategoryData()}
                             value={editForm.category}
-                            onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
-                            list="edit-categories"
-                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                            placeholder="Catégorie"
+                            onChange={(e) => setEditForm((p) => ({ ...p, category: e.currentTarget.value }))}
+                            className="w-48"
+                            size="sm"
                           />
-                          <datalist id="edit-categories">
-                            {existingCategories.map((cat) => (
-                              <option key={cat} value={cat} />
-                            ))}
-                          </datalist>
-                        </>
+                          <Button
+                            variant="subtle"
+                            size="compact-sm"
+                            onClick={() => setNewCatModalOpen(true)}
+                            title="Nouvelle catégorie"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       ) : (
                         CATEGORY_LABELS[t.category] ?? t.category
                       )}
@@ -369,18 +425,23 @@ export default function TestTypesPage() {
           />
           <div>
             <label className="block text-sm font-medium mb-1">Catégorie</label>
-            <input
-              value={newType.category}
-              onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
-              list="create-categories"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              placeholder="Ex: field, force_plate..."
-            />
-            <datalist id="create-categories">
-              {existingCategories.map((cat) => (
-                <option key={cat} value={cat} />
-              ))}
-            </datalist>
+            <div className="flex items-center gap-1">
+              <NativeSelect
+                data={categorySelectData}
+                value={newType.category}
+                onChange={(e) => setNewType((p) => ({ ...p, category: e.currentTarget.value }))}
+                className="flex-1"
+                size="sm"
+              />
+              <Button
+                variant="outline"
+                size="compact-sm"
+                onClick={() => setNewCatModalOpen(true)}
+                title="Nouvelle catégorie"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
           <TextInput
             label="Unité"
@@ -436,6 +497,28 @@ export default function TestTypesPage() {
           </Button>
           <Button onClick={handleCreate} disabled={creating}>
             {creating ? "Création..." : "Créer"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* New Category Modal */}
+      <Modal opened={newCatModalOpen} onClose={() => { setNewCatModalOpen(false); setNewCatName(""); }} title="Nouvelle catégorie" size="sm">
+        <p className="text-sm text-muted-foreground mb-4">
+          Créez une nouvelle catégorie de test.
+        </p>
+        <TextInput
+          label="Nom de la catégorie"
+          value={newCatName}
+          onChange={(e) => setNewCatName(e.currentTarget.value)}
+          placeholder="Ex: Vitesse, Force..."
+          data-autofocus
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => { setNewCatModalOpen(false); setNewCatName(""); }}>
+            Annuler
+          </Button>
+          <Button onClick={handleCreateCategory} disabled={creatingCategory || !newCatName.trim()}>
+            {creatingCategory ? "Création..." : "Créer"}
           </Button>
         </div>
       </Modal>

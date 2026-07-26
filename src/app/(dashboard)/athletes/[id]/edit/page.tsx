@@ -79,12 +79,15 @@ export default function EditAthletePage() {
       setError("Le prénom et le nom sont requis")
       return
     }
+    // Normalize case for first and last name
+    const normalizedFirstName = formData.firstName.charAt(0).toUpperCase() + formData.firstName.slice(1).toLowerCase()
+    const normalizedLastName = formData.lastName.charAt(0).toUpperCase() + formData.lastName.slice(1).toLowerCase()
     setSaving(true)
     setError(null)
     try {
       const body: Record<string, unknown> = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
         birthDate: formData.birthDate || null,
         phone: formData.phone || null,
         email: formData.email || null,

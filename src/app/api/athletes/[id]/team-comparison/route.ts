@@ -45,9 +45,10 @@ export async function GET(
           athleteLatestValue: athleteLatest ? Number(athleteLatest.value) : null,
           teamAverage: null,
           teamValues: [],
+          teamSize: 1,
         });
       }
-      return NextResponse.json({ comparisons });
+      return NextResponse.json({ comparisons, teamSize: 1 });
     }
 
     // Get all team IDs for this athlete
@@ -121,10 +122,11 @@ export async function GET(
           ...tv,
           value: tv.value !== null ? tv.value : null,
         })),
+        teamSize: teamAthletes.length + 1,
       });
     }
 
-    return NextResponse.json({ comparisons });
+    return NextResponse.json({ comparisons, teamSize: teamAthletes.length + 1 });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

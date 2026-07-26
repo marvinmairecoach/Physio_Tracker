@@ -8,17 +8,12 @@ export async function GET() {
   try {
     await requireAuth();
 
-    const categories = await prisma.testType.findMany({
-      select: { category: true },
-      distinct: ["category"],
-      orderBy: { category: "asc" },
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
     });
 
-    const distinctCategories = categories
-      .map((c) => c.category)
-      .filter(Boolean) as string[];
-
-    return NextResponse.json(distinctCategories);
+    return NextResponse.json({ categories });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,9 +40,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Categories are just strings on the TestType model, so creation is a no-op
-    // (they get created when a test type uses them). We just validate.
-    return NextResponse.json({ name: name.trim() }, { status: 201 });
+    const category = await prisma.category.create({
+      data: { name: name.trim() },
+    });
+
+    return NextResponse.json(
+      { name: category.name, id: category.id },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
