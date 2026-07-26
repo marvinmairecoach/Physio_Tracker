@@ -238,22 +238,56 @@ export default function AthleteDetailPage() {
     })
   }
 
+  /** Compress an image to a max width/height and quality before base64 */
+  function compressImage(file: File, maxDim = 800, quality = 0.7): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const img = new window.Image()
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          let { width, height } = img
+          if (width > height && width > maxDim) {
+            height = Math.round((height / width) * maxDim)
+            width = maxDim
+          } else if (height > maxDim) {
+            width = Math.round((width / height) * maxDim)
+            height = maxDim
+          }
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")!
+          ctx.drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL("image/jpeg", quality))
+        }
+        img.onerror = reject
+        img.src = reader.result as string
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingPhoto(true)
     try {
-      const b64 = await fileToBase64(file)
+      const b64 = await compressImage(file)
       const res = await fetch(`/api/athletes/${athleteId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ photoUrl: b64 }),
       })
-      if (!res.ok) throw new Error("Erreur")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur serveur")
+      }
       const updated = await res.json()
       setAthlete(updated)
     } catch (err) {
       console.error("Photo upload error:", err)
+      alert("Erreur lors de l'upload de la photo : " + (err instanceof Error ? err.message : "Erreur inconnue"))
     } finally {
       setUploadingPhoto(false)
     }
