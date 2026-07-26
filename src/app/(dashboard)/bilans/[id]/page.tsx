@@ -54,6 +54,8 @@ interface BilanData {
     radarTestCount: number
     showNorms: boolean
     showTeamComparison: boolean
+    subtitle?: string
+    testComments?: Record<string, string>
   }
   createdAt: string
   updatedAt: string
@@ -91,6 +93,10 @@ export default function BilanViewPage() {
   const [editShowTeam, setEditShowTeam] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // New edit fields
+  const [editSubtitle, setEditSubtitle] = useState("")
+  const [testComments, setTestComments] = useState<Record<string, string>>({})
+
   // PDF / Email dialogs
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -117,6 +123,8 @@ export default function BilanViewPage() {
       setEditRadarCount(bilanData.config.radarTestCount ?? 6)
       setEditShowNorms(bilanData.config.showNorms ?? true)
       setEditShowTeam(bilanData.config.showTeamComparison ?? true)
+      setEditSubtitle(bilanData.config?.subtitle ?? "")
+      setTestComments(bilanData.config?.testComments ?? {})
 
       if (typesRes.ok) {
         const tData = await typesRes.json()
@@ -191,6 +199,8 @@ export default function BilanViewPage() {
             radarTestCount: editRadarCount,
             showNorms: editShowNorms,
             showTeamComparison: editShowTeam,
+            subtitle: editSubtitle || undefined,
+            testComments: testComments,
           },
         }),
       })
@@ -238,6 +248,7 @@ export default function BilanViewPage() {
         testValue: { width: '20%', textAlign: 'center' },
         testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
+        testComment: { fontSize: 8, color: '#999', marginTop: 2, fontStyle: 'italic' },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -278,14 +289,17 @@ export default function BilanViewPage() {
         const beatsNorm = norm !== null
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
+        const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
-          <View key={id} style={styles.testRow}>
-            <Text style={styles.testName}>{tt.name}</Text>
-            <Text style={styles.testValue}>{val.toFixed(1)} {tt.unit}</Text>
-            <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
-            <Text style={styles.testStatus}>
-              {beatsNorm === true ? "✓" : beatsNorm === false ? "✗" : "—"}
-            </Text>
+          <View key={id}>
+            <View style={styles.testRow}>
+              <Text style={styles.testName}>{tt.name}</Text>
+              <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
+              <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
+            </View>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
           </View>
         )
       }).filter(Boolean)
@@ -301,8 +315,10 @@ export default function BilanViewPage() {
               {user?.logoUrl && (
                 <Image src={user.logoUrl} style={{ position: 'absolute', top: 20, right: 40, width: 60, height: 60 }} />
               )}
-              <Text style={styles.title}>{bilan?.title ?? "Bilan"}</Text>
-              <Text style={styles.subtitle}>Généré le {today}</Text>
+              <Text style={styles.title}>Bilan du {new Date(bilan?.createdAt || Date.now()).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</Text>
+              {bilan?.config?.subtitle && (
+                <Text style={styles.subtitle}>{bilan.config.subtitle}</Text>
+              )}
               <Text style={styles.athleteInfo}>
                 {athlete?.lastName?.toUpperCase()} {athlete?.firstName}
                 {athleteAge ? ` — ${athleteAge} ans` : ""} — {teamName}
@@ -386,14 +402,37 @@ export default function BilanViewPage() {
             </View>
             )}
 
+            {/* Legend — discrète avant les résultats */}
+            <View style={{ ...styles.section, fontSize: 9, color: '#999' }}>
+              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#22c55e" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#ef4444" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#9ca3af" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+                </View>
+              </View>
+            </View>
+
             {/* Test results section (second) */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Résultats des tests</Text>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
-                <Text style={{ width: '20%', textAlign: 'center' }}>Valeur</Text>
-                <Text style={{ width: '20%', textAlign: 'center' }}>Norme</Text>
-                <Text style={{ width: '20%', textAlign: 'right' }}>Statut</Text>
+                <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>
+                <Text style={{ width: '30%', textAlign: 'center' }}>Norme</Text>
               </View>
               {testRows}
             </View>
@@ -405,31 +444,6 @@ export default function BilanViewPage() {
                 <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
               </View>
             )}
-
-            {/* Legend with proper SVG circles */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Légende</Text>
-              <View style={{ flexDirection: 'row', gap: 16, fontSize: 10, color: '#666' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#22c55e" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>✓ Norme atteinte</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#ef4444" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>✗ Sous la norme</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#9ca3af" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>— Pas de norme</Text>
-                </View>
-              </View>
-            </View>
 
             <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
           </Page>
@@ -467,6 +481,7 @@ export default function BilanViewPage() {
         testValue: { width: '20%', textAlign: 'center' },
         testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
+        testComment: { fontSize: 8, color: '#999', marginTop: 2, fontStyle: 'italic' },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -497,6 +512,7 @@ export default function BilanViewPage() {
         }).join(' ')
       }
 
+      // Test results table rows
       const testRows = effectiveIdsArray.map((id) => {
         const tt = testTypes.find((t) => t.id === id)
         const result = latestResults.get(id)
@@ -506,14 +522,17 @@ export default function BilanViewPage() {
         const beatsNorm = norm !== null
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
+        const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
-          <View key={id} style={styles.testRow}>
-            <Text style={styles.testName}>{tt.name}</Text>
-            <Text style={styles.testValue}>{val.toFixed(1)} {tt.unit}</Text>
-            <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
-            <Text style={styles.testStatus}>
-              {beatsNorm === true ? "✓" : beatsNorm === false ? "✗" : "—"}
-            </Text>
+          <View key={id}>
+            <View style={styles.testRow}>
+              <Text style={styles.testName}>{tt.name}</Text>
+              <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
+              <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
+            </View>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
           </View>
         )
       }).filter(Boolean)
@@ -529,8 +548,10 @@ export default function BilanViewPage() {
               {user?.logoUrl && (
                 <Image src={user.logoUrl} style={{ position: 'absolute', top: 20, right: 40, width: 60, height: 60 }} />
               )}
-              <Text style={styles.title}>{bilan?.title ?? "Bilan"}</Text>
-              <Text style={styles.subtitle}>Généré le {today}</Text>
+              <Text style={styles.title}>Bilan du {new Date(bilan?.createdAt || Date.now()).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</Text>
+              {bilan?.config?.subtitle && (
+                <Text style={styles.subtitle}>{bilan.config.subtitle}</Text>
+              )}
               <Text style={styles.athleteInfo}>
                 {athlete?.lastName?.toUpperCase()} {athlete?.firstName}
                 {athleteAge ? ` — ${athleteAge} ans` : ""} — {teamName}
@@ -608,13 +629,36 @@ export default function BilanViewPage() {
             </View>
             )}
 
+            {/* Legend — discrète avant les résultats */}
+            <View style={{ ...styles.section, fontSize: 9, color: '#999' }}>
+              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#22c55e" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#ef4444" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg width={10} height={10}>
+                    <Circle cx="5" cy="5" r="4" fill="#9ca3af" />
+                  </Svg>
+                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+                </View>
+              </View>
+            </View>
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Résultats des tests</Text>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
-                <Text style={{ width: '20%', textAlign: 'center' }}>Valeur</Text>
-                <Text style={{ width: '20%', textAlign: 'center' }}>Norme</Text>
-                <Text style={{ width: '20%', textAlign: 'right' }}>Statut</Text>
+                <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>
+                <Text style={{ width: '30%', textAlign: 'center' }}>Norme</Text>
               </View>
               {testRows}
             </View>
@@ -625,30 +669,6 @@ export default function BilanViewPage() {
                 <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
               </View>
             )}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Légende</Text>
-              <View style={{ flexDirection: 'row', gap: 16, fontSize: 10, color: '#666' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#22c55e" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>✓ Norme atteinte</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#ef4444" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>✗ Sous la norme</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={14} height={14}>
-                    <Circle cx="7" cy="7" r="6" fill="#9ca3af" />
-                  </Svg>
-                  <Text style={{ marginLeft: 4 }}>— Pas de norme</Text>
-                </View>
-              </View>
-            </View>
 
             <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
           </Page>
@@ -784,7 +804,13 @@ export default function BilanViewPage() {
       {editing && (
         <Card withBorder className="max-w-none">
           <div className="px-6 pt-6 pb-3"><h2 className="text-lg font-semibold">Description</h2></div>
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 space-y-3">
+            <TextInput
+              label="Sous-titre (optionnel)"
+              value={editSubtitle}
+              onChange={(e) => setEditSubtitle(e.target.value)}
+              placeholder="Ex: Bilan de mi-saison"
+            />
             <Textarea
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
@@ -882,7 +908,7 @@ export default function BilanViewPage() {
                   return (
                     <label
                       key={tt.id}
-                      className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                         isSelected ? "border-blue-300 bg-blue-50/50" : "border-border hover:border-blue-200"
                       }`}
                     >
@@ -900,6 +926,16 @@ export default function BilanViewPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{tt.name}</p>
                         <p className="text-xs text-muted-foreground">{Number(result.value).toFixed(1)} {tt.unit}</p>
+                        {isSelected && (
+                          <TextInput
+                            size="xs"
+                            placeholder="Commentaire..."
+                            value={testComments[tt.id] ?? ""}
+                            onChange={(e) => setTestComments((prev) => ({ ...prev, [tt.id]: e.target.value }))}
+                            mt={4}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                       </div>
                     </label>
                   )
