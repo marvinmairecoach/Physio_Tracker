@@ -295,8 +295,8 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
-        const isUnilateral = tt.isUnilateral && result.valueLeft !== undefined && result.valueRight !== undefined
-        const asymPct = isUnilateral
+        const isUnilateral = tt.isUnilateral && result.valueLeft != null && result.valueRight != null
+        const asymPct = isUnilateral && (result.valueLeft! + result.valueRight!) > 0
           ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
           : null
         return (
@@ -465,7 +465,7 @@ export default function BilanViewPage() {
       setPdfDialogOpen(true)
     } catch (err) {
       console.error("PDF generation error:", err)
-      alert("Erreur lors de la génération du PDF. Utilisez le print navigateur à la place.")
+      alert("Erreur lors de la génération du PDF : " + (err instanceof Error ? err.message : "Erreur inconnue") + ". Utilisez le print navigateur à la place.")
     }
   }
 
@@ -534,8 +534,8 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
-        const isUnilateral = tt.isUnilateral && result.valueLeft !== undefined && result.valueRight !== undefined
-        const asymPct = isUnilateral
+        const isUnilateral = tt.isUnilateral && result.valueLeft != null && result.valueRight != null
+        const asymPct = isUnilateral && (result.valueLeft! + result.valueRight!) > 0
           ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
           : null
         return (
