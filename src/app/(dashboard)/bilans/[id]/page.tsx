@@ -295,9 +295,11 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
-        const isUnilateral = tt.isUnilateral && result.valueLeft != null && result.valueRight != null
-        const asymPct = isUnilateral && (result.valueLeft! + result.valueRight!) > 0
-          ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
+        const valLeft = result.valueLeft != null ? Number(result.valueLeft) : null
+        const valRight = result.valueRight != null ? Number(result.valueRight) : null
+        const isUnilateral = tt.isUnilateral && valLeft != null && valRight != null
+        const asymPct = isUnilateral && (valLeft! + valRight!) > 0
+          ? Math.abs(valLeft! - valRight!) / ((valLeft! + valRight!) / 2) * 100
           : null
         return (
           <View key={id}>
@@ -305,7 +307,7 @@ export default function BilanViewPage() {
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>
                 {isUnilateral
-                  ? `G: ${result.valueLeft!.toFixed(1)} | D: ${result.valueRight!.toFixed(1)}`
+                  ? `G: ${valLeft!.toFixed(1)} | D: ${valRight!.toFixed(1)}`
                   : `${val.toFixed(1)} ${tt.unit}`}
               </Text>
               <Text style={styles.testAsym}>{asymPct !== null ? `${asymPct.toFixed(1)}%` : ""}</Text>
@@ -534,9 +536,11 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
-        const isUnilateral = tt.isUnilateral && result.valueLeft != null && result.valueRight != null
-        const asymPct = isUnilateral && (result.valueLeft! + result.valueRight!) > 0
-          ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
+        const valLeft = result.valueLeft != null ? Number(result.valueLeft) : null
+        const valRight = result.valueRight != null ? Number(result.valueRight) : null
+        const isUnilateral = tt.isUnilateral && valLeft != null && valRight != null
+        const asymPct = isUnilateral && (valLeft! + valRight!) > 0
+          ? Math.abs(valLeft! - valRight!) / ((valLeft! + valRight!) / 2) * 100
           : null
         return (
           <View key={id}>
@@ -544,7 +548,7 @@ export default function BilanViewPage() {
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>
                 {isUnilateral
-                  ? `G: ${result.valueLeft!.toFixed(1)} | D: ${result.valueRight!.toFixed(1)}`
+                  ? `G: ${valLeft!.toFixed(1)} | D: ${valRight!.toFixed(1)}`
                   : `${val.toFixed(1)} ${tt.unit}`}
               </Text>
               <Text style={styles.testAsym}>{asymPct !== null ? `${asymPct.toFixed(1)}%` : ""}</Text>
