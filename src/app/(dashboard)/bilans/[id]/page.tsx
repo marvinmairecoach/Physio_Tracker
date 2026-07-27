@@ -243,12 +243,13 @@ export default function BilanViewPage() {
         athleteInfo: { fontSize: 11, color: '#444', marginTop: 4 },
         section: { marginTop: 16 },
         sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e40af', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 4 },
-        testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+        testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
         testName: { fontWeight: 'bold', width: '40%' },
-        testValue: { width: '20%', textAlign: 'center' },
-        testNorm: { width: '20%', textAlign: 'center', color: '#666' },
+        testValue: { width: '30%', textAlign: 'center' },
+        testNorm: { width: '30%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
         testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
+        testSeparator: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', marginTop: 2 },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -300,6 +301,7 @@ export default function BilanViewPage() {
             {bilan?.config?.testComments?.[id] && (
               <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
             )}
+            <View style={styles.testSeparator} />
           </View>
         )
       }).filter(Boolean)
@@ -330,12 +332,12 @@ export default function BilanViewPage() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Svg width={350} height={350}>
+                <Svg width={420} height={420}>
                   {/* 4 concentric grid polygons at 25/50/75/100% */}
                   {[25, 50, 75, 100].map((pct) => (
                     <Polygon
                       key={pct}
-                      points={polyPoints(Array(radarCount).fill(pct), 175, 175, 140)}
+                      points={polyPoints(Array(radarCount).fill(pct), 210, 210, 140)}
                       fill="none"
                       stroke="#e5e7eb"
                       strokeWidth={1}
@@ -344,14 +346,14 @@ export default function BilanViewPage() {
                   {/* Axis lines from center to each vertex */}
                   {Array.from({ length: radarCount }, (_, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const x = 175 + 140 * Math.cos(angle)
-                    const y = 175 + 140 * Math.sin(angle)
-                    return <Line key={i} x1={175} y1={175} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                    const x = 210 + 140 * Math.cos(angle)
+                    const y = 210 + 140 * Math.sin(angle)
+                    return <Line key={i} x1={210} y1={210} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                   })}
                   {/* Norm data polygon (rendered first so athlete is on top) */}
                   {radarData.some(d => d.normPct !== null) && (
                     <Polygon
-                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 175, 175, 140)}
+                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 210, 210, 140)}
                       fill="#06b6d4"
                       fillOpacity={0.15}
                       stroke="#06b6d4"
@@ -361,7 +363,7 @@ export default function BilanViewPage() {
                   )}
                   {/* Athlete data polygon */}
                   <Polygon
-                    points={polyPoints(radarData.map(d => d.athletePct), 175, 175, 140)}
+                    points={polyPoints(radarData.map(d => d.athletePct), 210, 210, 140)}
                     fill="#2563eb"
                     fillOpacity={0.2}
                     stroke="#2563eb"
@@ -370,9 +372,9 @@ export default function BilanViewPage() {
                   {/* Labels positioned beyond the last grid ring */}
                   {radarData.map((d, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const labelR = 165
-                    const x = 175 + labelR * Math.cos(angle)
-                    const y = 175 + labelR * Math.sin(angle)
+                    const labelR = 185
+                    const x = 210 + labelR * Math.cos(angle)
+                    const y = 210 + labelR * Math.sin(angle)
                     const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                     return (
                       <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
@@ -402,27 +404,33 @@ export default function BilanViewPage() {
             </View>
             )}
 
-            {/* Test results section (second) */}
+            {/* Analyse section (second, renamed from Description) */}
+            {bilan?.description && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Analyse</Text>
+                <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
+              </View>
+            )}
+
+            <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
+          </Page>
+          <Page size="A4" style={styles.page}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Résultats des tests</Text>
-              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999', marginBottom: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#22c55e" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#ef4444" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#9ca3af" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.sectionTitle}>Résultats des tests</Text>
+                <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#22c55e" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#ef4444" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#9ca3af" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.headerRow}>
@@ -432,15 +440,6 @@ export default function BilanViewPage() {
               </View>
               {testRows}
             </View>
-
-            {/* Analyse section (third, renamed from Description) */}
-            {bilan?.description && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Analyse</Text>
-                <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
-              </View>
-            )}
-
             <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
           </Page>
         </Document>
@@ -472,12 +471,13 @@ export default function BilanViewPage() {
         athleteInfo: { fontSize: 11, color: '#444', marginTop: 4 },
         section: { marginTop: 16 },
         sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e40af', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 4 },
-        testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+        testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
         testName: { fontWeight: 'bold', width: '40%' },
-        testValue: { width: '20%', textAlign: 'center' },
-        testNorm: { width: '20%', textAlign: 'center', color: '#666' },
+        testValue: { width: '30%', textAlign: 'center' },
+        testNorm: { width: '30%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
         testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
+        testSeparator: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', marginTop: 2 },
         footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: '#2563eb', fontSize: 9, color: '#666', fontWeight: 'bold' },
       })
@@ -529,6 +529,7 @@ export default function BilanViewPage() {
             {bilan?.config?.testComments?.[id] && (
               <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
             )}
+            <View style={styles.testSeparator} />
           </View>
         )
       }).filter(Boolean)
@@ -559,11 +560,11 @@ export default function BilanViewPage() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Svg width={350} height={350}>
+                <Svg width={420} height={420}>
                   {[25, 50, 75, 100].map((pct) => (
                     <Polygon
                       key={pct}
-                      points={polyPoints(Array(radarCount).fill(pct), 175, 175, 140)}
+                      points={polyPoints(Array(radarCount).fill(pct), 210, 210, 140)}
                       fill="none"
                       stroke="#e5e7eb"
                       strokeWidth={1}
@@ -571,13 +572,13 @@ export default function BilanViewPage() {
                   ))}
                   {Array.from({ length: radarCount }, (_, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const x = 175 + 140 * Math.cos(angle)
-                    const y = 175 + 140 * Math.sin(angle)
-                    return <Line key={i} x1={175} y1={175} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                    const x = 210 + 140 * Math.cos(angle)
+                    const y = 210 + 140 * Math.sin(angle)
+                    return <Line key={i} x1={210} y1={210} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                   })}
                   {radarData.some(d => d.normPct !== null) && (
                     <Polygon
-                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 175, 175, 140)}
+                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 210, 210, 140)}
                       fill="#06b6d4"
                       fillOpacity={0.15}
                       stroke="#06b6d4"
@@ -586,7 +587,7 @@ export default function BilanViewPage() {
                     />
                   )}
                   <Polygon
-                    points={polyPoints(radarData.map(d => d.athletePct), 175, 175, 140)}
+                    points={polyPoints(radarData.map(d => d.athletePct), 210, 210, 140)}
                     fill="#2563eb"
                     fillOpacity={0.2}
                     stroke="#2563eb"
@@ -594,9 +595,9 @@ export default function BilanViewPage() {
                   />
                   {radarData.map((d, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const labelR = 165
-                    const x = 175 + labelR * Math.cos(angle)
-                    const y = 175 + labelR * Math.sin(angle)
+                    const labelR = 185
+                    const x = 210 + labelR * Math.cos(angle)
+                    const y = 210 + labelR * Math.sin(angle)
                     const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                     return (
                       <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
@@ -625,26 +626,32 @@ export default function BilanViewPage() {
             </View>
             )}
 
+            {bilan?.description && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Analyse</Text>
+                <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
+              </View>
+            )}
+
+            <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
+          </Page>
+          <Page size="A4" style={styles.page}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Résultats des tests</Text>
-              <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999', marginBottom: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#22c55e" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#ef4444" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Svg width={10} height={10}>
-                    <Circle cx="5" cy="5" r="4" fill="#9ca3af" />
-                  </Svg>
-                  <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.sectionTitle}>Résultats des tests</Text>
+                <View style={{ flexDirection: 'row', gap: 12, fontSize: 9, color: '#999' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#22c55e" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Norme atteinte</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#ef4444" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Sous la norme</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Svg width={10} height={10}><Circle cx="5" cy="5" r="4" fill="#9ca3af" /></Svg>
+                    <Text style={{ marginLeft: 3, fontSize: 9, color: '#999' }}>Pas de norme</Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.headerRow}>
@@ -654,14 +661,6 @@ export default function BilanViewPage() {
               </View>
               {testRows}
             </View>
-
-            {bilan?.description && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Analyse</Text>
-                <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{bilan.description}</Text>
-              </View>
-            )}
-
             <Text style={styles.footer}>PP Tracker — Bilan physique généré automatiquement</Text>
           </Page>
         </Document>
