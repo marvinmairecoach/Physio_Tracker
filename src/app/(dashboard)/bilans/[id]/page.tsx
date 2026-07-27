@@ -37,11 +37,14 @@ interface TestTypeFull {
   higherIsBetter: boolean
   normMale: number | null
   normFemale: number | null
+  isUnilateral?: boolean
 }
 
 interface ResultValue {
   testTypeId: string
   value: number
+  valueLeft?: number
+  valueRight?: number
   date: string
 }
 
@@ -245,8 +248,9 @@ export default function BilanViewPage() {
         sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e40af', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 4 },
         testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
         testName: { fontWeight: 'bold', width: '40%' },
-        testValue: { width: '30%', textAlign: 'center' },
-        testNorm: { width: '30%', textAlign: 'center', color: '#666' },
+        testValue: { width: '25%', textAlign: 'center' },
+        testAsym: { width: '15%', textAlign: 'center', fontSize: 8, color: '#666' },
+        testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
         testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
         testSeparator: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', marginTop: 2 },
@@ -291,11 +295,20 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+        const isUnilateral = tt.isUnilateral && result.valueLeft !== undefined && result.valueRight !== undefined
+        const asymPct = isUnilateral
+          ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
+          : null
         return (
           <View key={id}>
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
-              <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
+              <Text style={{ ...styles.testValue, color: beatColor }}>
+                {isUnilateral
+                  ? `G: ${result.valueLeft!.toFixed(1)} | D: ${result.valueRight!.toFixed(1)}`
+                  : `${val.toFixed(1)} ${tt.unit}`}
+              </Text>
+              <Text style={styles.testAsym}>{asymPct !== null ? `${asymPct.toFixed(1)}%` : ""}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
             {bilan?.config?.testComments?.[id] && (
@@ -332,12 +345,12 @@ export default function BilanViewPage() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Svg width={420} height={420}>
+                <Svg width={480} height={480}>
                   {/* 4 concentric grid polygons at 25/50/75/100% */}
                   {[25, 50, 75, 100].map((pct) => (
                     <Polygon
                       key={pct}
-                      points={polyPoints(Array(radarCount).fill(pct), 210, 210, 140)}
+                      points={polyPoints(Array(radarCount).fill(pct), 240, 240, 140)}
                       fill="none"
                       stroke="#e5e7eb"
                       strokeWidth={1}
@@ -346,14 +359,14 @@ export default function BilanViewPage() {
                   {/* Axis lines from center to each vertex */}
                   {Array.from({ length: radarCount }, (_, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const x = 210 + 140 * Math.cos(angle)
-                    const y = 210 + 140 * Math.sin(angle)
-                    return <Line key={i} x1={210} y1={210} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                    const x = 240 + 140 * Math.cos(angle)
+                    const y = 240 + 140 * Math.sin(angle)
+                    return <Line key={i} x1={240} y1={240} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                   })}
                   {/* Norm data polygon (rendered first so athlete is on top) */}
                   {radarData.some(d => d.normPct !== null) && (
                     <Polygon
-                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 210, 210, 140)}
+                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 240, 240, 140)}
                       fill="#06b6d4"
                       fillOpacity={0.15}
                       stroke="#06b6d4"
@@ -363,7 +376,7 @@ export default function BilanViewPage() {
                   )}
                   {/* Athlete data polygon */}
                   <Polygon
-                    points={polyPoints(radarData.map(d => d.athletePct), 210, 210, 140)}
+                    points={polyPoints(radarData.map(d => d.athletePct), 240, 240, 140)}
                     fill="#2563eb"
                     fillOpacity={0.2}
                     stroke="#2563eb"
@@ -372,9 +385,9 @@ export default function BilanViewPage() {
                   {/* Labels positioned beyond the last grid ring */}
                   {radarData.map((d, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const labelR = 185
-                    const x = 210 + labelR * Math.cos(angle)
-                    const y = 210 + labelR * Math.sin(angle)
+                    const labelR = 220
+                    const x = 240 + labelR * Math.cos(angle)
+                    const y = 240 + labelR * Math.sin(angle)
                     const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                     return (
                       <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
@@ -435,8 +448,9 @@ export default function BilanViewPage() {
               </View>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
-                <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>
-                <Text style={{ width: '30%', textAlign: 'center' }}>Norme</Text>
+                <Text style={{ width: '25%', textAlign: 'center' }}>Valeur</Text>
+                <Text style={{ width: '15%', textAlign: 'center' }}>Asym</Text>
+                <Text style={{ width: '20%', textAlign: 'center' }}>Norme</Text>
               </View>
               {testRows}
             </View>
@@ -473,8 +487,9 @@ export default function BilanViewPage() {
         sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e40af', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 4 },
         testRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
         testName: { fontWeight: 'bold', width: '40%' },
-        testValue: { width: '30%', textAlign: 'center' },
-        testNorm: { width: '30%', textAlign: 'center', color: '#666' },
+        testValue: { width: '25%', textAlign: 'center' },
+        testAsym: { width: '15%', textAlign: 'center', fontSize: 8, color: '#666' },
+        testNorm: { width: '20%', textAlign: 'center', color: '#666' },
         testStatus: { width: '20%', textAlign: 'right' },
         testComment: { fontSize: 10, color: '#444', marginTop: 4, marginBottom: 2 },
         testSeparator: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', marginTop: 2 },
@@ -519,11 +534,20 @@ export default function BilanViewPage() {
           ? tt.higherIsBetter ? val >= norm : val <= norm
           : null
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+        const isUnilateral = tt.isUnilateral && result.valueLeft !== undefined && result.valueRight !== undefined
+        const asymPct = isUnilateral
+          ? Math.abs(result.valueLeft! - result.valueRight!) / ((result.valueLeft! + result.valueRight!) / 2) * 100
+          : null
         return (
           <View key={id}>
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
-              <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
+              <Text style={{ ...styles.testValue, color: beatColor }}>
+                {isUnilateral
+                  ? `G: ${result.valueLeft!.toFixed(1)} | D: ${result.valueRight!.toFixed(1)}`
+                  : `${val.toFixed(1)} ${tt.unit}`}
+              </Text>
+              <Text style={styles.testAsym}>{asymPct !== null ? `${asymPct.toFixed(1)}%` : ""}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
             {bilan?.config?.testComments?.[id] && (
@@ -560,11 +584,11 @@ export default function BilanViewPage() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Radar des performances</Text>
               <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Svg width={420} height={420}>
+                <Svg width={480} height={480}>
                   {[25, 50, 75, 100].map((pct) => (
                     <Polygon
                       key={pct}
-                      points={polyPoints(Array(radarCount).fill(pct), 210, 210, 140)}
+                      points={polyPoints(Array(radarCount).fill(pct), 240, 240, 140)}
                       fill="none"
                       stroke="#e5e7eb"
                       strokeWidth={1}
@@ -572,13 +596,13 @@ export default function BilanViewPage() {
                   ))}
                   {Array.from({ length: radarCount }, (_, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const x = 210 + 140 * Math.cos(angle)
-                    const y = 210 + 140 * Math.sin(angle)
-                    return <Line key={i} x1={210} y1={210} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                    const x = 240 + 140 * Math.cos(angle)
+                    const y = 240 + 140 * Math.sin(angle)
+                    return <Line key={i} x1={240} y1={240} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                   })}
                   {radarData.some(d => d.normPct !== null) && (
                     <Polygon
-                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 210, 210, 140)}
+                      points={polyPoints(radarData.map(d => d.normPct ?? 0), 240, 240, 140)}
                       fill="#06b6d4"
                       fillOpacity={0.15}
                       stroke="#06b6d4"
@@ -587,7 +611,7 @@ export default function BilanViewPage() {
                     />
                   )}
                   <Polygon
-                    points={polyPoints(radarData.map(d => d.athletePct), 210, 210, 140)}
+                    points={polyPoints(radarData.map(d => d.athletePct), 240, 240, 140)}
                     fill="#2563eb"
                     fillOpacity={0.2}
                     stroke="#2563eb"
@@ -595,9 +619,9 @@ export default function BilanViewPage() {
                   />
                   {radarData.map((d, i) => {
                     const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                    const labelR = 185
-                    const x = 210 + labelR * Math.cos(angle)
-                    const y = 210 + labelR * Math.sin(angle)
+                    const labelR = 220
+                    const x = 240 + labelR * Math.cos(angle)
+                    const y = 240 + labelR * Math.sin(angle)
                     const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                     return (
                       <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
@@ -656,8 +680,9 @@ export default function BilanViewPage() {
               </View>
               <View style={styles.headerRow}>
                 <Text style={{ width: '40%' }}>Test</Text>
-                <Text style={{ width: '30%', textAlign: 'center' }}>Valeur</Text>
-                <Text style={{ width: '30%', textAlign: 'center' }}>Norme</Text>
+                <Text style={{ width: '25%', textAlign: 'center' }}>Valeur</Text>
+                <Text style={{ width: '15%', textAlign: 'center' }}>Asym</Text>
+                <Text style={{ width: '20%', textAlign: 'center' }}>Norme</Text>
               </View>
               {testRows}
             </View>

@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
     const serialized = results.map((r) => ({
       ...r,
       value: Number(r.value),
+      valueLeft: r.valueLeft !== null ? Number(r.valueLeft) : null,
+      valueRight: r.valueRight !== null ? Number(r.valueRight) : null,
     }));
 
     return NextResponse.json(serialized);
@@ -81,11 +83,11 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
 
     const body = await request.json();
-    const { athleteId, testTypeId, value, date, notes } = body;
+    const { athleteId, testTypeId, value, valueLeft, valueRight, date, notes } = body;
 
-    if (!athleteId || !testTypeId || value === undefined || value === null) {
+    if (!athleteId || !testTypeId) {
       return NextResponse.json(
-        { error: "athleteId, testTypeId, and value are required" },
+        { error: "athleteId and testTypeId are required" },
         { status: 400 }
       );
     }
@@ -117,6 +119,8 @@ export async function POST(request: NextRequest) {
         athleteId,
         testTypeId,
         value: parseFloat(value),
+        valueLeft: valueLeft !== undefined && valueLeft !== null ? parseFloat(valueLeft) : null,
+        valueRight: valueRight !== undefined && valueRight !== null ? parseFloat(valueRight) : null,
         date: date ? new Date(date) : new Date(),
         notes,
         recordedById: session.userId,
@@ -129,12 +133,24 @@ export async function POST(request: NextRequest) {
             lastName: true,
           },
         },
-        testType: true,
+        testType: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            isUnilateral: true,
+          },
+        },
       },
     });
 
     return NextResponse.json(
-      { ...result, value: Number(result.value) },
+      {
+        ...result,
+        value: result.value !== null ? Number(result.value) : null,
+        valueLeft: result.valueLeft !== null ? Number(result.valueLeft) : null,
+        valueRight: result.valueRight !== null ? Number(result.valueRight) : null,
+      },
       { status: 201 }
     );
   } catch (error) {

@@ -39,7 +39,7 @@ interface Athlete {
 interface ComparisonItem {
   testTypeId?: string
   testTypeName?: string
-  testType?: { name: string; unit: string; higherIsBetter: boolean; normMale?: number; normFemale?: number }
+  testType?: { name: string; unit: string; higherIsBetter: boolean; normMale?: number; normFemale?: number; isUnilateral?: boolean }
   athleteValue?: number
   athleteLatestValue?: number
   teamAverage: number
@@ -727,6 +727,9 @@ export default function AthleteDetailPage() {
                   const higherIsBetter = c.testType?.higherIsBetter ?? true
                   const unit = c.testType?.unit || ""
                   const testName = c.testTypeName || c.testType?.name || "Test"
+                  const isUnilateral = c.testType?.isUnilateral ?? false
+                  const valueLeft = (c as any).valueLeft ?? null
+                  const valueRight = (c as any).valueRight ?? null
                   const normValue =
                     athlete.gender === "M"
                       ? c.testType?.normMale
@@ -740,7 +743,7 @@ export default function AthleteDetailPage() {
                     ? Math.abs((athleteVal - normValue) / normValue * 100)
                     : null
 
-                  return { athleteVal, teamAvg, higherIsBetter, unit, testName, normValue, beatsNorm, normDiff, c, athleteVsAvg: (() => {
+                  return { athleteVal, teamAvg, higherIsBetter, unit, testName, normValue, beatsNorm, normDiff, isUnilateral, valueLeft, valueRight, c, athleteVsAvg: (() => {
                     if (teamAvg <= 0) return null
                     return higherIsBetter
                       ? ((athleteVal - teamAvg) / teamAvg * 100).toFixed(1)
@@ -810,10 +813,40 @@ export default function AthleteDetailPage() {
                                   <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dotColor }} />
                                   <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">{i.testName}</span>
                                 </div>
-                                <div className="text-3xl font-bold text-gray-900 mb-2">
-                                  {i.athleteVal.toFixed(1)}
-                                  <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
-                                </div>
+                                {i.isUnilateral && i.valueLeft !== null && i.valueRight !== null ? (
+                                  <div className="mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg font-bold text-gray-900">G: {i.valueLeft.toFixed(1)}</span>
+                                      <span className="text-gray-300 text-lg">|</span>
+                                      <span className="text-lg font-bold text-gray-900">D: {i.valueRight.toFixed(1)}</span>
+                                      <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
+                                    </div>
+                                    {(() => {
+                                      const left = i.valueLeft;
+                                      const right = i.valueRight;
+                                      const avg = (left + right) / 2;
+                                      const asym = avg > 0 ? Math.abs(left - right) / avg * 100 : 0;
+                                      const asymColor = asym < 10
+                                        ? "bg-green-100 text-green-700"
+                                        : asym < 15
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-red-100 text-red-700";
+                                      return (
+                                        <div className="flex items-center justify-between mt-1">
+                                          <span className="text-gray-400 text-xs">Asymétrie:</span>
+                                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${asymColor}`}>
+                                            {asym.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <div className="text-3xl font-bold text-gray-900 mb-2">
+                                    {i.athleteVal.toFixed(1)}
+                                    <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
+                                  </div>
+                                )}
                                 <div className="space-y-1 text-xs">
                                   <div className="flex items-center justify-between">
                                     <span className="text-gray-400">Équipe:</span>

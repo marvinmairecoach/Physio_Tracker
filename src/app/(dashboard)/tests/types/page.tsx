@@ -15,6 +15,7 @@ interface TestType {
   normMale: number | null
   normFemale: number | null
   showOnTeamPage: boolean
+  isUnilateral: boolean
 }
 
 interface Category {
@@ -43,6 +44,7 @@ export default function TestTypesPage() {
     normMale: "",
     normFemale: "",
     showOnTeamPage: true,
+    isUnilateral: false,
   })
   const [creating, setCreating] = useState(false)
 
@@ -56,6 +58,7 @@ export default function TestTypesPage() {
     normMale: "",
     normFemale: "",
     showOnTeamPage: true,
+    isUnilateral: false,
   })
   const [saving, setSaving] = useState(false)
 
@@ -142,11 +145,12 @@ export default function TestTypesPage() {
           normMale: newType.normMale || null,
           normFemale: newType.normFemale || null,
           showOnTeamPage: newType.showOnTeamPage,
+          isUnilateral: newType.isUnilateral,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la création")
       setCreateOpen(false)
-      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true })
+      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true, isUnilateral: false })
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -165,6 +169,7 @@ export default function TestTypesPage() {
       normMale: t.normMale !== null ? String(t.normMale) : "",
       normFemale: t.normFemale !== null ? String(t.normFemale) : "",
       showOnTeamPage: t.showOnTeamPage,
+      isUnilateral: t.isUnilateral,
     })
   }
 
@@ -187,6 +192,7 @@ export default function TestTypesPage() {
           normMale: editForm.normMale || null,
           normFemale: editForm.normFemale || null,
           showOnTeamPage: editForm.showOnTeamPage,
+          isUnilateral: editForm.isUnilateral,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la modification")
@@ -206,6 +212,22 @@ export default function TestTypesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           showOnTeamPage: !testType.showOnTeamPage,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    }
+  }
+
+  async function handleToggleIsUnilateral(testType: TestType) {
+    try {
+      const res = await fetch(`/api/tests/types/${testType.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isUnilateral: !testType.isUnilateral,
         }),
       })
       if (!res.ok) throw new Error("Erreur")
@@ -284,13 +306,14 @@ export default function TestTypesPage() {
                 <Table.Th ta="center">Norme H</Table.Th>
                 <Table.Th ta="center">Norme F</Table.Th>
                 <Table.Th ta="center">Afficher équipe</Table.Th>
+                <Table.Th ta="center">Test unilatéral</Table.Th>
                 <Table.Th ta="center">Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {testTypes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={8} className="text-center text-muted-foreground">
+                  <Table.Td colSpan={9} className="text-center text-muted-foreground">
                     Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
@@ -401,6 +424,21 @@ export default function TestTypesPage() {
                     </Table.Td>
                     <Table.Td ta="center">
                       {editingId === t.id ? (
+                        <Switch
+                          checked={editForm.isUnilateral}
+                          onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
+                          size="sm"
+                        />
+                      ) : (
+                        <Switch
+                          checked={t.isUnilateral}
+                          onChange={() => handleToggleIsUnilateral(t)}
+                          size="sm"
+                        />
+                      )}
+                    </Table.Td>
+                    <Table.Td ta="center">
+                      {editingId === t.id ? (
                         <div className="flex justify-center gap-1">
                           <Button
                             variant="subtle"
@@ -493,6 +531,14 @@ export default function TestTypesPage() {
               id="new-show-team"
               checked={newType.showOnTeamPage}
               onChange={(e) => setNewType((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
+            />
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Test unilatéral"
+              id="new-is-unilateral"
+              checked={newType.isUnilateral}
+              onChange={(e) => setNewType((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

@@ -16,7 +16,7 @@ export async function PATCH(
 
     const { id } = params;
     const body = await request.json();
-    const { value, date, notes } = body;
+    const { value, valueLeft, valueRight, date, notes } = body;
 
     const existing = await prisma.testResult.findUnique({ where: { id } });
     if (!existing) {
@@ -28,6 +28,8 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
     if (value !== undefined) updateData.value = parseFloat(value);
+    if (valueLeft !== undefined) updateData.valueLeft = parseFloat(valueLeft);
+    if (valueRight !== undefined) updateData.valueRight = parseFloat(valueRight);
     if (date !== undefined) updateData.date = new Date(date);
     if (notes !== undefined) updateData.notes = notes;
 
@@ -42,7 +44,9 @@ export async function PATCH(
 
     return NextResponse.json({
       ...updated,
-      value: Number(updated.value),
+      value: updated.value !== null ? Number(updated.value) : null,
+      valueLeft: updated.valueLeft !== null ? Number(updated.valueLeft) : null,
+      valueRight: updated.valueRight !== null ? Number(updated.valueRight) : null,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

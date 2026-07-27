@@ -184,6 +184,7 @@ model TestType {
   normFemale     Decimal? @map("norm_female") @db.Decimal(10, 2)
   showOnTeamPage Boolean  @default(true) @map("show_on_team_page")
   isSystem       Boolean  @default(false) @map("is_system")
+  isUnilateral   Boolean  @default(false) @map("is_unilateral")
   createdAt      DateTime @default(now()) @map("created_at")
 
   results TestResult[]
@@ -196,6 +197,8 @@ model TestResult {
   athleteId   String   @map("athlete_id")
   testTypeId  String   @map("test_type_id")
   value       Decimal  @db.Decimal(10, 2)
+  valueLeft   Decimal? @map("value_left") @db.Decimal(10, 2)
+  valueRight  Decimal? @map("value_right") @db.Decimal(10, 2)
   date        DateTime @default(now())
   notes       String?
   recordedById String  @map("recorded_by_id")

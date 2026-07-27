@@ -25,6 +25,7 @@ interface TestType {
   name: string
   category: string
   unit: string
+  isUnilateral?: boolean
 }
 
 interface TestResult {
@@ -62,6 +63,8 @@ export default function TestsPage() {
     athleteId: "",
     testTypeId: "",
     value: "",
+    valueLeft: "",
+    valueRight: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
   })
@@ -160,6 +163,10 @@ export default function TestsPage() {
     ? teamAthletes
     : athletes
 
+  // Find the selected test type to check if unilateral
+  const selectedTestType = testTypes.find((tt) => tt.id === formData.testTypeId)
+  const isUnilateral = selectedTestType?.isUnilateral ?? false
+
   // Compute which results to show (filter by selected team + paginate)
   const teamAthleteIds = new Set(
     selectedTeamId
@@ -197,10 +204,28 @@ export default function TestsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!formData.athleteId || !formData.testTypeId || !formData.value) {
+    if (!formData.athleteId || !formData.testTypeId) {
       setError("Veuillez remplir tous les champs obligatoires")
       return
     }
+
+    // For unilateral tests, compute value as average of left and right
+    let submitValue: string
+    if (isUnilateral) {
+      if (!formData.valueLeft || !formData.valueRight) {
+        setError("Veuillez saisir les valeurs gauche et droite")
+        return
+      }
+      const avg = (parseFloat(formData.valueLeft) + parseFloat(formData.valueRight)) / 2
+      submitValue = avg.toString()
+    } else {
+      if (!formData.value) {
+        setError("Veuillez saisir la valeur")
+        return
+      }
+      submitValue = formData.value
+    }
+
     setSaving(true)
     setError(null)
     try {
@@ -210,7 +235,9 @@ export default function TestsPage() {
         body: JSON.stringify({
           athleteId: formData.athleteId,
           testTypeId: formData.testTypeId,
-          value: parseFloat(formData.value),
+          value: parseFloat(submitValue),
+          valueLeft: formData.valueLeft ? parseFloat(formData.valueLeft) : null,
+          valueRight: formData.valueRight ? parseFloat(formData.valueRight) : null,
           date: formData.date,
           notes: formData.notes || null,
         }),
@@ -224,6 +251,8 @@ export default function TestsPage() {
       setFormData((prev) => ({
         ...prev,
         value: "",
+        valueLeft: "",
+        valueRight: "",
         notes: "",
         date: new Date().toISOString().split("T")[0],
       }))
@@ -361,20 +390,65 @@ export default function TestsPage() {
                   ))}
                 </TextInput>
               </div>
-              <div>
-                <TextInput
-                  label="Valeur"
-                  id="value"
-                  name="value"
-                  type="number"
-                  step="0.01"
-                  value={formData.value}
-                  onChange={handleChange}
-                  placeholder="Ex: 10.5"
-                  required
-                  ref={valueRef}
-                />
-              </div>
+              {isUnilateral ? (
+                <>
+                  <div>
+                    <TextInput
+                      label="Valeur Gauche"
+                      id="valueLeft"
+                      name="valueLeft"
+                      type="number"
+                      step="0.01"
+                      value={formData.valueLeft}
+                      onChange={handleChange}
+                      placeholder="Ex: 10.5"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <TextInput
+                      label="Valeur Droite"
+                      id="valueRight"
+                      name="valueRight"
+                      type="number"
+                      step="0.01"
+                      value={formData.valueRight}
+                      onChange={handleChange}
+                      placeholder="Ex: 10.5"
+                      required
+                    />
+                  </div>
+                  {formData.valueLeft && formData.valueRight && (
+                    <div className="col-span-full">
+                      <p className="text-xs text-muted-foreground">
+                        Asymétrie :{" "}
+                        {(() => {
+                          const left = parseFloat(formData.valueLeft)
+                          const right = parseFloat(formData.valueRight)
+                          const avg = (left + right) / 2
+                          if (avg === 0) return "N/A"
+                          return `${(Math.abs(left - right) / avg * 100).toFixed(1)}%`
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <TextInput
+                    label="Valeur"
+                    id="value"
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    value={formData.value}
+                    onChange={handleChange}
+                    placeholder="Ex: 10.5"
+                    required
+                    ref={valueRef}
+                  />
+                </div>
+              )}
               <div>
                 <TextInput
                   label="Date"

@@ -41,9 +41,11 @@ export async function GET(
           orderBy: { date: "desc" },
         });
         comparisons.push({
-          testType: { name: testType.name, unit: testType.unit, higherIsBetter: testType.higherIsBetter, normMale: testType.normMale, normFemale: testType.normFemale },
+          testType: { name: testType.name, unit: testType.unit, higherIsBetter: testType.higherIsBetter, normMale: testType.normMale, normFemale: testType.normFemale, isUnilateral: testType.isUnilateral },
           testTypeId: testType.id,
           athleteLatestValue: athleteLatest ? Number(athleteLatest.value) : null,
+          valueLeft: athleteLatest ? (athleteLatest.valueLeft ? Number(athleteLatest.valueLeft) : null) : null,
+          valueRight: athleteLatest ? (athleteLatest.valueRight ? Number(athleteLatest.valueRight) : null) : null,
           teamAverage: null,
           teamValues: [],
           teamSize: 1,
@@ -116,9 +118,12 @@ export async function GET(
           higherIsBetter: testType.higherIsBetter,
           normMale: testType.normMale ? Number(testType.normMale) : null,
           normFemale: testType.normFemale ? Number(testType.normFemale) : null,
+          isUnilateral: testType.isUnilateral,
         },
         testTypeId: testType.id,
         athleteLatestValue: athleteLatest ? Number(athleteLatest.value) : null,
+        valueLeft: athleteLatest ? (athleteLatest.valueLeft ? Number(athleteLatest.valueLeft) : null) : null,
+        valueRight: athleteLatest ? (athleteLatest.valueRight ? Number(athleteLatest.valueRight) : null) : null,
         teamAverage,
         teamValues: teamValues.map((tv) => ({
           ...tv,
