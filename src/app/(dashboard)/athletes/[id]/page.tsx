@@ -12,6 +12,11 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from "recharts"
 
 import { Button, Card, Table, Badge, Modal, TextInput } from "@mantine/core"
@@ -86,6 +91,9 @@ export default function AthleteDetailPage() {
   const [sortBy, setSortBy] = useState<"name" | "value" | "norm">("name")
   const [showAllTests, setShowAllTests] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null)
+  const [testHistory, setTestHistory] = useState<any[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   const isAdmin = userRole === "admin"
 
@@ -302,6 +310,32 @@ export default function AthleteDetailPage() {
       alert("Erreur lors de l'upload de la photo : " + (err instanceof Error ? err.message : "Erreur inconnue"))
     } finally {
       setUploadingPhoto(false)
+    }
+  }
+
+  async function handleTestClick(testName: string) {
+    if (expandedTestId === testName) {
+      setExpandedTestId(null)
+      setTestHistory([])
+      return
+    }
+    setExpandedTestId(testName)
+    setHistoryLoading(true)
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/tests`)
+      if (res.ok) {
+        const data = await res.json()
+        const results = Array.isArray(data) ? data : data.results ?? data ?? []
+        // Filter by test type name match
+        const filtered = results.filter((r: any) => r.testType?.name === testName)
+        // Sort by date ascending
+        filtered.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        setTestHistory(filtered)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -764,53 +798,90 @@ export default function AthleteDetailPage() {
                           const dotColor = colors[colorIdx]
 
                           return (
-                            <Card key={idx} shadow="sm" radius="md" withBorder className="p-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dotColor }} />
-                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">{i.testName}</span>
-                              </div>
-                              <div className="text-3xl font-bold text-gray-900 mb-2">
-                                {i.athleteVal.toFixed(1)}
-                                <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
-                              </div>
-                              <div className="space-y-1 text-xs">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-gray-400">Équipe:</span>
-                                  <span className="font-medium text-gray-700">{i.teamAvg.toFixed(1)}
-                                    {pctDiff !== null && (
-                                      <span className={`ml-1.5 font-medium ${
-                                        isAboveAvg ? "text-green-600" : "text-red-500"
-                                      }`}>
-                                        {isAboveAvgStrict ? "+" : ""}{pctDiff}%
-                                      </span>
-                                    )}
-                                  </span>
+                            <div key={idx} className="space-y-0">
+                              <Card
+                                shadow="sm"
+                                radius="md"
+                                withBorder
+                                className={`p-4 cursor-pointer transition-all hover:shadow-md ${expandedTestId === i.testName ? 'ring-2 ring-blue-300' : ''}`}
+                                onClick={() => handleTestClick(i.testName)}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dotColor }} />
+                                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">{i.testName}</span>
                                 </div>
-                                {i.normValue !== undefined && i.normValue !== null && (
+                                <div className="text-3xl font-bold text-gray-900 mb-2">
+                                  {i.athleteVal.toFixed(1)}
+                                  <span className="text-sm font-normal text-gray-400 ml-1">{i.unit}</span>
+                                </div>
+                                <div className="space-y-1 text-xs">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-gray-400">Norme:</span>
-                                    <span className="font-medium text-gray-700">
-                                      {Number(i.normValue).toFixed(1)}
-                                      {beatsNormVal !== null && (
-                                        <span className={`ml-1.5 ${
-                                          beatsNormVal ? "text-green-600" : "text-red-500"
+                                    <span className="text-gray-400">Équipe:</span>
+                                    <span className="font-medium text-gray-700">{i.teamAvg.toFixed(1)}
+                                      {pctDiff !== null && (
+                                        <span className={`ml-1.5 font-medium ${
+                                          isAboveAvg ? "text-green-600" : "text-red-500"
                                         }`}>
-                                          {beatsNormVal ? "✓" : "✗"}
+                                          {isAboveAvgStrict ? "+" : ""}{pctDiff}%
                                         </span>
                                       )}
                                     </span>
                                   </div>
-                                )}
-                                {delta !== null && (
-                                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                                    <span className="text-gray-400">Évol:</span>
-                                    <span className={`font-medium ${delta >= 0 ? "text-green-600" : "text-red-500"}`}>
-                                      {delta >= 0 ? "↑" : "↓"}{Math.abs(delta).toFixed(1)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </Card>
+                                  {i.normValue !== undefined && i.normValue !== null && (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-gray-400">Norme:</span>
+                                      <span className="font-medium text-gray-700">
+                                        {Number(i.normValue).toFixed(1)}
+                                        {beatsNormVal !== null && (
+                                          <span className={`ml-1.5 ${
+                                            beatsNormVal ? "text-green-600" : "text-red-500"
+                                          }`}>
+                                            {beatsNormVal ? "✓" : "✗"}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {delta !== null && (
+                                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                                      <span className="text-gray-400">Évol:</span>
+                                      <span className={`font-medium ${delta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                                        {delta >= 0 ? "↑" : "↓"}{Math.abs(delta).toFixed(1)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                              {expandedTestId === i.testName && historyLoading && (
+                                <div className="p-3 text-center text-xs text-gray-400 bg-gray-50 rounded-lg border border-gray-200 -mt-2 mb-2">
+                                  <Loader2 className="inline-block h-4 w-4 animate-spin mr-1" />
+                                  Chargement...
+                                </div>
+                              )}
+                              {expandedTestId === i.testName && !historyLoading && testHistory.length > 1 && (
+                                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 -mt-2 mb-2">
+                                  <p className="text-xs font-medium text-gray-500 mb-2">Évolution</p>
+                                  <ResponsiveContainer width="100%" height={180}>
+                                    <LineChart data={testHistory.map((r, j) => ({
+                                      index: j + 1,
+                                      value: Number(r.value),
+                                      date: new Date(r.date).toLocaleDateString("fr-FR"),
+                                    }))}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                      <XAxis dataKey="date" fontSize={10} tick={{ fill: '#9ca3af' }} />
+                                      <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
+                                      <Tooltip />
+                                      <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              {expandedTestId === i.testName && !historyLoading && testHistory.length <= 1 && (
+                                <div className="p-3 text-center text-xs text-gray-400 bg-gray-50 rounded-lg border border-gray-200 -mt-2 mb-2">
+                                  Pas assez de données pour afficher l'évolution
+                                </div>
+                              )}
+                            </div>
                           )
                         })}
                       </div>

@@ -42,6 +42,7 @@ export async function GET(
         });
         comparisons.push({
           testType: { name: testType.name, unit: testType.unit, higherIsBetter: testType.higherIsBetter, normMale: testType.normMale, normFemale: testType.normFemale },
+          testTypeId: testType.id,
           athleteLatestValue: athleteLatest ? Number(athleteLatest.value) : null,
           teamAverage: null,
           teamValues: [],
@@ -116,6 +117,7 @@ export async function GET(
           normMale: testType.normMale ? Number(testType.normMale) : null,
           normFemale: testType.normFemale ? Number(testType.normFemale) : null,
         },
+        testTypeId: testType.id,
         athleteLatestValue: athleteLatest ? Number(athleteLatest.value) : null,
         teamAverage,
         teamValues: teamValues.map((tv) => ({

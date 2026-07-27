@@ -292,14 +292,14 @@ export default function BilanViewPage() {
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
           <View key={id}>
-            {bilan?.config?.testComments?.[id] && (
-              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
-            )}
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
           </View>
         )
       }).filter(Boolean)
@@ -521,14 +521,14 @@ export default function BilanViewPage() {
         const beatColor = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
         return (
           <View key={id}>
-            {bilan?.config?.testComments?.[id] && (
-              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
-            )}
             <View style={styles.testRow}>
               <Text style={styles.testName}>{tt.name}</Text>
               <Text style={{ ...styles.testValue, color: beatColor }}>{val.toFixed(1)} {tt.unit}</Text>
               <Text style={styles.testNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
             </View>
+            {bilan?.config?.testComments?.[id] && (
+              <Text style={styles.testComment}>{bilan.config.testComments[id]}</Text>
+            )}
           </View>
         )
       }).filter(Boolean)
