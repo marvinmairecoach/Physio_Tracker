@@ -144,7 +144,7 @@ export async function PATCH(
     const { id } = params;
 
     const body = await request.json();
-    const { memberId, status, position, injury, injuryDate, injuryNotes } = body;
+    const { memberId, status, position, injury, injuryDate, injuryNotes, canTrain } = body;
 
     if (!memberId) {
       return NextResponse.json(
@@ -185,6 +185,7 @@ export async function PATCH(
             injury: injury || existing.injury || "Blessure",
             injuryDate: injuryDate ? new Date(injuryDate) : new Date(),
             injuryNotes: injuryNotes || existing.injuryNotes || null,
+            canTrain: canTrain !== undefined ? canTrain : true,
           },
         });
       }

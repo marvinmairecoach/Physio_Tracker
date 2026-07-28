@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Plus, Check, X, FolderKanban, Trash2 } from "lucide-react"
+import { Pencil, Plus, ArrowUpDown, ArrowUp, ArrowDown, FolderKanban, Trash2 } from "lucide-react"
 
 import { Button, Card, Table, Badge, TextInput, Modal, Switch, NativeSelect } from "@mantine/core"
 
@@ -23,6 +23,9 @@ interface Category {
   name: string
 }
 
+type SortField = "name" | "category" | "unit"
+type SortDir = "asc" | "desc"
+
 // Fallback — categories now come from the API as [{id, name}]
 // The category value is the name string directly (e.g., "Vitesse")
 const CATEGORY_LABELS: Record<string, string> = {}
@@ -33,6 +36,10 @@ export default function TestTypesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [existingCategories, setExistingCategories] = useState<Category[]>([])
+
+  // Sort state
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false)
@@ -48,8 +55,9 @@ export default function TestTypesPage() {
   })
   const [creating, setCreating] = useState(false)
 
-  // Edit state
-  const [editingId, setEditingId] = useState<string | null>(null)
+  // Edit modal state
+  const [editTarget, setEditTarget] = useState<TestType | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({
     name: "",
     category: "",
@@ -117,8 +125,8 @@ export default function TestTypesPage() {
       if (createOpen) {
         setNewType((p) => ({ ...p, category: createdName }))
       }
-      // If we're editing, select the new category
-      if (editingId) {
+      // If the edit modal is open, select the new category
+      if (editModalOpen) {
         setEditForm((p) => ({ ...p, category: createdName }))
       }
       setNewCatModalOpen(false)
@@ -159,8 +167,8 @@ export default function TestTypesPage() {
     }
   }
 
-  function startEdit(t: TestType) {
-    setEditingId(t.id)
+  function openEditModal(t: TestType) {
+    setEditTarget(t)
     setEditForm({
       name: t.name,
       category: t.category,
@@ -171,17 +179,19 @@ export default function TestTypesPage() {
       showOnTeamPage: t.showOnTeamPage,
       isUnilateral: t.isUnilateral,
     })
+    setEditModalOpen(true)
   }
 
-  function cancelEdit() {
-    setEditingId(null)
+  function closeEditModal() {
+    setEditModalOpen(false)
+    setEditTarget(null)
   }
 
-  async function handleSave(id: string) {
-    if (!editForm.name.trim() || !editForm.unit.trim()) return
+  async function handleSave() {
+    if (!editTarget || !editForm.name.trim() || !editForm.unit.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/tests/types/${id}`, {
+      const res = await fetch(`/api/tests/types/${editTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,7 +206,7 @@ export default function TestTypesPage() {
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la modification")
-      setEditingId(null)
+      closeEditModal()
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -252,6 +262,37 @@ export default function TestTypesPage() {
     }
   }
 
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDir("asc")
+    }
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-muted-foreground/40" />
+    }
+    return sortDir === "asc" ? (
+      <ArrowUp className="ml-1 inline h-3.5 w-3.5" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3.5 w-3.5" />
+    )
+  }
+
+  const sortedTestTypes = useMemo(() => {
+    if (!sortField) return testTypes
+    return [...testTypes].sort((a, b) => {
+      const aVal = (a[sortField] ?? "").toLowerCase()
+      const bVal = (b[sortField] ?? "").toLowerCase()
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1
+      return 0
+    })
+  }, [testTypes, sortField, sortDir])
+
   const categorySelectData = [
     { value: "", label: "Sélectionner une catégorie" },
     ...existingCategories.map((c) => ({ value: c.name, label: c.name })),
@@ -299,9 +340,24 @@ export default function TestTypesPage() {
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Nom</Table.Th>
-                <Table.Th>Catégorie</Table.Th>
-                <Table.Th>Unité</Table.Th>
+                <Table.Th>
+                  <button onClick={() => handleSort("name")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
+                    Nom
+                    <SortIcon field="name" />
+                  </button>
+                </Table.Th>
+                <Table.Th>
+                  <button onClick={() => handleSort("category")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
+                    Catégorie
+                    <SortIcon field="category" />
+                  </button>
+                </Table.Th>
+                <Table.Th>
+                  <button onClick={() => handleSort("unit")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
+                    Unité
+                    <SortIcon field="unit" />
+                  </button>
+                </Table.Th>
                 <Table.Th ta="center">Supérieur = Meilleur</Table.Th>
                 <Table.Th ta="center">Norme H</Table.Th>
                 <Table.Th ta="center">Norme F</Table.Th>
@@ -311,109 +367,32 @@ export default function TestTypesPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {testTypes.length === 0 ? (
+              {sortedTestTypes.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={9} className="text-center text-muted-foreground">
                     Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                testTypes.map((t) => (
+                sortedTestTypes.map((t) => (
                   <Table.Tr key={t.id}>
-                    <Table.Td className="font-medium">
-                      {editingId === t.id ? (
-                        <TextInput
-                          value={editForm.name}
-                          onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                          className="h-8"
-                        />
-                      ) : (
-                        t.name
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {editingId === t.id ? (
-                        <div className="flex items-center gap-1">
-                          <NativeSelect
-                            data={getEditCategoryData()}
-                            value={editForm.category}
-                            onChange={(e) => setEditForm((p) => ({ ...p, category: e.currentTarget.value }))}
-                            className="w-48"
-                            size="sm"
-                          />
-                          <Button
-                            variant="subtle"
-                            size="compact-sm"
-                            onClick={() => setNewCatModalOpen(true)}
-                            title="Nouvelle catégorie"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ) : (
-                        CATEGORY_LABELS[t.category] ?? t.category
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {editingId === t.id ? (
-                        <TextInput
-                          value={editForm.unit}
-                          onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
-                          className="h-8 w-20"
-                        />
-                      ) : (
-                        t.unit
-                      )}
+                    <Table.Td className="font-medium">{t.name}</Table.Td>
+                    <Table.Td>{CATEGORY_LABELS[t.category] ?? t.category}</Table.Td>
+                    <Table.Td>{t.unit}</Table.Td>
+                    <Table.Td ta="center">
+                      <Badge color={t.higherIsBetter ? "blue" : "gray"}>
+                        {t.higherIsBetter ? "Oui" : "Non"}
+                      </Badge>
                     </Table.Td>
                     <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <select
-                          value={editForm.higherIsBetter ? "true" : "false"}
-                          onChange={(e) =>
-                            setEditForm((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
-                          }
-                          className="flex h-8 rounded-md border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="true">Oui</option>
-                          <option value="false">Non</option>
-                        </select>
-                      ) : (
-                        <Badge color={t.higherIsBetter ? "blue" : "gray"}>
-                          {t.higherIsBetter ? "Oui" : "Non"}
-                        </Badge>
-                      )}
+                      <span className="text-sm font-medium">
+                        {t.normMale !== null ? t.normMale : "—"}
+                      </span>
                     </Table.Td>
                     <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <TextInput
-                          type="number"
-                          step="0.01"
-                          value={editForm.normMale}
-                          onChange={(e) => setEditForm((p) => ({ ...p, normMale: e.target.value }))}
-                          placeholder="Ex: 4.5"
-                          className="h-8 w-24"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium">
-                          {t.normMale !== null ? t.normMale : "—"}
-                        </span>
-                      )}
-                    </Table.Td>
-                    <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <TextInput
-                          type="number"
-                          step="0.01"
-                          value={editForm.normFemale}
-                          onChange={(e) => setEditForm((p) => ({ ...p, normFemale: e.target.value }))}
-                          placeholder="Ex: 5.2"
-                          className="h-8 w-24"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium">
-                          {t.normFemale !== null ? t.normFemale : "—"}
-                        </span>
-                      )}
+                      <span className="text-sm font-medium">
+                        {t.normFemale !== null ? t.normFemale : "—"}
+                      </span>
                     </Table.Td>
                     <Table.Td ta="center">
                       <Switch
@@ -423,47 +402,23 @@ export default function TestTypesPage() {
                       />
                     </Table.Td>
                     <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <Switch
-                          checked={editForm.isUnilateral}
-                          onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
-                          size="sm"
-                        />
-                      ) : (
-                        <Switch
-                          checked={t.isUnilateral}
-                          onChange={() => handleToggleIsUnilateral(t)}
-                          size="sm"
-                        />
-                      )}
+                      <Switch
+                        checked={t.isUnilateral}
+                        onChange={() => handleToggleIsUnilateral(t)}
+                        size="sm"
+                      />
                     </Table.Td>
                     <Table.Td ta="center">
-                      {editingId === t.id ? (
-                        <div className="flex justify-center gap-1">
-                          <Button
-                            variant="subtle"
-                            size="compact-sm"
-                            onClick={() => handleSave(t.id)}
-                            disabled={saving}
-                          >
-                            <Check className="h-4 w-4 text-green-500" />
-                          </Button>
-                          <Button variant="subtle" size="compact-sm" onClick={cancelEdit}>
-                            <X className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-center gap-1">
-                          <Button variant="outline" size="compact-sm" onClick={() => startEdit(t)}>
-                            <Pencil className="mr-1 h-3 w-3" />
-                            Modifier
-                          </Button>
-                          <Button variant="outline" size="compact-sm" color="red" onClick={() => setDeleteTarget(t)}>
-                            <Trash2 className="mr-1 h-3 w-3" />
-                            Supprimer
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex justify-center gap-1">
+                        <Button variant="outline" size="compact-sm" onClick={() => openEditModal(t)}>
+                          <Pencil className="mr-1 h-3 w-3" />
+                          Modifier
+                        </Button>
+                        <Button variant="outline" size="compact-sm" color="red" onClick={() => setDeleteTarget(t)}>
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Supprimer
+                        </Button>
+                      </div>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -472,6 +427,105 @@ export default function TestTypesPage() {
           </Table>
         </div>
       </Card>
+
+      {/* Edit Modal */}
+      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md">
+        <p className="text-sm text-muted-foreground mb-4">
+          Modifiez les informations du type de test.
+        </p>
+        <div className="space-y-4">
+          <TextInput
+            label="Nom"
+            id="edit-name"
+            value={editForm.name}
+            onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Sprint 30m"
+          />
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <div className="flex items-center gap-1">
+              <NativeSelect
+                data={getEditCategoryData()}
+                value={editForm.category}
+                onChange={(e) => setEditForm((p) => ({ ...p, category: e.currentTarget.value }))}
+                className="flex-1"
+                size="sm"
+              />
+              <Button
+                variant="outline"
+                size="compact-sm"
+                onClick={() => setNewCatModalOpen(true)}
+                title="Nouvelle catégorie"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <TextInput
+            label="Unité"
+            id="edit-unit"
+            value={editForm.unit}
+            onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
+            placeholder="Ex: secondes, cm, kg..."
+          />
+          <TextInput
+            label="Supérieur = Meilleur"
+            id="edit-higher"
+            component="select"
+            value={editForm.higherIsBetter ? "true" : "false"}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
+            }
+          >
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </TextInput>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Afficher dans les résultats de l'équipe"
+              id="edit-show-team"
+              checked={editForm.showOnTeamPage}
+              onChange={(e) => setEditForm((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
+            />
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Test unilatéral"
+              id="edit-is-unilateral"
+              checked={editForm.isUnilateral}
+              onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput
+              label="Norme Hommes"
+              id="edit-norm-male"
+              type="number"
+              step="0.01"
+              value={editForm.normMale}
+              onChange={(e) => setEditForm((p) => ({ ...p, normMale: e.target.value }))}
+              placeholder="Ex: 4.5"
+            />
+            <TextInput
+              label="Norme Femmes"
+              id="edit-norm-female"
+              type="number"
+              step="0.01"
+              value={editForm.normFemale}
+              onChange={(e) => setEditForm((p) => ({ ...p, normFemale: e.target.value }))}
+              placeholder="Ex: 5.2"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={closeEditModal}>
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Create Dialog */}
       <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md">

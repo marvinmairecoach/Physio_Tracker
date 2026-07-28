@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { memberId, injury, injuryDate, injuryNotes, recoveryDate } = body;
+    const { memberId, injury, injuryDate, injuryNotes, recoveryDate, canTrain } = body;
 
     if (!memberId) {
       return NextResponse.json({ error: "memberId requis" }, { status: 400 });
@@ -75,6 +75,7 @@ export async function PATCH(request: NextRequest) {
     if (recoveryDate !== undefined) {
       updateData.recoveryDate = recoveryDate ? new Date(recoveryDate) : null;
     }
+    if (canTrain !== undefined) updateData.canTrain = canTrain;
 
     const existing = await prisma.injury.findUnique({
       where: { id: memberId },

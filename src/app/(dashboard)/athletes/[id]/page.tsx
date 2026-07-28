@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X } from "lucide-react"
+import { ArrowLeft, FileText, Upload, UserPlus, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X } from "lucide-react"
 import {
   RadarChart,
   Radar,
@@ -33,6 +33,7 @@ interface Athlete {
   gender: string | null
   isActive: boolean
   photoUrl: string | null
+  userId: string | null
   teams?: { team: { id: string; name: string } }[]
 }
 
@@ -94,6 +95,17 @@ export default function AthleteDetailPage() {
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null)
   const [testHistory, setTestHistory] = useState<any[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [documents, setDocuments] = useState<any[]>([])
+  const [docUploadOpen, setDocUploadOpen] = useState(false)
+  const [docUploadName, setDocUploadName] = useState("")
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [docFileError, setDocFileError] = useState<string | null>(null)
+  const [docUploading, setDocUploading] = useState(false)
+  const [renamingDocId, setRenamingDocId] = useState<string | null>(null)
+  const [renameDocName, setRenameDocName] = useState("")
+  const [inviting, setInviting] = useState(false)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [inviteUrl, setInviteUrl] = useState("")
 
   const isAdmin = userRole === "admin"
 
@@ -138,6 +150,21 @@ export default function AthleteDetailPage() {
       }
     }
     fetchData()
+  }, [athleteId])
+
+  useEffect(() => {
+    async function fetchDocuments() {
+      try {
+        const res = await fetch(`/api/athletes/${athleteId}/documents`)
+        if (res.ok) {
+          const data = await res.json()
+          setDocuments(data.documents ?? data ?? [])
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchDocuments()
   }, [athleteId])
 
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
@@ -385,6 +412,21 @@ export default function AthleteDetailPage() {
               <TrashIcon className="mr-1 h-4 w-4" />
               Supprimer
             </Button>
+            {!athlete.userId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleInvite}
+                loading={inviting}
+              >
+                <UserPlus className="mr-1 h-4 w-4" />
+                Inviter
+              </Button>
+            ) : (
+              <Badge color="green" variant="light" size="lg">
+                Compte créé ✓
+              </Badge>
+            )}
           </div>
         )}
       </div>
@@ -1071,6 +1113,174 @@ export default function AthleteDetailPage() {
         </Card>
       )}
 
+      {/* Documents */}
+      <Card shadow="sm" radius="md" withBorder>
+        <Card.Section withBorder inheritPadding py="sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-700">
+              <FileText className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Documents</h2>
+            </div>
+            {isAdmin && (
+              <Button size="xs" variant="light" onClick={() => setDocUploadOpen(true)}>
+                <Upload className="mr-1 h-4 w-4" />
+                Ajouter un document
+              </Button>
+            )}
+          </div>
+        </Card.Section>
+        <div className="p-4">
+          {documents.length === 0 ? (
+            <p className="text-center text-gray-400 py-4">Aucun document</p>
+          ) : (
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Nom</Table.Th>
+                  <Table.Th className="whitespace-nowrap">Date</Table.Th>
+                  {isAdmin && <Table.Th className="text-right w-[100px]">Actions</Table.Th>}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {documents.map((doc: any) => (
+                  <Table.Tr key={doc.id}>
+                    <Table.Td className="font-medium">
+                      {renamingDocId === doc.id ? (
+                        <TextInput
+                          value={renameDocName}
+                          onChange={(e) => setRenameDocName(e.target.value)}
+                          size="xs"
+                          className="w-48"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameDocument(doc.id)
+                            if (e.key === "Escape") setRenamingDocId(null)
+                          }}
+                          rightSection={
+                            <div className="flex gap-1">
+                              <Check className="h-3 w-3 cursor-pointer text-green-600" onClick={() => handleRenameDocument(doc.id)} />
+                              <X className="h-3 w-3 cursor-pointer text-red-500" onClick={() => setRenamingDocId(null)} />
+                            </div>
+                          }
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-gray-400" />
+                          <span>{doc.name}</span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                setRenamingDocId(doc.id)
+                                setRenameDocName(doc.name)
+                              }}
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-gray-700 rounded inline-flex items-center justify-center"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </Table.Td>
+                    <Table.Td className="whitespace-nowrap text-sm text-gray-500">
+                      {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
+                    </Table.Td>
+                    {isAdmin && (
+                      <Table.Td className="text-right">
+                        <button
+                          onClick={() => handleDeleteDocument(doc.id)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded inline-flex items-center justify-center"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </Table.Td>
+                    )}
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </div>
+      </Card>
+
+      {/* Upload Document Modal */}
+      <Modal
+        opened={docUploadOpen}
+        onClose={() => {
+          setDocUploadOpen(false)
+          setDocFile(null)
+          setDocFileError(null)
+        }}
+        title="Ajouter un document"
+        size="md"
+      >
+        <div className="space-y-4">
+          <TextInput
+            label="Nom du document"
+            placeholder="Ex: Certificat médical"
+            value={docUploadName}
+            onChange={(e) => setDocUploadName(e.target.value)}
+            required
+          />
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">Fichier</p>
+            <input
+              type="file"
+              onChange={handleDocFileSelect}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {docFileError && (
+              <p className="text-xs text-red-500 mt-1">{docFileError}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => {
+              setDocUploadOpen(false)
+              setDocFile(null)
+              setDocFileError(null)
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={handleUploadDocument} loading={docUploading}>
+              {docUploading ? "Upload..." : "Ajouter"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Invitation Modal */}
+      <Modal
+        opened={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        title="Lien d'invitation"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Partagez ce lien avec l'athlète pour qu'il puisse créer son compte :
+          </p>
+          <div className="flex items-center gap-2">
+            <TextInput
+              value={inviteUrl}
+              readOnly
+              className="flex-1"
+              styles={{ input: { backgroundColor: "#f9fafb" } }}
+            />
+            <Button
+              variant="light"
+              onClick={() => {
+                navigator.clipboard.writeText(inviteUrl)
+              }}
+            >
+              Copier
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setInviteModalOpen(false)}>
+              Fermer
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Delete confirmation */}
       <Modal
         opened={deleteOpen}
@@ -1153,6 +1363,97 @@ export default function AthleteDetailPage() {
       setInjuries((prev) => prev.filter((p: any) => p.id !== injuryId))
     } catch {
       // ignore
+    }
+  }
+
+  // ── Document functions ──
+  async function handleDocFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) {
+      setDocFile(null)
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setDocFileError("Le fichier ne doit pas dépasser 5 Mo")
+      setDocFile(null)
+      return
+    }
+    setDocFileError(null)
+    setDocFile(file)
+  }
+
+  async function handleUploadDocument() {
+    if (!docFile || !docUploadName.trim()) return
+    setDocUploading(true)
+    try {
+      const b64 = await fileToBase64(docFile)
+      const res = await fetch(`/api/athletes/${athleteId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: docUploadName.trim(), file: b64 }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      const data = await res.json()
+      setDocuments((prev) => [...prev, data.document ?? data])
+      setDocUploadOpen(false)
+      setDocUploadName("")
+      setDocFile(null)
+    } catch (err) {
+      console.error("Document upload error:", err)
+      alert("Erreur lors de l'upload du document")
+    } finally {
+      setDocUploading(false)
+    }
+  }
+
+  async function handleRenameDocument(docId: string) {
+    if (!renameDocName.trim()) return
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/documents/${docId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameDocName.trim() }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      const data = await res.json()
+      setDocuments((prev) =>
+        prev.map((d: any) => (d.id === docId ? (data.document ?? data) : d))
+      )
+      setRenamingDocId(null)
+    } catch {
+      alert("Erreur lors du renommage")
+    }
+  }
+
+  async function handleDeleteDocument(docId: string) {
+    if (!confirm("Supprimer ce document ?")) return
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/documents/${docId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Erreur")
+      setDocuments((prev) => prev.filter((d: any) => d.id !== docId))
+    } catch {
+      alert("Erreur lors de la suppression")
+    }
+  }
+
+  // ── Invitation function ──
+  async function handleInvite() {
+    setInviting(true)
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/invite-user`, {
+        method: "POST",
+      })
+      if (!res.ok) throw new Error("Erreur")
+      const data = await res.json()
+      setInviteUrl(data.invitationUrl ?? data.url ?? data.link ?? "")
+      setInviteModalOpen(true)
+    } catch (err) {
+      console.error("Invite error:", err)
+      alert("Erreur lors de la création de l'invitation")
+    } finally {
+      setInviting(false)
     }
   }
 }

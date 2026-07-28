@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, UserPlus, RefreshCw } from "lucide-react"
 
-import { Button, Card, Table, Modal, TextInput, NativeSelect } from "@mantine/core"
+import { Button, Card, Table, Modal, TextInput, NativeSelect, Checkbox } from "@mantine/core"
 
 interface InjuredAthlete {
   id: string
@@ -12,6 +12,7 @@ interface InjuredAthlete {
   injuryDate: string
   injuryNotes: string | null
   recoveryDate: string | null
+  canTrain: boolean
   athlete: {
     id: string
     firstName: string
@@ -54,6 +55,7 @@ export default function InfirmeriePage() {
   const [newInjuryName, setNewInjuryName] = useState("")
   const [newInjuryDate, setNewInjuryDate] = useState(new Date().toISOString().split("T")[0])
   const [newInjuryNotes, setNewInjuryNotes] = useState("")
+  const [newCanTrain, setNewCanTrain] = useState(true)
   const [addingInjury, setAddingInjury] = useState(false)
 
   // Reopen dialog
@@ -61,7 +63,7 @@ export default function InfirmeriePage() {
   const [reopening, setReopening] = useState(false)
 
   // Local draft values per row (key = injury id)
-  const [drafts, setDrafts] = useState<Record<string, { injury: string; injuryDate: string; injuryNotes: string }>>({})
+  const [drafts, setDrafts] = useState<Record<string, { injury: string; injuryDate: string; injuryNotes: string; canTrain: boolean }>>({})
   // Track which rows are currently saving
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set())
   // Debounce timers per row per field
@@ -95,6 +97,7 @@ export default function InfirmeriePage() {
                 injury: item.injury ?? "",
                 injuryDate: item.injuryDate ? item.injuryDate.split("T")[0] : "",
                 injuryNotes: item.injuryNotes ?? "",
+                canTrain: item.canTrain ?? true,
               }
             }
           }
@@ -122,7 +125,7 @@ export default function InfirmeriePage() {
 
   // Update draft for a row and schedule auto-save
   const updateDraft = useCallback(
-    (injuryId: string, field: "injury" | "injuryDate" | "injuryNotes", value: string) => {
+    (injuryId: string, field: "injury" | "injuryDate" | "injuryNotes" | "canTrain", value: string | boolean) => {
       setDrafts((prev) => ({
         ...prev,
         [injuryId]: { ...prev[injuryId], [field]: value },
@@ -158,6 +161,7 @@ export default function InfirmeriePage() {
           injury: draft.injury.trim() || null,
           injuryDate: draft.injuryDate || null,
           injuryNotes: draft.injuryNotes.trim() || null,
+          canTrain: draft.canTrain,
         }),
       })
       if (!res.ok) throw new Error("Erreur")
@@ -170,6 +174,7 @@ export default function InfirmeriePage() {
                 injury: draft.injury.trim(),
                 injuryDate: draft.injuryDate || p.injuryDate,
                 injuryNotes: draft.injuryNotes.trim() || null,
+                canTrain: draft.canTrain,
               }
             : p
         )
@@ -241,6 +246,7 @@ export default function InfirmeriePage() {
     setNewInjuryName("")
     setNewInjuryDate(new Date().toISOString().split("T")[0])
     setNewInjuryNotes("")
+    setNewCanTrain(true)
     try {
       const res = await fetch("/api/teams")
       if (res.ok) {
@@ -291,6 +297,7 @@ export default function InfirmeriePage() {
           injury: newInjuryName,
           injuryDate: newInjuryDate,
           injuryNotes: newInjuryNotes || null,
+          canTrain: newCanTrain,
         }),
       })
       if (!res.ok) throw new Error("Erreur")
@@ -313,7 +320,7 @@ export default function InfirmeriePage() {
   }
 
   function getDraft(id: string) {
-    return drafts[id] ?? { injury: "", injuryDate: "", injuryNotes: "" }
+    return drafts[id] ?? { injury: "", injuryDate: "", injuryNotes: "", canTrain: true }
   }
 
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
@@ -372,6 +379,7 @@ export default function InfirmeriePage() {
                   <Table.Th className="whitespace-nowrap w-[180px]">Blessure</Table.Th>
                   <Table.Th className="whitespace-nowrap w-[120px]">Date blessure</Table.Th>
                   <Table.Th className="whitespace-nowrap min-w-[220px]">Suivi</Table.Th>
+                  <Table.Th className="whitespace-nowrap w-[130px]">Peut s&apos;entraîner</Table.Th>
                   <Table.Th className="whitespace-nowrap text-right w-[90px]">Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -435,6 +443,16 @@ export default function InfirmeriePage() {
                           placeholder="Suivi, évolution..."
                           rows={2}
                           className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none"
+                        />
+                      </Table.Td>
+
+                      {/* Peut s'entraîner */}
+                      <Table.Td>
+                        <Checkbox
+                          checked={draft.canTrain}
+                          onChange={(e) => updateDraft(item.id, "canTrain", e.currentTarget.checked)}
+                          label={draft.canTrain ? "✅ Oui" : "❌ Non"}
+                          size="sm"
                         />
                       </Table.Td>
 
@@ -629,6 +647,12 @@ export default function InfirmeriePage() {
               className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none"
             />
           </div>
+
+          <Checkbox
+            label="Peut participer aux entrainements"
+            checked={newCanTrain}
+            onChange={(e) => setNewCanTrain(e.currentTarget.checked)}
+          />
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => setAddOpen(false)}>
