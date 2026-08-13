@@ -13,7 +13,7 @@ export async function PATCH(
 
     const { id } = params;
     const body = await request.json();
-    const { title, date, type, notes, isObjective } = body;
+    const { title, date, type, notes, isObjective, dateEnd } = body;
 
     const existing = await prisma.planningEntry.findUnique({ where: { id } });
 
@@ -31,6 +31,7 @@ export async function PATCH(
     if (type !== undefined) data.type = type;
     if (notes !== undefined) data.notes = notes;
     if (isObjective !== undefined) data.isObjective = isObjective;
+    if (dateEnd !== undefined) data.dateEnd = dateEnd ? new Date(dateEnd) : null;
 
     const entry = await prisma.planningEntry.update({
       where: { id },

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, FileText, Upload, UserPlus, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X } from "lucide-react"
+import { ArrowLeft, FileText, Upload, UserPlus, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X, CalendarDays, Archive } from "lucide-react"
 import {
   RadarChart,
   Radar,
@@ -32,6 +32,7 @@ interface Athlete {
   weightKg: number | null
   gender: string | null
   isActive: boolean
+  isArchived?: boolean
   photoUrl: string | null
   userId: string | null
   teams?: { team: { id: string; name: string } }[]
@@ -386,6 +387,9 @@ export default function AthleteDetailPage() {
         <Badge color={athlete.isActive ? "green" : "gray"}>
           {athlete.isActive ? "Actif" : "Inactif"}
         </Badge>
+        {athlete.isArchived && (
+          <Badge color="gray" variant="filled">Archivé</Badge>
+        )}
         {isAdmin && (
           <div className="flex items-center gap-2 ml-auto">
             <Button
@@ -398,11 +402,68 @@ export default function AthleteDetailPage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => router.push(`/planning?athlete=${athleteId}`)}
+              leftSection={<CalendarDays className="h-4 w-4" />}
+            >
+              Planning
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => router.push(`/athletes/${athleteId}/edit`)}
             >
               <Pencil className="mr-1 h-4 w-4" />
               Modifier
             </Button>
+            {athlete.isArchived ? (
+              <Button
+                variant="outline"
+                size="sm"
+                color="orange"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/athletes/${athleteId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isArchived: false }),
+                    })
+                    if (res.ok) {
+                      const updated = await res.json()
+                      setAthlete(updated)
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                Désarchiver
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                color="gray"
+                onClick={async () => {
+                  if (!confirm("Archiver cet athlète ? Il n'apparaîtra plus dans les listes.")) return
+                  try {
+                    const res = await fetch(`/api/athletes/${athleteId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isArchived: true }),
+                    })
+                    if (res.ok) {
+                      const updated = await res.json()
+                      setAthlete(updated)
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                <Archive className="mr-1 h-4 w-4" />
+                Archiver
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

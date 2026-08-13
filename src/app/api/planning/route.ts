@@ -52,10 +52,21 @@ export async function GET(request: NextRequest) {
 
       entries = await prisma.planningEntry.findMany({
         where: {
-          date: { gte: startOfMonth, lte: endOfMonth },
-          OR: [
-            { athleteId: id },
-            ...(athleteTeamIds.length > 0 ? [{ teamId: { in: athleteTeamIds } }] : []),
+          AND: [
+            {
+              // Overlaps the requested month: starts within the month,
+              // or is a period spanning into/through the month
+              OR: [
+                { date: { gte: startOfMonth, lte: endOfMonth } },
+                { date: { lte: endOfMonth }, dateEnd: { gte: startOfMonth } },
+              ],
+            },
+            {
+              OR: [
+                { athleteId: id },
+                ...(athleteTeamIds.length > 0 ? [{ teamId: { in: athleteTeamIds } }] : []),
+              ],
+            },
           ],
         },
         include: {
@@ -67,7 +78,10 @@ export async function GET(request: NextRequest) {
       entries = await prisma.planningEntry.findMany({
         where: {
           teamId: id,
-          date: { gte: startOfMonth, lte: endOfMonth },
+          OR: [
+            { date: { gte: startOfMonth, lte: endOfMonth } },
+            { date: { lte: endOfMonth }, dateEnd: { gte: startOfMonth } },
+          ],
         },
         include: {
           team: { select: { id: true, name: true } },
@@ -101,7 +115,7 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
 
     const body = await request.json();
-    const { title, date, type, athleteId, teamId, isObjective, notes } = body;
+    const { title, date, type, athleteId, teamId, isObjective, notes, dateEnd } = body;
 
     if (!title || !date) {
       return NextResponse.json(
@@ -127,6 +141,7 @@ export async function POST(request: NextRequest) {
         teamId: teamId ?? null,
         isObjective: isObjective ?? false,
         notes: notes ?? null,
+        dateEnd: dateEnd ? new Date(dateEnd) : null,
         createdById: session.userId,
       },
     });

@@ -66,6 +66,7 @@ export async function PATCH(
       notes,
       photoUrl,
       isActive,
+      isArchived,
     } = body;
 
     const existing = await prisma.athlete.findUnique({ where: { id } });
@@ -90,6 +91,7 @@ export async function PATCH(
         ...(notes !== undefined && { notes }),
         ...(photoUrl !== undefined && { photoUrl }),
         ...(isActive !== undefined && { isActive }),
+        ...(isArchived !== undefined && { isArchived }),
       },
       include: {
         teams: {

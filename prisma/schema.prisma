@@ -99,6 +99,7 @@ model Athlete {
   notes      String?
   photoUrl   String?   @map("photo_url") @db.MediumText
   isActive   Boolean   @default(true) @map("is_active")
+  isArchived Boolean   @default(false) @map("is_archived")
   createdById String  @map("created_by_id")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
@@ -400,6 +401,7 @@ model PlanningEntry {
   athleteId   String?  @map("athlete_id")
   teamId      String?  @map("team_id")
   date        DateTime @db.Date
+  dateEnd     DateTime? @map("date_end") @db.Date
   title       String
   type        String   @default("ENTRAINEMENT") // ENTRAINEMENT | MATCH | OBJECTIF | REATHLETISATION | REPOS | TEST | AUTRE
   isObjective Boolean  @default(false) @map("is_objective")

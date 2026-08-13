@@ -21,6 +21,7 @@ export async function GET(
     const athletes = await prisma.athleteTeam.findMany({
       where: {
         teamId: id,
+        athlete: { isArchived: false },
       },
       include: {
         athlete: true,

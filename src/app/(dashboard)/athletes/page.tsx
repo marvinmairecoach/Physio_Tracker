@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Eye, Pencil, Trash2, Search } from "lucide-react"
+import { Plus, Eye, Pencil, Trash2, Search, RotateCcw } from "lucide-react"
 
 import {
   Card,
@@ -14,6 +14,7 @@ import {
   Modal,
   Text,
   Group,
+  Checkbox,
 } from "@mantine/core"
 
 interface Team {
@@ -26,6 +27,7 @@ interface Athlete {
   firstName: string
   lastName: string
   isActive: boolean
+  isArchived?: boolean
   teams?: { team: Team }[]
 }
 
@@ -38,6 +40,7 @@ export default function AthletesPage() {
   const [teams, setTeams] = useState<Team[]>([])
   const [filterTeam, setFilterTeam] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   // Delete dialog
   const [deleteTarget, setDeleteTarget] = useState<Athlete | null>(null)
@@ -45,17 +48,23 @@ export default function AthletesPage() {
 
   const isAdmin = userRole === "admin"
 
+  async function fetchAthletes(includeArchived = false) {
+    const url = includeArchived ? "/api/athletes?includeArchived=true" : "/api/athletes"
+    const res = await fetch(url)
+    if (!res.ok) throw new Error("Erreur lors du chargement des athlètes")
+    const data = await res.json()
+    setAthletes(Array.isArray(data) ? data : data.athletes ?? [])
+  }
+
   useEffect(() => {
     async function fetchData() {
       try {
-        const [athletesRes, teamsRes, meRes] = await Promise.all([
-          fetch("/api/athletes"),
+        const [teamsRes, meRes] = await Promise.all([
           fetch("/api/teams"),
           fetch("/api/auth/me"),
         ])
-        if (!athletesRes.ok) throw new Error("Erreur lors du chargement des athlètes")
-        const athletesData = await athletesRes.json()
-        setAthletes(Array.isArray(athletesData) ? athletesData : athletesData.athletes ?? [])
+
+        await fetchAthletes(showArchived)
 
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json()
@@ -73,7 +82,7 @@ export default function AthletesPage() {
       }
     }
     fetchData()
-  }, [])
+  }, [showArchived])
 
   const filteredAthletes = athletes.filter((a) => {
     const fullName = `${a.firstName} ${a.lastName}`.toLowerCase()
@@ -101,6 +110,20 @@ export default function AthletesPage() {
     }
   }
 
+  async function handleUnarchive(athlete: Athlete) {
+    try {
+      const res = await fetch(`/api/athletes/${athlete.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: false }),
+      })
+      if (!res.ok) throw new Error("Erreur lors du désarchivage")
+      await fetchAthletes(showArchived)
+    } catch {
+      // ignore
+    }
+  }
+
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
@@ -115,7 +138,7 @@ export default function AthletesPage() {
         )}
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <TextInput
             placeholder="Rechercher un athlète..."
@@ -136,6 +159,11 @@ export default function AthletesPage() {
             </option>
           ))}
         </select>
+        <Checkbox
+          label="Voir les archivés"
+          checked={showArchived}
+          onChange={(e) => setShowArchived(e.currentTarget.checked)}
+        />
       </div>
 
       <Card withBorder padding="lg">
@@ -158,7 +186,7 @@ export default function AthletesPage() {
               </Table.Tr>
             ) : (
               filteredAthletes.map((athlete) => (
-                <Table.Tr key={athlete.id}>
+                <Table.Tr key={athlete.id} className={athlete.isArchived ? "opacity-50" : ""}>
                   <Table.Td>
                     <Text fw={500}>
                       <Link href={`/athletes/${athlete.id}`} className="hover:text-blue-600 transition-colors">
@@ -179,12 +207,19 @@ export default function AthletesPage() {
                       : "—"}
                   </Table.Td>
                   <Table.Td>
-                    <Badge
-                      color={athlete.isActive ? "green" : "gray"}
-                      variant="light"
-                    >
-                      {athlete.isActive ? "Actif" : "Inactif"}
-                    </Badge>
+                    <Group gap="xs">
+                      <Badge
+                        color={athlete.isActive ? "green" : "gray"}
+                        variant="light"
+                      >
+                        {athlete.isActive ? "Actif" : "Inactif"}
+                      </Badge>
+                      {athlete.isArchived && (
+                        <Badge color="gray" variant="filled">
+                          Archivé
+                        </Badge>
+                      )}
+                    </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: "right" }}>
                     <Group gap="xs" justify="flex-end">
@@ -196,25 +231,37 @@ export default function AthletesPage() {
                       >
                         Voir
                       </Button>
-                      {isAdmin && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="compact-sm"
-                            color="orange"
-                            onClick={() => router.push(`/athletes/${athlete.id}/edit`)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="compact-sm"
-                            color="red"
-                            onClick={() => setDeleteTarget(athlete)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                      {athlete.isArchived ? (
+                        <Button
+                          variant="outline"
+                          size="compact-sm"
+                          color="orange"
+                          onClick={() => handleUnarchive(athlete)}
+                          leftSection={<RotateCcw className="h-4 w-4" />}
+                        >
+                          Désarchiver
+                        </Button>
+                      ) : (
+                        isAdmin && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="compact-sm"
+                              color="orange"
+                              onClick={() => router.push(`/athletes/${athlete.id}/edit`)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="compact-sm"
+                              color="red"
+                              onClick={() => setDeleteTarget(athlete)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )
                       )}
                     </Group>
                   </Table.Td>

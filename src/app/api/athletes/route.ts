@@ -12,11 +12,16 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const teamId = searchParams.get("teamId");
     const isActive = searchParams.get("isActive");
+    const includeArchived = searchParams.get("includeArchived") === "true";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
+
+    if (!includeArchived) {
+      where.isArchived = false;
+    }
 
     if (search) {
       where.OR = [

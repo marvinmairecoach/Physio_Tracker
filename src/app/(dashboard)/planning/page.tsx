@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight, Calendar, Pencil, Trash2 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 
-import { Badge, Button, Card, Modal, NativeSelect, Switch, Textarea, TextInput } from "@mantine/core"
+import { Badge, Button, Card, NativeSelect, Switch, Textarea, TextInput } from "@mantine/core"
 import { useSession } from "@/components/layout/providers"
 
 /* ------------------------------------------------------------------ */
@@ -19,6 +20,7 @@ interface Athlete {
   id: string
   firstName: string
   lastName: string
+  isArchived?: boolean
 }
 
 interface AthleteTeamMember {
@@ -31,6 +33,7 @@ interface PlanningEntry {
   athleteId: string | null
   teamId: string | null
   date: string
+  dateEnd: string | null
   title: string
   type: string
   isObjective: boolean
@@ -101,178 +104,372 @@ function startOfWeek(d: Date) {
   return copy
 }
 
-function entryDateKey(entry: PlanningEntry) {
-  return dateKey(toLocalDate(entry.date))
+/** Retourne toutes les dates (clés) sur lesquelles une entrée doit être affichée. */
+function entryDateKeys(entry: PlanningEntry): string[] {
+  const start = toLocalDate(entry.date)
+  if (!entry.dateEnd) return [dateKey(start)]
+  const end = toLocalDate(entry.dateEnd)
+  const keys: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    keys.push(dateKey(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return keys
 }
 
 /* ------------------------------------------------------------------ */
-/* Modal d'édition (auto-save 600ms sur les champs texte,              */
-/* bouton explicite pour le switch objectif)                           */
+/* Composant d'édition inline dans le panneau latéral                  */
 /* ------------------------------------------------------------------ */
 
-interface EditEntryModalProps {
+interface InlineEditFormProps {
   entry: PlanningEntry
-  canEdit: boolean
-  onClose: () => void
-  onSaved: (updated: PlanningEntry) => void
+  onSave: (updated: PlanningEntry) => void
+  onCancel: () => void
 }
 
-function EditEntryModal({ entry, canEdit, onClose, onSaved }: EditEntryModalProps) {
-  const [form, setForm] = useState({
-    title: entry.title,
-    type: entry.type,
-    notes: entry.notes ?? "",
-    isObjective: entry.isObjective,
-  })
-  const [savingObjective, setSavingObjective] = useState(false)
+function InlineEditForm({ entry, onSave, onCancel }: InlineEditFormProps) {
+  const [title, setTitle] = useState(entry.title)
+  const [type, setType] = useState(entry.type)
+  const [notes, setNotes] = useState(entry.notes ?? "")
+  const [isObjective, setIsObjective] = useState(entry.isObjective)
+  const [dateEnd, setDateEnd] = useState(
+    entry.dateEnd ? entry.dateEnd.split("T")[0] : entry.date.split("T")[0]
+  )
+  const [saving, setSaving] = useState(false)
 
-  // Réinitialise le formulaire uniquement quand on ouvre une autre entrée
-  useEffect(() => {
-    setForm({
-      title: entry.title,
-      type: entry.type,
-      notes: entry.notes ?? "",
-      isObjective: entry.isObjective,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.id])
+  const showEndDate = isObjective || type === "OBJECTIF"
 
-  const isObjective = form.isObjective || form.type === "OBJECTIF"
-
-  // Auto-save (debounce 600ms) : titre, type, notes
-  useEffect(() => {
-    if (!canEdit) return
-    const original = { title: entry.title, type: entry.type, notes: entry.notes ?? "" }
-    if (
-      form.title === original.title &&
-      form.type === original.type &&
-      (form.notes ?? "") === original.notes
-    ) {
-      return
-    }
-    const t = setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/planning/${entry.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: form.title,
-              type: form.type,
-              notes: form.notes || null,
-            }),
-          })
-          if (res.ok) {
-            const updated = await res.json()
-            onSaved({ ...entry, ...updated })
-          }
-        } catch {
-          // silencieux — on garde l'état local
-        }
-      })()
-    }, 600)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.title, form.type, form.notes, entry.id, canEdit])
-
-  const objectiveChanged = form.isObjective !== entry.isObjective
-
-  async function saveObjective() {
-    setSavingObjective(true)
+  async function handleSave() {
+    setSaving(true)
     try {
       const res = await fetch(`/api/planning/${entry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isObjective: form.isObjective }),
+        body: JSON.stringify({
+          title,
+          type,
+          notes: notes || null,
+          isObjective,
+          dateEnd: showEndDate ? dateEnd : null,
+        }),
       })
       if (res.ok) {
         const updated = await res.json()
-        onSaved({ ...entry, ...updated })
+        onSave({ ...entry, ...updated })
       }
     } catch {
       // silencieux
     } finally {
-      setSavingObjective(false)
+      setSaving(false)
     }
   }
 
   return (
-    <Modal opened onClose={onClose} title="Modifier l'entrée" size="md" centered>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {isObjective ? (
-            <Badge color="yellow" variant="light">🎯 Objectif</Badge>
-          ) : entry.origin === "equipe" ? (
-            <Badge color="green" variant="light">
-              Équipe{entry.team?.name ? ` · ${entry.team.name}` : ""}
-            </Badge>
-          ) : (
-            <Badge color="blue" variant="light">Individuel</Badge>
-          )}
-          <span className="text-xs capitalize text-muted-foreground">
-            {toLocalDate(entry.date).toLocaleDateString("fr-FR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </span>
-        </div>
-
+    <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+      <TextInput
+        label="Titre"
+        value={title}
+        onChange={(e) => setTitle(e.currentTarget.value)}
+        size="xs"
+      />
+      <NativeSelect
+        label="Type"
+        value={type}
+        onChange={(e) => setType(e.currentTarget.value)}
+        data={TYPE_OPTIONS}
+        size="xs"
+      />
+      <Textarea
+        label="Notes"
+        value={notes}
+        onChange={(e) => setNotes(e.currentTarget.value)}
+        minRows={2}
+        size="xs"
+        placeholder="Notes, consignes, détails..."
+      />
+      <div className="flex items-center justify-between rounded-md border bg-white p-2">
+        <div className="text-sm font-medium">Objectif</div>
+        <Switch
+          checked={isObjective}
+          onChange={(e) => setIsObjective(e.currentTarget.checked)}
+          size="xs"
+        />
+      </div>
+      {showEndDate && (
         <TextInput
-          label="Titre"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.currentTarget.value })}
-          disabled={!canEdit}
-          placeholder="Titre de l'entrée"
+          label="Date de fin"
+          type="date"
+          value={dateEnd}
+          onChange={(e) => setDateEnd(e.currentTarget.value)}
+          size="xs"
         />
+      )}
+      <div className="flex gap-2">
+        <Button size="compact-sm" onClick={handleSave} loading={saving}>
+          Enregistrer
+        </Button>
+        <Button size="compact-sm" variant="subtle" onClick={onCancel}>
+          Annuler
+        </Button>
+      </div>
+    </div>
+  )
+}
 
-        <NativeSelect
-          label="Type"
-          value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.currentTarget.value })}
-          data={TYPE_OPTIONS}
-          disabled={!canEdit}
-        />
+/* ------------------------------------------------------------------ */
+/* Panneau latéral                                                     */
+/* ------------------------------------------------------------------ */
 
-        <Textarea
-          label="Notes"
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
-          minRows={3}
-          disabled={!canEdit}
-          placeholder="Notes, consignes, détails..."
-        />
+interface SidePanelProps {
+  selectedDate: Date | null
+  entriesByDate: Map<string, PlanningEntry[]>
+  canCreate: boolean
+  selectedAthleteId: string
+  selectedTeamId: string
+  onRefetch: () => void
+}
 
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div>
-            <div className="text-sm font-medium">Objectif</div>
-            <div className="text-xs text-muted-foreground">
-              Marquer cette entrée comme un objectif à atteindre
-            </div>
+function SidePanel({
+  selectedDate,
+  entriesByDate,
+  canCreate,
+  selectedAthleteId,
+  selectedTeamId,
+  onRefetch,
+}: SidePanelProps) {
+  const [quickAddTitle, setQuickAddTitle] = useState("")
+  const [quickAddType, setQuickAddType] = useState("ENTRAINEMENT")
+  const [quickAddDateEnd, setQuickAddDateEnd] = useState("")
+  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset quick-add fields when selectedDate changes
+  useEffect(() => {
+    setQuickAddTitle("")
+    setQuickAddType("ENTRAINEMENT")
+    setQuickAddDateEnd("")
+    setEditingId(null)
+  }, [selectedDate])
+
+  // Set dateEnd default when selectedDate changes
+  const selectedDateStr = selectedDate ? dateKey(selectedDate) : ""
+  useEffect(() => {
+    setQuickAddDateEnd(selectedDateStr)
+  }, [selectedDateStr])
+
+  const showEndDate = quickAddType === "OBJECTIF"
+
+  async function handleQuickAdd() {
+    const title = quickAddTitle.trim()
+    if (!title || !selectedDate) return
+    setQuickAddSaving(true)
+    try {
+      const athleteScope = !!selectedAthleteId
+      await fetch("/api/planning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          date: selectedDateStr,
+          type: quickAddType,
+          ...(athleteScope
+            ? { athleteId: selectedAthleteId }
+            : { teamId: selectedTeamId }),
+          isObjective: quickAddType === "OBJECTIF",
+          notes: null,
+          dateEnd: showEndDate && quickAddDateEnd ? quickAddDateEnd : null,
+        }),
+      })
+      setQuickAddTitle("")
+      setQuickAddType("ENTRAINEMENT")
+      setQuickAddDateEnd(selectedDateStr)
+      onRefetch()
+    } catch {
+      // silencieux
+    } finally {
+      setQuickAddSaving(false)
+      titleInputRef.current?.focus()
+    }
+  }
+
+  async function handleDelete(entry: PlanningEntry) {
+    if (!confirm(`Supprimer "${entry.title}" ?`)) return
+    try {
+      await fetch(`/api/planning/${entry.id}`, { method: "DELETE" })
+      onRefetch()
+    } catch {
+      // silencieux
+    }
+  }
+
+  function handleEntrySaved(updated: PlanningEntry) {
+    setEditingId(null)
+    onRefetch()
+  }
+
+  if (!selectedDate) {
+    return (
+      <div className="sticky top-6 self-start">
+        <Card withBorder className="py-12">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <Calendar className="h-10 w-10 opacity-30" />
+            <p className="text-sm">Sélectionnez un jour</p>
           </div>
-          <Switch
-            checked={form.isObjective}
-            onChange={(e) => setForm({ ...form, isObjective: e.currentTarget.checked })}
-            disabled={!canEdit}
-          />
-        </div>
+        </Card>
+      </div>
+    )
+  }
 
-        {canEdit && objectiveChanged && (
-          <div className="flex justify-end">
-            <Button size="compact-sm" onClick={saveObjective} loading={savingObjective}>
-              Enregistrer l'objectif
+  const key = selectedDateStr
+  const dayEntries = entriesByDate.get(key) ?? []
+  const dateLabel = selectedDate.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+
+  return (
+    <div className="sticky top-6 self-start">
+      <Card withBorder>
+        <h3 className="mb-4 text-base font-semibold capitalize">{dateLabel}</h3>
+
+        {/* Quick-add block */}
+        {canCreate && (
+          <div className="mb-4 space-y-2 rounded-lg border border-dashed border-muted-foreground/30 p-3">
+            <p className="text-xs font-medium text-muted-foreground">Nouvel élément</p>
+            <TextInput
+              ref={titleInputRef}
+              size="xs"
+              placeholder="Ajouter un élément..."
+              value={quickAddTitle}
+              onChange={(e) => setQuickAddTitle(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  void handleQuickAdd()
+                }
+              }}
+              disabled={quickAddSaving}
+            />
+            <NativeSelect
+              size="xs"
+              value={quickAddType}
+              onChange={(e) => setQuickAddType(e.currentTarget.value)}
+              data={TYPE_OPTIONS}
+            />
+            {showEndDate && (
+              <TextInput
+                size="xs"
+                label="Date de fin (optionnel)"
+                type="date"
+                value={quickAddDateEnd}
+                onChange={(e) => setQuickAddDateEnd(e.currentTarget.value)}
+              />
+            )}
+            <Button
+              size="compact-sm"
+              onClick={handleQuickAdd}
+              loading={quickAddSaving}
+              disabled={!quickAddTitle.trim()}
+              className="w-full"
+            >
+              Ajouter
             </Button>
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground">
-          {canEdit
-            ? "Titre, type et notes sont enregistrés automatiquement (délai de 600 ms)."
-            : "Lecture seule — seuls les coachs peuvent modifier le planning."}
-        </p>
-      </div>
-    </Modal>
+        {/* Liste des entrées */}
+        {dayEntries.length === 0 ? (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            Aucune entrée pour ce jour.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {dayEntries.map((entry) => {
+              const isObjective = entry.isObjective || entry.type === "OBJECTIF"
+              const isEditing = editingId === entry.id
+
+              if (isEditing) {
+                return (
+                  <InlineEditForm
+                    key={entry.id}
+                    entry={entry}
+                    onSave={handleEntrySaved}
+                    onCancel={() => setEditingId(null)}
+                  />
+                )
+              }
+
+              return (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                >
+                  {/* Origin dot */}
+                  <span
+                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                      isObjective
+                        ? "bg-amber-500"
+                        : entry.origin === "equipe"
+                        ? "bg-emerald-500"
+                        : "bg-blue-500"
+                    }`}
+                  />
+
+                  {/* Type badge */}
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color={isObjective ? "yellow" : entry.origin === "equipe" ? "green" : "blue"}
+                    className="shrink-0"
+                  >
+                    {isObjective ? "🎯 " : ""}
+                    {TYPE_LABELS[entry.type] ?? entry.type}
+                  </Badge>
+
+                  {/* Title */}
+                  <span className="flex-1 truncate">{entry.title}</span>
+
+                  {/* Origin hint */}
+                  <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+                    {isObjective
+                      ? "Objectif"
+                      : entry.origin === "equipe"
+                      ? "Équipe"
+                      : "Individuel"}
+                  </span>
+
+                  {/* Edit / Delete */}
+                  {canCreate && (
+                    <div className="flex shrink-0 gap-0.5">
+                      <button
+                        type="button"
+                        aria-label="Modifier"
+                        onClick={() => setEditingId(entry.id)}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Supprimer"
+                        onClick={() => void handleDelete(entry)}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
   )
 }
 
@@ -281,7 +478,16 @@ function EditEntryModal({ entry, canEdit, onClose, onSaved }: EditEntryModalProp
 /* ------------------------------------------------------------------ */
 
 export default function PlanningPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlanningPageContent />
+    </Suspense>
+  )
+}
+
+function PlanningPageContent() {
   const { user } = useSession()
+  const searchParams = useSearchParams()
   const canCreate = user?.role === "admin" || user?.role === "coach"
 
   // Portée
@@ -299,13 +505,11 @@ export default function PlanningPage() {
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // Ajout rapide
-  const [quickAddDate, setQuickAddDate] = useState<string | null>(null)
-  const [quickAddValue, setQuickAddValue] = useState("")
-  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  // Panneau latéral — date sélectionnée
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
-  // Édition
-  const [editEntry, setEditEntry] = useState<PlanningEntry | null>(null)
+  // Flag pour savoir si le chargement initial des teams+athlètes est fait
+  const [initialLoaded, setInitialLoaded] = useState(false)
 
   /* ---- Chargement des équipes ---- */
   useEffect(() => {
@@ -316,6 +520,7 @@ export default function PlanningPage() {
         if (cancelled) return
         if (!res.ok) {
           setLoading(false)
+          setInitialLoaded(true)
           return
         }
         const data = await res.json()
@@ -323,11 +528,15 @@ export default function PlanningPage() {
         setTeams(t)
         if (t.length === 0) {
           setLoading(false)
+          setInitialLoaded(true)
         } else {
           setSelectedTeamId((prev) => prev || t[0].id)
         }
       } catch {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setInitialLoaded(true)
+        }
       }
     }
     loadTeams()
@@ -339,10 +548,10 @@ export default function PlanningPage() {
   /* ---- Chargement des athlètes quand l'équipe change ---- */
   useEffect(() => {
     setSelectedAthleteId("")
-    setQuickAddDate(null)
-    setQuickAddValue("")
+    setSelectedDate(null)
     if (!selectedTeamId) {
       setAthletes([])
+      setInitialLoaded(true)
       return
     }
     let cancelled = false
@@ -358,10 +567,13 @@ export default function PlanningPage() {
         const list: Athlete[] = (Array.isArray(data) ? data : [])
           .map((m: AthleteTeamMember) => m.athlete)
           .filter((a: Athlete | undefined): a is Athlete => !!a)
+          .filter((a) => !a.isArchived)
           .sort((a, b) => a.lastName.localeCompare(b.lastName, "fr"))
         setAthletes(list)
       } catch {
         if (!cancelled) setAthletes([])
+      } finally {
+        if (!cancelled) setInitialLoaded(true)
       }
     }
     loadAthletes()
@@ -369,6 +581,67 @@ export default function PlanningPage() {
       cancelled = true
     }
   }, [selectedTeamId])
+
+  // Athlète en attente de sélection (via query param) — appliqué dès que
+  // la liste des athlètes de son équipe est chargée
+  const [pendingAthleteId, setPendingAthleteId] = useState<string | null>(null)
+
+  /* ---- Query params preselect ---- */
+  useEffect(() => {
+    if (!initialLoaded || teams.length === 0) return
+
+    const athleteParam = searchParams.get("athlete")
+    const teamParam = searchParams.get("team")
+
+    if (athleteParam) {
+      // Cherche l'athlète dans les données déjà chargées
+      const found = athletes.find((a) => a.id === athleteParam)
+      if (found) {
+        setPendingAthleteId(null)
+        setSelectedAthleteId(athleteParam)
+        return
+      }
+      // Sinon on fetch l'athlète pour trouver son équipe
+      let cancelled = false
+      void (async () => {
+        try {
+          const res = await fetch(`/api/athletes/${athleteParam}`)
+          if (cancelled || !res.ok) return
+          const data = await res.json()
+          // data.teams est un tableau AthleteTeam[] avec include: { team: true }
+          const athleteTeams: { team: Team }[] = data.teams ?? []
+          if (athleteTeams.length > 0 && !cancelled) {
+            setPendingAthleteId(athleteParam)
+            setSelectedTeamId(athleteTeams[0].team.id)
+          }
+        } catch {
+          // silencieux
+        }
+      })()
+      return () => {
+        cancelled = true
+      }
+    }
+
+    if (teamParam) {
+      const found = teams.find((t) => t.id === teamParam)
+      if (found) {
+        setPendingAthleteId(null)
+        setSelectedTeamId(teamParam)
+        setSelectedAthleteId("")
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialLoaded, teams, searchParams])
+
+  /* ---- Applique l'athlète en attente quand ses données sont chargées ---- */
+  useEffect(() => {
+    if (!pendingAthleteId) return
+    if (athletes.some((a) => a.id === pendingAthleteId)) {
+      setSelectedAthleteId(pendingAthleteId)
+      setPendingAthleteId(null)
+    }
+  }, [athletes, pendingAthleteId])
 
   /* ---- Mois demandés selon la vue ---- */
   const monthKeys = useMemo(() => {
@@ -382,6 +655,8 @@ export default function PlanningPage() {
   }, [viewMode, calDate])
 
   /* ---- Chargement des entrées ---- */
+  const refetch = useCallback(() => setRefreshKey((k) => k + 1), [])
+
   useEffect(() => {
     if (!selectedTeamId) {
       setEntries([])
@@ -422,14 +697,16 @@ export default function PlanningPage() {
     }
   }, [selectedTeamId, selectedAthleteId, monthKeys, refreshKey])
 
-  /* ---- Regroupement par jour ---- */
+  /* ---- Regroupement par jour (périodes incluses) ---- */
   const entriesByDate = useMemo(() => {
     const map = new Map<string, PlanningEntry[]>()
     for (const entry of entries) {
-      const key = entryDateKey(entry)
-      const list = map.get(key) ?? []
-      list.push(entry)
-      map.set(key, list)
+      const keys = entryDateKeys(entry)
+      for (const key of keys) {
+        const list = map.get(key) ?? []
+        list.push(entry)
+        map.set(key, list)
+      }
     }
     return map
   }, [entries])
@@ -463,7 +740,7 @@ export default function PlanningPage() {
 
   /* ---- Navigation ---- */
   function goPrev() {
-    setQuickAddDate(null)
+    setSelectedDate(null)
     if (viewMode === "week") {
       const m = startOfWeek(calDate)
       m.setDate(m.getDate() - 7)
@@ -474,7 +751,7 @@ export default function PlanningPage() {
   }
 
   function goNext() {
-    setQuickAddDate(null)
+    setSelectedDate(null)
     if (viewMode === "week") {
       const m = startOfWeek(calDate)
       m.setDate(m.getDate() + 7)
@@ -485,67 +762,14 @@ export default function PlanningPage() {
   }
 
   function goToday() {
-    setQuickAddDate(null)
+    setSelectedDate(null)
     setCalDate(new Date())
-  }
-
-  /* ---- Ajout rapide ---- */
-  function openQuickAdd(key: string) {
-    if (!canCreate) return
-    setQuickAddDate(key)
-    setQuickAddValue("")
-  }
-
-  async function submitQuickAdd() {
-    const title = quickAddValue.trim()
-    if (!title || !quickAddDate) return
-    setQuickAddSaving(true)
-    try {
-      const athleteScope = !!selectedAthleteId
-      await fetch("/api/planning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          date: quickAddDate,
-          type: "ENTRAINEMENT",
-          ...(athleteScope
-            ? { athleteId: selectedAthleteId }
-            : { teamId: selectedTeamId }),
-          isObjective: false,
-          notes: null,
-        }),
-      })
-      setQuickAddDate(null)
-      setQuickAddValue("")
-      setRefreshKey((k) => k + 1)
-    } catch {
-      // silencieux
-    } finally {
-      setQuickAddSaving(false)
-    }
-  }
-
-  /* ---- Suppression ---- */
-  async function deleteEntry(entry: PlanningEntry) {
-    try {
-      await fetch(`/api/planning/${entry.id}`, { method: "DELETE" })
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id))
-    } catch {
-      // silencieux
-    }
-  }
-
-  /* ---- Mise à jour après édition ---- */
-  function handleEntryUpdated(updated: PlanningEntry) {
-    setEntries((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)))
-    setEditEntry((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev))
   }
 
   /* ---- Style des pastilles ---- */
   function chipClasses(entry: PlanningEntry) {
     if (entry.isObjective || entry.type === "OBJECTIF") {
-      return "bg-amber-500/20 text-amber-700"
+      return "bg-amber-500/20 text-amber-700 border-l-4 border-amber-400"
     }
     if (entry.origin === "equipe") {
       return "bg-emerald-500/15 text-green-700"
@@ -553,18 +777,18 @@ export default function PlanningPage() {
     return "bg-blue-500/15 text-blue-700"
   }
 
-  function renderEntryChip(entry: PlanningEntry) {
+  function renderEntryChip(entry: PlanningEntry, day: Date) {
     const isObjective = entry.isObjective || entry.type === "OBJECTIF"
     return (
       <div
         key={entry.id}
         role="button"
         tabIndex={0}
-        onClick={() => setEditEntry(entry)}
+        onClick={() => setSelectedDate(day)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault()
-            setEditEntry(entry)
+            setSelectedDate(day)
           }
         }}
         title={`${entry.title}${entry.origin === "equipe" && entry.team ? ` (${entry.team.name})` : ""}`}
@@ -574,19 +798,6 @@ export default function PlanningPage() {
           {isObjective ? "🎯 " : ""}
           {entry.title}
         </span>
-        {canCreate && (
-          <button
-            type="button"
-            aria-label="Supprimer l'entrée"
-            onClick={(e) => {
-              e.stopPropagation()
-              void deleteEntry(entry)
-            }}
-            className="rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
-          >
-            ✕
-          </button>
-        )}
       </div>
     )
   }
@@ -601,15 +812,15 @@ export default function PlanningPage() {
 
     const key = dateKey(date)
     const dayEntries = entriesByDate.get(key) ?? []
-    const showQuickAdd = quickAddDate === key
+    const isSelected = selectedDate && dateKey(selectedDate) === key
 
     return (
       <div
         key={key}
-        onClick={() => openQuickAdd(key)}
+        onClick={() => setSelectedDate(date)}
         className={`min-h-[115px] cursor-pointer bg-background p-1 transition-colors hover:bg-muted/30 ${
           isToday ? "ring-2 ring-primary/30 ring-inset" : ""
-        }`}
+        } ${isSelected ? "ring-2 ring-amber-500 ring-inset" : ""}`}
       >
         <div
           className={`mb-1 px-1 text-xs font-semibold ${
@@ -619,31 +830,8 @@ export default function PlanningPage() {
           {date.getDate()}
         </div>
 
-        {showQuickAdd && canCreate && (
-          <TextInput
-            size="xs"
-            placeholder="Ajouter..."
-            value={quickAddValue}
-            onChange={(e) => setQuickAddValue(e.currentTarget.value)}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                void submitQuickAdd()
-              } else if (e.key === "Escape") {
-                setQuickAddDate(null)
-                setQuickAddValue("")
-              }
-            }}
-            autoFocus
-            disabled={quickAddSaving}
-            className="mb-1"
-            aria-label="Ajouter une entrée"
-          />
-        )}
-
         <div className="space-y-0.5">
-          {dayEntries.slice(0, 4).map(renderEntryChip)}
+          {dayEntries.slice(0, 4).map((entry) => renderEntryChip(entry, date))}
           {dayEntries.length > 4 && (
             <div className="px-1 text-[10px] text-muted-foreground">
               +{dayEntries.length - 4} autres
@@ -674,7 +862,7 @@ export default function PlanningPage() {
               value={selectedTeamId}
               onChange={(e) => {
                 setSelectedTeamId(e.currentTarget.value)
-                setQuickAddDate(null)
+                setSelectedDate(null)
               }}
               data={[
                 { value: "", label: "Sélectionner une équipe" },
@@ -689,13 +877,13 @@ export default function PlanningPage() {
               value={selectedAthleteId}
               onChange={(e) => {
                 setSelectedAthleteId(e.currentTarget.value)
-                setQuickAddDate(null)
+                setSelectedDate(null)
               }}
               disabled={!selectedTeamId}
               data={[
                 {
                   value: "",
-                  label: "Aucun athlète (planification équipe)",
+                  label: "Planification equipe",
                 },
                 ...athletes.map((a) => ({
                   value: a.id,
@@ -708,117 +896,120 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      {/* Calendrier */}
-      <Card withBorder>
-        {/* Légende + bascule Mois/Semaine */}
-        <div className="flex flex-col gap-3 px-6 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-              Individuel
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              Équipe
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-              Objectif
-            </span>
+      {/* Grille principale : calendrier + panneau latéral */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        {/* Calendrier */}
+        <Card withBorder>
+          {/* Légende + bascule Mois/Semaine */}
+          <div className="flex flex-col gap-3 px-6 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                Individuel
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                Équipe
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                Objectif
+              </span>
+            </div>
+
+            <div className="flex overflow-hidden rounded-md border">
+              <Button
+                variant={viewMode === "month" ? "filled" : "subtle"}
+                size="compact-sm"
+                className="rounded-none"
+                onClick={() => {
+                  setViewMode("month")
+                  setSelectedDate(null)
+                }}
+              >
+                Mois
+              </Button>
+              <Button
+                variant={viewMode === "week" ? "filled" : "subtle"}
+                size="compact-sm"
+                className="rounded-none"
+                onClick={() => {
+                  setViewMode("week")
+                  setSelectedDate(null)
+                }}
+              >
+                Semaine
+              </Button>
+            </div>
           </div>
 
-          <div className="flex overflow-hidden rounded-md border">
-            <Button
-              variant={viewMode === "month" ? "filled" : "subtle"}
-              size="compact-sm"
-              className="rounded-none"
-              onClick={() => {
-                setViewMode("month")
-                setQuickAddDate(null)
-              }}
-            >
-              Mois
-            </Button>
-            <Button
-              variant={viewMode === "week" ? "filled" : "subtle"}
-              size="compact-sm"
-              className="rounded-none"
-              onClick={() => {
-                setViewMode("week")
-                setQuickAddDate(null)
-              }}
-            >
-              Semaine
-            </Button>
+          {/* Navigation */}
+          <div className="flex flex-row flex-wrap items-center justify-between gap-2 px-6 pb-2 pt-4">
+            <div className="flex items-center gap-1">
+              <Button variant="subtle" size="compact-sm" onClick={goPrev} aria-label="Précédent">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <span className="min-w-[190px] text-center text-lg font-semibold">{headerLabel}</span>
+              <Button variant="subtle" size="compact-sm" onClick={goNext} aria-label="Suivant">
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+              <Button variant="outline" size="compact-sm" onClick={goToday} className="ml-1">
+                Aujourd'hui
+              </Button>
+            </div>
+            <div className="hidden text-sm text-muted-foreground md:block">{scopeLabel}</div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <div className="flex flex-row flex-wrap items-center justify-between gap-2 px-6 pb-2 pt-4">
-          <div className="flex items-center gap-1">
-            <Button variant="subtle" size="compact-sm" onClick={goPrev} aria-label="Précédent">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <span className="min-w-[190px] text-center text-lg font-semibold">{headerLabel}</span>
-            <Button variant="subtle" size="compact-sm" onClick={goNext} aria-label="Suivant">
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="compact-sm" onClick={goToday} className="ml-1">
-              Aujourd'hui
-            </Button>
+          {/* Grille calendrier */}
+          <div className="px-6 pb-6 pt-2">
+            {loading ? (
+              <div className="py-16 text-center text-muted-foreground">Chargement...</div>
+            ) : teams.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                Aucune équipe disponible pour votre compte.
+              </div>
+            ) : !selectedTeamId ? (
+              <div className="py-16 text-center text-muted-foreground">
+                Sélectionnez une équipe pour afficher le planning.
+              </div>
+            ) : (
+              <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-muted">
+                {DAYS.map((d) => (
+                  <div
+                    key={d}
+                    className="bg-background px-2 py-2 text-center text-xs font-medium text-muted-foreground"
+                  >
+                    {d}
+                  </div>
+                ))}
+
+                {viewMode === "month" ? (
+                  <>
+                    {Array.from({ length: firstDay }).map((_, i) => (
+                      <div key={`empty-${i}`} className="min-h-[115px] bg-background p-1" />
+                    ))}
+                    {Array.from({ length: daysInMonth }).map((_, i) =>
+                      renderDayCell(new Date(calYear, calMonth, i + 1))
+                    )}
+                  </>
+                ) : (
+                  weekDays.map((d) => renderDayCell(d))
+                )}
+              </div>
+            )}
           </div>
-          <div className="hidden text-sm text-muted-foreground md:block">{scopeLabel}</div>
-        </div>
+        </Card>
 
-        {/* Grille */}
-        <div className="px-6 pb-6 pt-2">
-          {loading ? (
-            <div className="py-16 text-center text-muted-foreground">Chargement...</div>
-          ) : teams.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              Aucune équipe disponible pour votre compte.
-            </div>
-          ) : !selectedTeamId ? (
-            <div className="py-16 text-center text-muted-foreground">
-              Sélectionnez une équipe pour afficher le planning.
-            </div>
-          ) : (
-            <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-muted">
-              {DAYS.map((d) => (
-                <div
-                  key={d}
-                  className="bg-background px-2 py-2 text-center text-xs font-medium text-muted-foreground"
-                >
-                  {d}
-                </div>
-              ))}
-
-              {viewMode === "month" ? (
-                <>
-                  {Array.from({ length: firstDay }).map((_, i) => (
-                    <div key={`empty-${i}`} className="min-h-[115px] bg-background p-1" />
-                  ))}
-                  {Array.from({ length: daysInMonth }).map((_, i) =>
-                    renderDayCell(new Date(calYear, calMonth, i + 1))
-                  )}
-                </>
-              ) : (
-                weekDays.map((d) => renderDayCell(d))
-              )}
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Modal d'édition */}
-      {editEntry && (
-        <EditEntryModal
-          entry={editEntry}
-          canEdit={canCreate}
-          onClose={() => setEditEntry(null)}
-          onSaved={handleEntryUpdated}
+        {/* Panneau latéral */}
+        <SidePanel
+          selectedDate={selectedDate}
+          entriesByDate={entriesByDate}
+          canCreate={canCreate}
+          selectedAthleteId={selectedAthleteId}
+          selectedTeamId={selectedTeamId}
+          onRefetch={refetch}
         />
-      )}
+      </div>
     </div>
   )
 }
