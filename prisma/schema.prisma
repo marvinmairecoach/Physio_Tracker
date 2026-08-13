@@ -60,6 +60,7 @@ model User {
   exercises     Exercise[]
   athleteUser   Athlete[] @relation("AthleteUser")
   documents     AthleteDocument[]
+  planningEntries PlanningEntry[]
 
   @@map("User")
 }
@@ -80,6 +81,7 @@ model Team {
   coaches    TeamCoach[]
   assignments SessionAssignment[]
   sessions   Session[]
+  planningEntries PlanningEntry[]
 
   @@map("Team")
 }
@@ -114,6 +116,7 @@ model Athlete {
   bilans       Bilan[]
   documents   AthleteDocument[]
   userInvite  AthleteUserInvitation?
+  planningEntries PlanningEntry[]
 
   @@map("Athlete")
 }
@@ -390,4 +393,26 @@ model AthleteUserInvitation {
   athlete  Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@map("AthleteUserInvitation")
+}
+
+model PlanningEntry {
+  id          String   @id @default(uuid())
+  athleteId   String?  @map("athlete_id")
+  teamId      String?  @map("team_id")
+  date        DateTime @db.Date
+  title       String
+  type        String   @default("ENTRAINEMENT") // ENTRAINEMENT | MATCH | OBJECTIF | REATHLETISATION | REPOS | TEST | AUTRE
+  isObjective Boolean  @default(false) @map("is_objective")
+  notes       String?  @db.Text
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  athlete Athlete? @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  team    Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator User     @relation(fields: [createdById], references: [id])
+
+  @@index([athleteId, date])
+  @@index([teamId, date])
+  @@map("PlanningEntry")
 }

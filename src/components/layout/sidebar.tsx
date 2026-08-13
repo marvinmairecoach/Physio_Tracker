@@ -56,7 +56,8 @@ const sections: NavSection[] = [
   },
   {
     items: [
-      { href: "/sessions", label: "Planning", icon: Calendar, roles: ["admin", "coach", "athlete"] },
+      { href: "/planning", label: "Planning", icon: Calendar, roles: ["admin", "coach", "athlete"] },
+      { href: "/sessions", label: "Sessions", icon: ClipboardCheck, roles: ["admin", "coach", "athlete"] },
       { href: "/exercises", label: "Exercices", icon: Dumbbell, roles: ["admin", "coach"] },
     ],
   },
