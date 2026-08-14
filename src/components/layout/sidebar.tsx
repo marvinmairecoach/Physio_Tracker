@@ -19,6 +19,7 @@ import {
   Activity,
   Dumbbell,
   Timer,
+  Mail,
 } from "lucide-react"
 
 interface NavItem {
@@ -52,6 +53,12 @@ const sections: NavSection[] = [
       { href: "/tests", label: "Tests & Évaluations", icon: ClipboardCheck, roles: ["admin", "coach"] },
       { href: "/tests/types", label: "Types de données", icon: BarChart3, roles: ["admin", "coach"] },
       { href: "/tests/field", label: "Jour de test", icon: ClipboardCheck, roles: ["admin", "coach"] },
+    ],
+  },
+  {
+    items: [
+      { href: "/dirigeants", label: "Dirigeants", icon: Users, roles: ["admin", "coach"] },
+      { href: "/dirigeants/email", label: "E-mail dirigeants", icon: Mail, roles: ["admin", "coach"] },
     ],
   },
   {

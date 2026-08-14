@@ -13,6 +13,7 @@ interface EmailOptions {
   subject: string
   html: string
   text?: string
+  attachments?: { filename: string; content: Buffer }[]
 }
 
 const LOG_DIR = path.join(process.cwd(), "_email_log")
@@ -37,13 +38,19 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
 
   if (transporter) {
     try {
-      await transporter.sendMail({
+      const mailOptions: Record<string, unknown> = {
         from: process.env.SMTP_FROM || `"PP Tracker" <${process.env.SMTP_USER || "noreply@pptracker.fr"}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text || options.html.replace(/<[^>]*>/g, ""),
-      })
+      }
+
+      if (options.attachments && options.attachments.length > 0) {
+        mailOptions.attachments = options.attachments
+      }
+
+      await transporter.sendMail(mailOptions)
       return { success: true, message: "Email sent via SMTP" }
     } catch (err) {
       console.error("SMTP error, falling back to log:", err)
@@ -63,12 +70,22 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     `=== Email ${new Date().toISOString()} ===`,
     `To: ${options.to}`,
     `Subject: ${options.subject}`,
+    `Attachments: ${options.attachments?.map((a) => a.filename).join(", ") || "none"}`,
     `---`,
     options.html.replace(/<[^>]*>/g, ""),
     `\n`,
   ].join("\n")
 
   fs.appendFileSync(logFile, logEntry)
+
+  // Save attachments in simulation mode
+  if (options.attachments && options.attachments.length > 0) {
+    const pdfDir = path.join(LOG_DIR, "pdfs")
+    if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true })
+    for (const attachment of options.attachments) {
+      fs.writeFileSync(path.join(pdfDir, attachment.filename), attachment.content)
+    }
+  }
 
   return {
     success: true,

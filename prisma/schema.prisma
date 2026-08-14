@@ -61,6 +61,7 @@ model User {
   athleteUser   Athlete[] @relation("AthleteUser")
   documents     AthleteDocument[]
   planningEntries PlanningEntry[]
+  dirigeants     Dirigeant[] @relation("DirigeantCreator")
 
   @@map("User")
 }
@@ -417,4 +418,43 @@ model PlanningEntry {
   @@index([athleteId, date])
   @@index([teamId, date])
   @@map("PlanningEntry")
+}
+
+model DirigeantRole {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  assignments DirigeantRoleAssignment[]
+
+  @@map("DirigeantRole")
+}
+
+model Dirigeant {
+  id         String   @id @default(uuid())
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  address    String?
+  phone      String?
+  email      String?
+  createdById String  @map("created_by_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  creator  User                     @relation("DirigeantCreator", fields: [createdById], references: [id])
+  roles    DirigeantRoleAssignment[]
+
+  @@map("Dirigeant")
+}
+
+model DirigeantRoleAssignment {
+  id           String @id @default(uuid())
+  dirigeantId  String @map("dirigeant_id")
+  roleId       String @map("role_id")
+
+  dirigeant Dirigeant    @relation(fields: [dirigeantId], references: [id], onDelete: Cascade)
+  role      DirigeantRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([dirigeantId, roleId])
+  @@map("DirigeantRoleAssignment")
 }
