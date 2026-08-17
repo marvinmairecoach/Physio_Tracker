@@ -17,9 +17,12 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  BarChart,
+  Bar,
+  Cell,
 } from "recharts"
 
-import { Button, Card, Table, Badge, Modal, TextInput } from "@mantine/core"
+import { Button, Card, Table, Badge, Modal, TextInput, Slider, NativeSelect } from "@mantine/core"
 
 interface Athlete {
   id: string
@@ -109,6 +112,15 @@ export default function AthleteDetailPage() {
   const [inviteUrl, setInviteUrl] = useState("")
 
   const isAdmin = userRole === "admin"
+  const isStaff = userRole === "admin" || userRole === "coach"
+
+  // Training load state
+  const [trainingLoadData, setTrainingLoadData] = useState<{ loads: any[]; summary: any } | null>(null)
+  const [loadRpe, setLoadRpe] = useState(5)
+  const [loadDuration, setLoadDuration] = useState("60")
+  const [loadType, setLoadType] = useState("Entraînement")
+  const [loadDate, setLoadDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [loadSubmitting, setLoadSubmitting] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -167,6 +179,53 @@ export default function AthleteDetailPage() {
     }
     fetchDocuments()
   }, [athleteId])
+
+  // Fetch training load data
+  useEffect(() => {
+    async function fetchTrainingLoad() {
+      try {
+        const res = await fetch(`/api/athletes/${athleteId}/training-load?days=90`)
+        if (res.ok) {
+          const data = await res.json()
+          setTrainingLoadData(data)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchTrainingLoad()
+  }, [athleteId])
+
+  async function handleAddSession() {
+    setLoadSubmitting(true)
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/training-load`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rpe: loadRpe,
+          durationMin: parseInt(loadDuration, 10),
+          sessionType: loadType,
+          date: loadDate,
+        }),
+      })
+      if (res.ok) {
+        const refreshRes = await fetch(`/api/athletes/${athleteId}/training-load?days=90`)
+        if (refreshRes.ok) {
+          const data = await refreshRes.json()
+          setTrainingLoadData(data)
+        }
+        setLoadRpe(5)
+        setLoadDuration("60")
+        setLoadType("Entraînement")
+        setLoadDate(new Date().toISOString().split("T")[0])
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadSubmitting(false)
+    }
+  }
 
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
@@ -1037,6 +1096,140 @@ export default function AthleteDetailPage() {
                 </>
               )
             })()}
+          </div>
+        </Card>
+      )}
+
+      {/* Suivi charge d'entraînement */}
+      {trainingLoadData && (
+        <Card shadow="sm" radius="md" withBorder>
+          <Card.Section withBorder inheritPadding py="sm">
+            <div className="flex items-center gap-2 text-teal-700">
+              <span>🏋️</span>
+              <h2 className="text-xl font-semibold">Suivi charge d'entraînement</h2>
+            </div>
+          </Card.Section>
+          <div className="p-4">
+            {/* ACWR Summary */}
+            {trainingLoadData.summary && (
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Charge aiguë (7j)</p>
+                  <p className="text-lg font-bold text-gray-800">{trainingLoadData.summary.acuteLoad?.toFixed(1) ?? "—"}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Charge chronique (28j)</p>
+                  <p className="text-lg font-bold text-gray-800">{trainingLoadData.summary.chronicLoad?.toFixed(1) ?? "—"}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Ratio AC</p>
+                  <p className={`text-lg font-bold ${
+                    trainingLoadData.summary.acwr >= 0.8 && trainingLoadData.summary.acwr <= 1.3
+                      ? "text-green-600"
+                      : "text-amber-600"
+                  }`}>
+                    {trainingLoadData.summary.acwr?.toFixed(2) ?? "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* Status text */}
+            {trainingLoadData.summary?.acwr != null && (
+              <div className="mb-4 text-sm font-medium text-center">
+                {trainingLoadData.summary.acwr < 0.8 && (
+                  <span className="text-amber-600">⬇️ Risque sous-entraînement</span>
+                )}
+                {trainingLoadData.summary.acwr >= 0.8 && trainingLoadData.summary.acwr <= 1.3 && (
+                  <span className="text-green-600">✅ Zone optimale</span>
+                )}
+                {trainingLoadData.summary.acwr > 1.3 && (
+                  <span className="text-amber-600">⬆️ Risque surentraînement</span>
+                )}
+              </div>
+            )}
+            {/* Chart */}
+            {trainingLoadData.loads && trainingLoadData.loads.length > 0 && (
+              <div className="mb-4">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={trainingLoadData.loads.map((l: any) => ({ ...l, dateFormatted: new Date(l.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) }))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="dateFormatted" fontSize={10} tick={{ fill: '#9ca3af' }} />
+                    <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
+                    <Tooltip
+                      formatter={(value: number) => [value.toFixed(0), "Charge"]}
+                      labelFormatter={(label: string) => `Date: ${label}`}
+                    />
+                    <Bar dataKey="load" radius={[4, 4, 0, 0]}>
+                      {trainingLoadData.loads.map((entry: any, idx: number) => {
+                        const colorMap: Record<string, string> = {
+                          Entraînement: "#3b82f6",
+                          Match: "#22c55e",
+                          Réathlétisation: "#f59e0b",
+                          Autre: "#8b5cf6",
+                        }
+                        return <Cell key={idx} fill={colorMap[entry.sessionType] ?? "#6b7280"} />
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {/* Add session form - only for staff */}
+            {isStaff && (
+              <Card withBorder shadow="none" radius="md" padding="md" className="bg-gray-50/50">
+                <p className="text-sm font-semibold text-gray-700 mb-3">Ajouter une séance</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">RPE ({loadRpe}/10)</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      {loadRpe <= 2 ? "Très facile" : loadRpe <= 4 ? "Facile" : loadRpe <= 6 ? "Modéré" : loadRpe <= 8 ? "Difficile" : "Exténuant"}
+                    </p>
+                    <Slider
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={loadRpe}
+                      onChange={setLoadRpe}
+                      marks={[
+                        { value: 1, label: "1" },
+                        { value: 5, label: "5" },
+                        { value: 10, label: "10" },
+                      ]}
+                      label={(v) => `${v}/10`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <TextInput
+                      label="Durée (minutes)"
+                      type="number"
+                      min={1}
+                      value={loadDuration}
+                      onChange={(e) => setLoadDuration(e.target.value)}
+                    />
+                    <NativeSelect
+                      label="Type"
+                      value={loadType}
+                      onChange={(e) => setLoadType(e.target.value)}
+                      data={["Entraînement", "Match", "Réathlétisation", "Autre"]}
+                    />
+                    <TextInput
+                      label="Date"
+                      type="date"
+                      value={loadDate}
+                      onChange={(e) => setLoadDate(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    fullWidth
+                    size="sm"
+                    loading={loadSubmitting}
+                    onClick={handleAddSession}
+                  >
+                    Ajouter
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
         </Card>
       )}

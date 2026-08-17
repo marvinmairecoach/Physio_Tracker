@@ -20,6 +20,8 @@ import {
   Dumbbell,
   Timer,
   Mail,
+  LineChart,
+  Stethoscope,
 } from "lucide-react"
 
 interface NavItem {
@@ -36,36 +38,36 @@ interface NavSection {
 
 const sections: NavSection[] = [
   {
+    label: "INDIVIDUEL",
     items: [
       { href: "/", label: "Tableau de bord", icon: LayoutDashboard, roles: ["admin", "coach", "athlete"] },
       { href: "/alerts", label: "Alertes", icon: Bell, roles: ["admin", "coach"] },
-    ],
-  },
-  {
-    items: [
       { href: "/athletes", label: "Athlètes", icon: Users, roles: ["admin", "coach"] },
-      { href: "/teams", label: "Équipes", icon: Trophy, roles: ["admin", "coach", "athlete"] },
       { href: "/infirmerie", label: "Infirmerie", icon: Activity, roles: ["admin", "coach"] },
     ],
   },
   {
+    label: "TESTS & SUIVI",
     items: [
       { href: "/tests", label: "Tests & Évaluations", icon: ClipboardCheck, roles: ["admin", "coach"] },
-      { href: "/tests/types", label: "Types de données", icon: BarChart3, roles: ["admin", "coach"] },
       { href: "/tests/field", label: "Jour de test", icon: ClipboardCheck, roles: ["admin", "coach"] },
+      { href: "/tests/types", label: "Types de données", icon: BarChart3, roles: ["admin", "coach"] },
+      { href: "/planning", label: "Planning", icon: Calendar, roles: ["admin", "coach", "athlete"] },
     ],
   },
   {
+    label: "COLLECTIF",
+    items: [
+      { href: "/teams", label: "Équipes", icon: Trophy, roles: ["admin", "coach", "athlete"] },
+      { href: "/sessions", label: "Sessions", icon: Dumbbell, roles: ["admin", "coach", "athlete"] },
+      { href: "/exercises", label: "Exercices", icon: Stethoscope, roles: ["admin", "coach"] },
+    ],
+  },
+  {
+    label: "CLUB",
     items: [
       { href: "/dirigeants", label: "Dirigeants", icon: Users, roles: ["admin", "coach"] },
       { href: "/dirigeants/email", label: "E-mail dirigeants", icon: Mail, roles: ["admin", "coach"] },
-    ],
-  },
-  {
-    items: [
-      { href: "/planning", label: "Planning", icon: Calendar, roles: ["admin", "coach", "athlete"] },
-      { href: "/sessions", label: "Sessions", icon: ClipboardCheck, roles: ["admin", "coach", "athlete"] },
-      { href: "/exercises", label: "Exercices", icon: Dumbbell, roles: ["admin", "coach"] },
     ],
   },
 ]
@@ -125,7 +127,12 @@ export function Sidebar() {
             return (
               <div key={idx}>
                 {idx > 0 && <hr className="my-3 border-gray-100" />}
-                <div className="space-y-1">
+                {section.label && (
+                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                    {section.label}
+                  </p>
+                )}
+                <div className="space-y-0.5">
                   {visibleItems.map((item) => {
                     const Icon = item.icon
                     const active = isActive(item.href)
