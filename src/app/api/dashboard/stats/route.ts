@@ -8,12 +8,56 @@ export async function GET() {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
   }
 
-  const [athletesCount, teamsCount, testsCount, alertsCount] = await Promise.all([
-    prisma.athlete.count({ where: { isActive: true } }),
+  const [
+    totalUsers,
+    athleteDirectUsers,
+    athleteRoleUsers,
+    dirigeantsCount,
+    injuredCount,
+    teamsCount,
+    teams,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: "athlete" } }),
+    prisma.user.count({
+      where: {
+        roleAssignments: {
+          some: {
+            role: { name: "Athlète" },
+          },
+        },
+      },
+    }),
+    prisma.dirigeant.count(),
+    prisma.injury.count({ where: { recoveryDate: null } }),
     prisma.team.count(),
-    prisma.testType.count(),
-    prisma.alert.count({ where: { isRead: false } }),
+    prisma.team.findMany({
+      select: {
+        name: true,
+        _count: {
+          select: {
+            athletes: {
+              where: { isActive: true },
+            },
+          },
+        },
+      },
+    }),
   ])
 
-  return NextResponse.json({ athletesCount, teamsCount, testsCount, alertsCount })
+  const athleteUsers = athleteDirectUsers + athleteRoleUsers
+
+  const teamsWithPlayers = teams.map((team) => ({
+    name: team.name,
+    playerCount: team._count.athletes,
+  }))
+
+  return NextResponse.json({
+    totalUsers,
+    athleteUsers,
+    dirigeantsCount,
+    injuredCount,
+    teamsCount,
+    teamsWithPlayers,
+  })
 }

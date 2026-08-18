@@ -244,7 +244,6 @@ function SidePanel({
   const [quickAddSaving, setQuickAddSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>()
   const [copyTarget, setCopyTarget] = useState<PlanningEntry | null>(null)
   const [copyDate, setCopyDate] = useState("")
 
@@ -255,7 +254,6 @@ function SidePanel({
     setQuickAddDateEnd("")
     setEditingId(null)
     setCopyTarget(null)
-    // Focus textarea après un tick pour laisser le DOM se mettre à jour
     setTimeout(() => textareaRef.current?.focus(), 50)
   }, [selectedDate])
 
@@ -265,41 +263,6 @@ function SidePanel({
   }, [selectedDateStr])
 
   const showEndDate = quickAddType === "OBJECTIF"
-
-  // Auto-save with debounce
-  const triggerAutoSave = useCallback(() => {
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(() => {
-      const title = quickAddTitle.trim()
-      if (!title || !selectedDate) return
-      setQuickAddSaving(true)
-      const athleteScope = !!selectedAthleteId
-      fetch("/api/planning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          date: selectedDateStr,
-          type: quickAddType,
-          ...(athleteScope ? { athleteId: selectedAthleteId } : { teamId: selectedTeamId }),
-          isObjective: quickAddType === "OBJECTIF",
-          notes: null,
-          dateEnd: showEndDate && quickAddDateEnd ? quickAddDateEnd : null,
-        }),
-      })
-        .then((res) => {
-          if (res.ok) {
-            setQuickAddTitle("")
-            setQuickAddType("ENTRAINEMENT")
-            setQuickAddDateEnd(selectedDateStr)
-            onRefetch()
-            setTimeout(() => textareaRef.current?.focus(), 50)
-          }
-        })
-        .catch(() => {})
-        .finally(() => setQuickAddSaving(false))
-    }, 800)
-  }, [quickAddTitle, quickAddType, quickAddDateEnd, selectedDate, selectedDateStr, selectedAthleteId, selectedTeamId, showEndDate, onRefetch])
 
   // Auto-resize textarea
   function autoResize(el: HTMLTextAreaElement | null) {
@@ -311,7 +274,6 @@ function SidePanel({
   async function handleQuickAdd() {
     const title = quickAddTitle.trim()
     if (!title || !selectedDate) return
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     setQuickAddSaving(true)
     try {
       const athleteScope = !!selectedAthleteId
@@ -374,16 +336,6 @@ function SidePanel({
     }
   }
 
-  function handleTitleChange(value: string) {
-    setQuickAddTitle(value)
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(() => {
-      if (value.trim() && selectedDate) {
-        triggerAutoSave()
-      }
-    }, 800)
-  }
-
   function handleEntrySaved(updated: PlanningEntry) {
     setEditingId(null)
     onRefetch()
@@ -426,16 +378,15 @@ function SidePanel({
                 autoResize(el)
               }}
               className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Écrire ici — auto-sauvegarde après 800ms..."
+              placeholder="Écrire ici — Entrée pour valider, Shift+Entrée pour sauter une ligne"
               value={quickAddTitle}
               onChange={(e) => {
-                handleTitleChange(e.target.value)
+                setQuickAddTitle(e.target.value)
                 autoResize(e.target)
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
-                  if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
                   void handleQuickAdd()
                 }
               }}
@@ -460,7 +411,6 @@ function SidePanel({
             <Button
               size="compact-sm"
               onClick={() => {
-                if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
                 void handleQuickAdd()
               }}
               loading={quickAddSaving}

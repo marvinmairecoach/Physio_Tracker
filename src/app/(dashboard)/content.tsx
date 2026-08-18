@@ -1,42 +1,34 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, Text, Title, SimpleGrid, Table } from "@mantine/core"
-import { StatsCards, type DashboardStats } from "@/components/dashboard/stats-cards"
-import { AlertsList } from "@/components/dashboard/alerts-list"
+import { Card, Text, Title, SimpleGrid, Table, Badge, Center, Loader } from "@mantine/core"
 
-interface TestResult {
-  id: string
-  athlete: { firstName: string; lastName: string }
-  testType: { name: string; unit: string }
-  value: number
-  date: string
+interface TeamWithPlayers {
+  name: string
+  playerCount: number
+}
+
+interface DashboardStats {
+  totalUsers: number
+  athleteUsers: number
+  dirigeantsCount: number
+  injuredCount: number
+  teamsCount: number
+  teamsWithPlayers: TeamWithPlayers[]
 }
 
 export function DashboardContent() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentResults, setRecentResults] = useState<TestResult[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
       try {
-        const [statsRes, resultsRes] = await Promise.all([
-          fetch("/api/dashboard/stats"),
-          fetch("/api/tests/results?limit=5"),
-        ])
-
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          setStats(statsData)
-        }
-
-        if (resultsRes.ok) {
-          const resultsData = await resultsRes.json()
-          setRecentResults(
-            Array.isArray(resultsData) ? resultsData : resultsData.data ?? resultsData.results ?? []
-          )
+        const res = await fetch("/api/dashboard/stats")
+        if (res.ok) {
+          const data = await res.json()
+          setStats(data)
         }
       } catch {
         // Silently handle errors — UI will show empty/zero states
@@ -50,64 +42,80 @@ export function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-      </div>
+      <Center h="60vh">
+        <Loader size="lg" />
+      </Center>
     )
   }
+
+  const statCards = [
+    { emoji: "👥", label: "Total utilisateurs", value: stats?.totalUsers ?? 0, color: "blue" },
+    { emoji: "🏃", label: "Athlètes", value: stats?.athleteUsers ?? 0, color: "teal" },
+    { emoji: "🏢", label: "Dirigeants", value: stats?.dirigeantsCount ?? 0, color: "grape" },
+    { emoji: "🩹", label: "Blessés", value: stats?.injuredCount ?? 0, color: "red" },
+    { emoji: "🏆", label: "Équipes", value: stats?.teamsCount ?? 0, color: "orange" },
+  ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-gray-500">Overview of your athletes, teams, and alerts.</p>
+        <Title order={1}>Tableau de bord</Title>
+        <Text c="dimmed" size="md">
+          Vue d&apos;ensemble de votre activité
+        </Text>
       </div>
 
       {/* Stat Cards */}
-      {stats && <StatsCards stats={stats} />}
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+        {statCards.map((card) => (
+          <Card key={card.label} withBorder padding="lg" radius="md" shadow="sm">
+            <Text size="xl" mb="xs">
+              {card.emoji}
+            </Text>
+            <Text fw={700} size="xxl">
+              {card.value}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {card.label}
+            </Text>
+          </Card>
+        ))}
+      </SimpleGrid>
 
-      {/* Main grid: Recent Alerts + Recent Test Results */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Alerts */}
-        <AlertsList />
-
-        {/* Recent Test Results */}
-        <Card withBorder padding="lg">
-          <Text fw={600} size="lg" mb="md">Recent Test Results</Text>
-          {recentResults.length === 0 ? (
-            <Text size="sm" c="dimmed">No recent test results.</Text>
-          ) : (
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Athlete</Table.Th>
-                  <Table.Th>Test Type</Table.Th>
-                  <Table.Th>Value</Table.Th>
-                  <Table.Th>Date</Table.Th>
+      {/* Teams Table */}
+      <Card withBorder padding="lg" radius="md" shadow="sm">
+        <Title order={2} size="h3" mb="md">
+          🏆 Équipes
+        </Title>
+        {stats?.teamsWithPlayers && stats.teamsWithPlayers.length > 0 ? (
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Nom de l&apos;équipe</Table.Th>
+                <Table.Th>Nombre d&apos;athlètes</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {stats.teamsWithPlayers.map((team) => (
+                <Table.Tr key={team.name}>
+                  <Table.Td>
+                    <Text fw={500}>{team.name}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={team.playerCount > 0 ? "teal" : "gray"} variant="light">
+                      {team.playerCount} athlète{team.playerCount !== 1 ? "s" : ""}
+                    </Badge>
+                  </Table.Td>
                 </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {recentResults.map((result) => (
-                  <Table.Tr key={result.id}>
-                    <Table.Td>
-                      <Text fw={500}>{result.athlete.firstName} {result.athlete.lastName}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text c="dimmed">{result.testType.name}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {result.value} {result.testType.unit}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text c="dimmed">{new Date(result.date).toLocaleDateString()}</Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Card>
-      </div>
+              ))}
+            </Table.Tbody>
+          </Table>
+        ) : (
+          <Text size="sm" c="dimmed">
+            Aucune équipe pour le moment.
+          </Text>
+        )}
+      </Card>
     </div>
   )
 }
