@@ -17,11 +17,8 @@ import {
   X,
   Shield,
   Activity,
-  Dumbbell,
   Timer,
   Mail,
-  LineChart,
-  Stethoscope,
 } from "lucide-react"
 
 interface NavItem {
@@ -50,7 +47,6 @@ const sections: NavSection[] = [
     label: "TESTS & SUIVI",
     items: [
       { href: "/tests", label: "Tests & Évaluations", icon: ClipboardCheck, roles: ["admin", "coach"] },
-      { href: "/tests/field", label: "Jour de test", icon: ClipboardCheck, roles: ["admin", "coach"] },
       { href: "/tests/types", label: "Types de données", icon: BarChart3, roles: ["admin", "coach"] },
       { href: "/planning", label: "Planning", icon: Calendar, roles: ["admin", "coach", "athlete"] },
     ],
@@ -59,13 +55,13 @@ const sections: NavSection[] = [
     label: "COLLECTIF",
     items: [
       { href: "/teams", label: "Équipes", icon: Trophy, roles: ["admin", "coach", "athlete"] },
-      { href: "/sessions", label: "Sessions", icon: Dumbbell, roles: ["admin", "coach", "athlete"] },
-      { href: "/exercises", label: "Exercices", icon: Stethoscope, roles: ["admin", "coach"] },
+      { href: "/tests/field", label: "Jour de test", icon: ClipboardCheck, roles: ["admin", "coach"] },
     ],
   },
   {
     label: "CLUB",
     items: [
+      { href: "/admin/users", label: "Administration", icon: Shield, roles: ["admin"] },
       { href: "/dirigeants", label: "Dirigeants", icon: Users, roles: ["admin", "coach"] },
       { href: "/dirigeants/email", label: "E-mail dirigeants", icon: Mail, roles: ["admin", "coach"] },
     ],
@@ -158,20 +154,6 @@ export function Sidebar() {
             )
           })}
         </nav>
-
-        {/* Admin badge */}
-        {user?.role === "admin" && (
-          <div className="px-4 pb-2">
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
-              onClick={() => setIsOpen(false)}
-            >
-              <Shield className="h-4 w-4" />
-              Administration
-            </Link>
-          </div>
-        )}
 
         {/* Role badge */}
         <div className="border-t border-gray-100 p-4">

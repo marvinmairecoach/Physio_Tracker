@@ -243,17 +243,22 @@ function SidePanel({
   const [quickAddDateEnd, setQuickAddDateEnd] = useState("")
   const [quickAddSaving, setQuickAddSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const titleInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const [copyTarget, setCopyTarget] = useState<PlanningEntry | null>(null)
+  const [copyDate, setCopyDate] = useState("")
 
-  // Reset quick-add fields when selectedDate changes
+  // Auto-focus + reset on day change
   useEffect(() => {
     setQuickAddTitle("")
     setQuickAddType("ENTRAINEMENT")
     setQuickAddDateEnd("")
     setEditingId(null)
+    setCopyTarget(null)
+    // Focus textarea après un tick pour laisser le DOM se mettre à jour
+    setTimeout(() => textareaRef.current?.focus(), 50)
   }, [selectedDate])
 
-  // Set dateEnd default when selectedDate changes
   const selectedDateStr = selectedDate ? dateKey(selectedDate) : ""
   useEffect(() => {
     setQuickAddDateEnd(selectedDateStr)
@@ -261,9 +266,52 @@ function SidePanel({
 
   const showEndDate = quickAddType === "OBJECTIF"
 
+  // Auto-save with debounce
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => {
+      const title = quickAddTitle.trim()
+      if (!title || !selectedDate) return
+      setQuickAddSaving(true)
+      const athleteScope = !!selectedAthleteId
+      fetch("/api/planning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          date: selectedDateStr,
+          type: quickAddType,
+          ...(athleteScope ? { athleteId: selectedAthleteId } : { teamId: selectedTeamId }),
+          isObjective: quickAddType === "OBJECTIF",
+          notes: null,
+          dateEnd: showEndDate && quickAddDateEnd ? quickAddDateEnd : null,
+        }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            setQuickAddTitle("")
+            setQuickAddType("ENTRAINEMENT")
+            setQuickAddDateEnd(selectedDateStr)
+            onRefetch()
+            setTimeout(() => textareaRef.current?.focus(), 50)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setQuickAddSaving(false))
+    }, 800)
+  }, [quickAddTitle, quickAddType, quickAddDateEnd, selectedDate, selectedDateStr, selectedAthleteId, selectedTeamId, showEndDate, onRefetch])
+
+  // Auto-resize textarea
+  function autoResize(el: HTMLTextAreaElement | null) {
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = el.scrollHeight + "px"
+  }
+
   async function handleQuickAdd() {
     const title = quickAddTitle.trim()
     if (!title || !selectedDate) return
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     setQuickAddSaving(true)
     try {
       const athleteScope = !!selectedAthleteId
@@ -274,9 +322,7 @@ function SidePanel({
           title,
           date: selectedDateStr,
           type: quickAddType,
-          ...(athleteScope
-            ? { athleteId: selectedAthleteId }
-            : { teamId: selectedTeamId }),
+          ...(athleteScope ? { athleteId: selectedAthleteId } : { teamId: selectedTeamId }),
           isObjective: quickAddType === "OBJECTIF",
           notes: null,
           dateEnd: showEndDate && quickAddDateEnd ? quickAddDateEnd : null,
@@ -290,7 +336,7 @@ function SidePanel({
       // silencieux
     } finally {
       setQuickAddSaving(false)
-      titleInputRef.current?.focus()
+      setTimeout(() => textareaRef.current?.focus(), 50)
     }
   }
 
@@ -302,6 +348,40 @@ function SidePanel({
     } catch {
       // silencieux
     }
+  }
+
+  async function handleCopy() {
+    if (!copyTarget || !copyDate) return
+    try {
+      await fetch("/api/planning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: copyTarget.title,
+          date: copyDate,
+          type: copyTarget.type,
+          athleteId: copyTarget.athleteId,
+          teamId: copyTarget.teamId,
+          isObjective: copyTarget.isObjective,
+          notes: copyTarget.notes,
+        }),
+      })
+      setCopyTarget(null)
+      setCopyDate("")
+      onRefetch()
+    } catch {
+      // silencieux
+    }
+  }
+
+  function handleTitleChange(value: string) {
+    setQuickAddTitle(value)
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => {
+      if (value.trim() && selectedDate) {
+        triggerAutoSave()
+      }
+    }, 800)
   }
 
   function handleEntrySaved(updated: PlanningEntry) {
@@ -336,23 +416,31 @@ function SidePanel({
       <Card withBorder>
         <h3 className="mb-4 text-base font-semibold capitalize">{dateLabel}</h3>
 
-        {/* Quick-add block */}
+        {/* Quick-add block — auto-save */}
         {canCreate && (
           <div className="mb-4 space-y-2 rounded-lg border border-dashed border-muted-foreground/30 p-3">
             <p className="text-xs font-medium text-muted-foreground">Nouvel élément</p>
-            <TextInput
-              ref={titleInputRef}
-              size="xs"
-              placeholder="Ajouter un élément..."
+            <textarea
+              ref={(el) => {
+                (textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
+                autoResize(el)
+              }}
+              className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Écrire ici — auto-sauvegarde après 800ms..."
               value={quickAddTitle}
-              onChange={(e) => setQuickAddTitle(e.currentTarget.value)}
+              onChange={(e) => {
+                handleTitleChange(e.target.value)
+                autoResize(e.target)
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
+                  if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
                   void handleQuickAdd()
                 }
               }}
               disabled={quickAddSaving}
+              rows={1}
             />
             <NativeSelect
               size="xs"
@@ -366,17 +454,20 @@ function SidePanel({
                 label="Date de fin (optionnel)"
                 type="date"
                 value={quickAddDateEnd}
-                onChange={(e) => setQuickAddDateEnd(e.currentTarget.value)}
+                onChange={(e) => setQuickAddDateEnd(e.target.value)}
               />
             )}
             <Button
               size="compact-sm"
-              onClick={handleQuickAdd}
+              onClick={() => {
+                if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+                void handleQuickAdd()
+              }}
               loading={quickAddSaving}
               disabled={!quickAddTitle.trim()}
               className="w-full"
             >
-              Ajouter
+              Ajouter un élément
             </Button>
           </div>
         )}
@@ -442,9 +533,24 @@ function SidePanel({
                       : "Individuel"}
                   </span>
 
-                  {/* Edit / Delete */}
+                  {/* Copy / Edit / Delete */}
                   {canCreate && (
                     <div className="flex shrink-0 gap-0.5">
+                      {/* Copy */}
+                      <button
+                        type="button"
+                        aria-label="Copier"
+                        onClick={() => {
+                          setCopyTarget(entry)
+                          setCopyDate(selectedDateStr)
+                        }}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="Copier sur un autre jour"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                       <button
                         type="button"
                         aria-label="Modifier"
@@ -469,6 +575,32 @@ function SidePanel({
           </div>
         )}
       </Card>
+
+      {/* Copy dialog */}
+      {copyTarget && (
+        <Card withBorder className="mt-3">
+          <div className="space-y-2">
+            <p className="text-xs font-medium">Copier sur un autre jour</p>
+            <p className="text-xs text-muted-foreground">
+              "{copyTarget.title}"
+            </p>
+            <TextInput
+              size="xs"
+              type="date"
+              value={copyDate}
+              onChange={(e) => setCopyDate(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button size="compact-sm" onClick={handleCopy}>
+                Copier ici
+              </Button>
+              <Button size="compact-sm" variant="subtle" onClick={() => setCopyTarget(null)}>
+                Annuler
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
