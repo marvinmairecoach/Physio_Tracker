@@ -20,6 +20,13 @@ export async function GET() {
         phone: true,
         isActive: true,
         createdAt: true,
+        roleAssignments: {
+          include: {
+            role: {
+              select: { id: true, name: true },
+            },
+          },
+        },
         _count: {
           select: {
             athletes: true,

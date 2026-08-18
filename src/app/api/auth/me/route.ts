@@ -11,6 +11,13 @@ const userSelect = {
   phone: true,
   avatarUrl: true,
   logoUrl: true,
+  roleAssignments: {
+    include: {
+      role: {
+        select: { id: true, name: true },
+      },
+    },
+  },
 } as const
 
 export async function GET() {

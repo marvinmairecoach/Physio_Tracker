@@ -62,6 +62,7 @@ model User {
   documents     AthleteDocument[]
   planningEntries PlanningEntry[]
   dirigeants     Dirigeant[] @relation("DirigeantCreator")
+  roleAssignments UserRoleAssignment[]
 
   @@map("User")
 }
@@ -457,4 +458,26 @@ model DirigeantRoleAssignment {
 
   @@unique([dirigeantId, roleId])
   @@map("DirigeantRoleAssignment")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  assignments UserRoleAssignment[]
+
+  @@map("UserRole")
+}
+
+model UserRoleAssignment {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role UserRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("UserRoleAssignment")
 }

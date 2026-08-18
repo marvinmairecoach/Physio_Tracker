@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Shield, Trash2, Plus, X } from "lucide-react"
+import { Shield, Trash2, Plus, X, Pencil } from "lucide-react"
 
-import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal, Checkbox } from "@mantine/core"
 
 interface User {
   id: string
@@ -14,7 +14,13 @@ interface User {
   phone: string | null
   isActive: boolean
   createdAt: string
+  roleAssignments?: Array<{ role: { id: string; name: string } }>
   _count: { athletes: number; teams: number }
+}
+
+interface UserRole {
+  id: string
+  name: string
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -52,8 +58,15 @@ export default function AdminUsersPage() {
   // Role change
   const [changingRole, setChangingRole] = useState<string | null>(null)
 
+  // Flexible role management
+  const [allRoles, setAllRoles] = useState<UserRole[]>([])
+  const [roleEditTarget, setRoleEditTarget] = useState<User | null>(null)
+  const [roleEditCheckedIds, setRoleEditCheckedIds] = useState<string[]>([])
+  const [savingRoles, setSavingRoles] = useState(false)
+
   useEffect(() => {
     fetchUsers()
+    fetchRoles()
   }, [])
 
   async function fetchUsers() {
@@ -66,6 +79,18 @@ export default function AdminUsersPage() {
       setError("Impossible de charger les utilisateurs")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchRoles() {
+    try {
+      const res = await fetch("/api/users/roles")
+      if (res.ok) {
+        const data = await res.json()
+        setAllRoles(data ?? [])
+      }
+    } catch {
+      // silently ignore
     }
   }
 
@@ -93,20 +118,26 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleRoleChange(userId: string, newRole: string) {
-    setChangingRole(userId)
+  async function handleSaveRoles() {
+    if (!roleEditTarget) return
+    setSavingRoles(true)
+    setError(null)
     try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/users/${roleEditTarget.id}/roles`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ roleIds: roleEditCheckedIds }),
       })
-      if (!res.ok) throw new Error("Erreur")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur")
+      }
+      setRoleEditTarget(null)
       fetchUsers()
-    } catch {
-      // ignore
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
     } finally {
-      setChangingRole(null)
+      setSavingRoles(false)
     }
   }
 
@@ -166,7 +197,7 @@ export default function AdminUsersPage() {
               <Table.Tr>
                 <Table.Th>Nom</Table.Th>
                 <Table.Th>Email</Table.Th>
-                <Table.Th>Rôle</Table.Th>
+                <Table.Th>Rôles</Table.Th>
                 <Table.Th>Statut</Table.Th>
                 <Table.Th>Créé le</Table.Th>
                 <Table.Th className="text-right">Actions</Table.Th>
@@ -187,16 +218,15 @@ export default function AdminUsersPage() {
                     </Table.Td>
                     <Table.Td className="text-sm text-muted-foreground">{u.email}</Table.Td>
                     <Table.Td>
-                      <select
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        disabled={changingRole === u.id}
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="coach">Coach</option>
-                        <option value="athlete">Athlète</option>
-                      </select>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(u.roleAssignments ?? []).length > 0
+                          ? u.roleAssignments!.map((ra) => (
+                              <Badge key={ra.role.id} color="blue" size="sm" variant="light">
+                                {ra.role.name}
+                              </Badge>
+                            ))
+                          : <span className="text-xs text-muted-foreground">—</span>}
+                      </div>
                     </Table.Td>
                     <Table.Td>
                       <Badge color={u.isActive ? "green" : "gray"} size="sm">
@@ -207,14 +237,28 @@ export default function AdminUsersPage() {
                       {new Date(u.createdAt).toLocaleDateString("fr-FR")}
                     </Table.Td>
                     <Table.Td className="text-right">
-                      <Button
-                        variant="outline"
-                        size="compact-sm"
-                        className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
-                        onClick={() => setDeleteTarget(u)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="compact-sm"
+                          onClick={() => {
+                            setRoleEditTarget(u)
+                            setRoleEditCheckedIds(
+                              (u.roleAssignments ?? []).map((ra) => ra.role.id)
+                            )
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="compact-sm"
+                          className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                          onClick={() => setDeleteTarget(u)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -297,6 +341,45 @@ export default function AdminUsersPage() {
           </Button>
           <Button color="red" onClick={handleDelete} disabled={deleting}>
             {deleting ? "Suppression..." : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Edit roles dialog */}
+      <Modal
+        opened={!!roleEditTarget}
+        onClose={() => setRoleEditTarget(null)}
+        title={`Rôles de ${roleEditTarget?.firstName ?? ""} ${roleEditTarget?.lastName ?? ""}`}
+        size="md"
+      >
+        <p className="text-sm text-muted-foreground mb-4">
+          Sélectionnez les rôles attribués à cet utilisateur.
+        </p>
+        <div className="space-y-2">
+          {allRoles.map((r) => (
+            <Checkbox
+              key={r.id}
+              label={r.name}
+              checked={roleEditCheckedIds.includes(r.id)}
+              onChange={(e) => {
+                setRoleEditCheckedIds((prev) =>
+                  e.currentTarget.checked
+                    ? [...prev, r.id]
+                    : prev.filter((id) => id !== r.id)
+                )
+              }}
+            />
+          ))}
+          {allRoles.length === 0 && (
+            <p className="text-xs text-muted-foreground">Aucun rôle défini.</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setRoleEditTarget(null)}>
+            Annuler
+          </Button>
+          <Button onClick={handleSaveRoles} disabled={savingRoles}>
+            {savingRoles ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </div>
       </Modal>

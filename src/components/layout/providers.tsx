@@ -14,6 +14,9 @@ interface AuthUser {
   lastName: string
   avatarUrl: string | null
   logoUrl: string | null
+  roleAssignments?: Array<{
+    role: { id: string; name: string }
+  }>
 }
 
 interface SessionContextType {
