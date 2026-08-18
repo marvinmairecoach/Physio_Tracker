@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { ChevronLeft, ChevronRight, Calendar, Pencil, Trash2 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 
-import { Badge, Button, Card, NativeSelect, Switch, Textarea, TextInput } from "@mantine/core"
+import { Button, Card, NativeSelect, TextInput } from "@mantine/core"
 import { useSession } from "@/components/layout/providers"
 
 /* ------------------------------------------------------------------ */
@@ -53,18 +53,6 @@ const MONTHS = [
 ]
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-
-const TYPE_LABELS: Record<string, string> = {
-  ENTRAINEMENT: "Entraînement",
-  MATCH: "Match",
-  OBJECTIF: "Objectif",
-  REATHLETISATION: "Réathlétisation",
-  REPOS: "Repos",
-  TEST: "Test",
-  AUTRE: "Autre",
-}
-
-const TYPE_OPTIONS = Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))
 
 /* ------------------------------------------------------------------ */
 /* Helpers dates (timezone locale, Lundi = premier jour)               */
@@ -119,105 +107,6 @@ function entryDateKeys(entry: PlanningEntry): string[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Composant d'édition inline dans le panneau latéral                  */
-/* ------------------------------------------------------------------ */
-
-interface InlineEditFormProps {
-  entry: PlanningEntry
-  onSave: (updated: PlanningEntry) => void
-  onCancel: () => void
-}
-
-function InlineEditForm({ entry, onSave, onCancel }: InlineEditFormProps) {
-  const [title, setTitle] = useState(entry.title)
-  const [type, setType] = useState(entry.type)
-  const [notes, setNotes] = useState(entry.notes ?? "")
-  const [isObjective, setIsObjective] = useState(entry.isObjective)
-  const [dateEnd, setDateEnd] = useState(
-    entry.dateEnd ? entry.dateEnd.split("T")[0] : entry.date.split("T")[0]
-  )
-  const [saving, setSaving] = useState(false)
-
-  const showEndDate = isObjective || type === "OBJECTIF"
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/planning/${entry.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          type,
-          notes: notes || null,
-          isObjective,
-          dateEnd: showEndDate ? dateEnd : null,
-        }),
-      })
-      if (res.ok) {
-        const updated = await res.json()
-        onSave({ ...entry, ...updated })
-      }
-    } catch {
-      // silencieux
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-      <TextInput
-        label="Titre"
-        value={title}
-        onChange={(e) => setTitle(e.currentTarget.value)}
-        size="xs"
-      />
-      <NativeSelect
-        label="Type"
-        value={type}
-        onChange={(e) => setType(e.currentTarget.value)}
-        data={TYPE_OPTIONS}
-        size="xs"
-      />
-      <Textarea
-        label="Notes"
-        value={notes}
-        onChange={(e) => setNotes(e.currentTarget.value)}
-        minRows={2}
-        size="xs"
-        placeholder="Notes, consignes, détails..."
-      />
-      <div className="flex items-center justify-between rounded-md border bg-white p-2">
-        <div className="text-sm font-medium">Objectif</div>
-        <Switch
-          checked={isObjective}
-          onChange={(e) => setIsObjective(e.currentTarget.checked)}
-          size="xs"
-        />
-      </div>
-      {showEndDate && (
-        <TextInput
-          label="Date de fin"
-          type="date"
-          value={dateEnd}
-          onChange={(e) => setDateEnd(e.currentTarget.value)}
-          size="xs"
-        />
-      )}
-      <div className="flex gap-2">
-        <Button size="compact-sm" onClick={handleSave} loading={saving}>
-          Enregistrer
-        </Button>
-        <Button size="compact-sm" variant="subtle" onClick={onCancel}>
-          Annuler
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /* Panneau latéral                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -238,31 +127,24 @@ function SidePanel({
   selectedTeamId,
   onRefetch,
 }: SidePanelProps) {
-  const [quickAddTitle, setQuickAddTitle] = useState("")
-  const [quickAddType, setQuickAddType] = useState("ENTRAINEMENT")
-  const [quickAddDateEnd, setQuickAddDateEnd] = useState("")
-  const [quickAddSaving, setQuickAddSaving] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [content, setContent] = useState("")
+  const [currentEntryId, setCurrentEntryId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
   const [copyTarget, setCopyTarget] = useState<PlanningEntry | null>(null)
   const [copyDate, setCopyDate] = useState("")
 
-  // Auto-focus + reset on day change
+  const selectedDateStr = selectedDate ? dateKey(selectedDate) : ""
+
+  // Reset on day change
   useEffect(() => {
-    setQuickAddTitle("")
-    setQuickAddType("ENTRAINEMENT")
-    setQuickAddDateEnd("")
-    setEditingId(null)
+    setContent("")
+    setCurrentEntryId(null)
     setCopyTarget(null)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
     setTimeout(() => textareaRef.current?.focus(), 50)
   }, [selectedDate])
-
-  const selectedDateStr = selectedDate ? dateKey(selectedDate) : ""
-  useEffect(() => {
-    setQuickAddDateEnd(selectedDateStr)
-  }, [selectedDateStr])
-
-  const showEndDate = quickAddType === "OBJECTIF"
 
   // Auto-resize textarea
   function autoResize(el: HTMLTextAreaElement | null) {
@@ -271,41 +153,72 @@ function SidePanel({
     el.style.height = el.scrollHeight + "px"
   }
 
-  async function handleQuickAdd() {
-    const title = quickAddTitle.trim()
-    if (!title || !selectedDate) return
-    setQuickAddSaving(true)
+  // Save current content (create or update)
+  async function saveContent() {
+    const text = content.trim()
+    if (!text || !selectedDate) return
+    setSaving(true)
     try {
       const athleteScope = !!selectedAthleteId
-      await fetch("/api/planning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          date: selectedDateStr,
-          type: quickAddType,
-          ...(athleteScope ? { athleteId: selectedAthleteId } : { teamId: selectedTeamId }),
-          isObjective: quickAddType === "OBJECTIF",
-          notes: null,
-          dateEnd: showEndDate && quickAddDateEnd ? quickAddDateEnd : null,
-        }),
-      })
-      setQuickAddTitle("")
-      setQuickAddType("ENTRAINEMENT")
-      setQuickAddDateEnd(selectedDateStr)
+      if (currentEntryId) {
+        // Update existing entry
+        await fetch(`/api/planning/${currentEntryId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: text }),
+        })
+      } else {
+        // Create new entry
+        const res = await fetch("/api/planning", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: text,
+            date: selectedDateStr,
+            type: "ENTRAINEMENT",
+            ...(athleteScope ? { athleteId: selectedAthleteId } : { teamId: selectedTeamId }),
+          }),
+        })
+        if (res.ok) {
+          const created = await res.json()
+          setCurrentEntryId(created.id)
+        }
+      }
       onRefetch()
     } catch {
       // silencieux
     } finally {
-      setQuickAddSaving(false)
-      setTimeout(() => textareaRef.current?.focus(), 50)
+      setSaving(false)
     }
   }
 
+  // Auto-save on content change with debounce
+  function handleContentChange(value: string) {
+    setContent(value)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      saveContent()
+    }, 800)
+  }
+
+  // "Ajouter un élément" : save current, start new
+  async function handleNewElement() {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    if (content.trim()) {
+      await saveContent()
+    }
+    setContent("")
+    setCurrentEntryId(null)
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }
+
   async function handleDelete(entry: PlanningEntry) {
-    if (!confirm(`Supprimer "${entry.title}" ?`)) return
+    if (!confirm(`Supprimer cet élément ?`)) return
     try {
       await fetch(`/api/planning/${entry.id}`, { method: "DELETE" })
+      if (currentEntryId === entry.id) {
+        setCurrentEntryId(null)
+      }
       onRefetch()
     } catch {
       // silencieux
@@ -321,11 +234,9 @@ function SidePanel({
         body: JSON.stringify({
           title: copyTarget.title,
           date: copyDate,
-          type: copyTarget.type,
+          type: "ENTRAINEMENT",
           athleteId: copyTarget.athleteId,
           teamId: copyTarget.teamId,
-          isObjective: copyTarget.isObjective,
-          notes: copyTarget.notes,
         }),
       })
       setCopyTarget(null)
@@ -334,11 +245,6 @@ function SidePanel({
     } catch {
       // silencieux
     }
-  }
-
-  function handleEntrySaved(updated: PlanningEntry) {
-    setEditingId(null)
-    onRefetch()
   }
 
   if (!selectedDate) {
@@ -368,57 +274,36 @@ function SidePanel({
       <Card withBorder>
         <h3 className="mb-4 text-base font-semibold capitalize">{dateLabel}</h3>
 
-        {/* Quick-add block — auto-save */}
+        {/* Contenu field — auto-save */}
         {canCreate && (
           <div className="mb-4 space-y-2 rounded-lg border border-dashed border-muted-foreground/30 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Nouvel élément</p>
+            <p className="text-xs font-medium text-muted-foreground">Contenu</p>
             <textarea
               ref={(el) => {
                 (textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
                 autoResize(el)
               }}
-              className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Écrire ici — Entrée pour valider, Shift+Entrée pour sauter une ligne"
-              value={quickAddTitle}
+              className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px]"
+              placeholder="Écrire ici — sauvegarde automatique..."
+              value={content}
               onChange={(e) => {
-                setQuickAddTitle(e.target.value)
+                handleContentChange(e.target.value)
                 autoResize(e.target)
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  void handleQuickAdd()
-                }
-              }}
-              disabled={quickAddSaving}
-              rows={1}
+              disabled={saving}
             />
-            <NativeSelect
-              size="xs"
-              value={quickAddType}
-              onChange={(e) => setQuickAddType(e.currentTarget.value)}
-              data={TYPE_OPTIONS}
-            />
-            {showEndDate && (
-              <TextInput
-                size="xs"
-                label="Date de fin (optionnel)"
-                type="date"
-                value={quickAddDateEnd}
-                onChange={(e) => setQuickAddDateEnd(e.target.value)}
-              />
-            )}
-            <Button
-              size="compact-sm"
-              onClick={() => {
-                void handleQuickAdd()
-              }}
-              loading={quickAddSaving}
-              disabled={!quickAddTitle.trim()}
-              className="w-full"
-            >
-              Ajouter un élément
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="compact-sm"
+                onClick={handleNewElement}
+                className="w-full"
+              >
+                Ajouter un élément
+              </Button>
+              {saving && (
+                <span className="text-xs text-muted-foreground shrink-0">Sauvegarde...</span>
+              )}
+            </div>
           </div>
         )}
 
@@ -430,95 +315,55 @@ function SidePanel({
         ) : (
           <div className="space-y-2">
             {dayEntries.map((entry) => {
-              const isObjective = entry.isObjective || entry.type === "OBJECTIF"
-              const isEditing = editingId === entry.id
-
-              if (isEditing) {
-                return (
-                  <InlineEditForm
-                    key={entry.id}
-                    entry={entry}
-                    onSave={handleEntrySaved}
-                    onCancel={() => setEditingId(null)}
-                  />
-                )
-              }
+              const isEditing = currentEntryId === entry.id
 
               return (
                 <div
                   key={entry.id}
-                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                  className={`rounded-md border p-2 text-sm ${
+                    isEditing ? "ring-2 ring-blue-300 border-blue-300" : ""
+                  }`}
                 >
-                  {/* Origin dot */}
-                  <span
-                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                      isObjective
-                        ? "bg-amber-500"
-                        : entry.origin === "equipe"
-                        ? "bg-emerald-500"
-                        : "bg-blue-500"
-                    }`}
-                  />
+                  {/* Contenu text */}
+                  <p className="whitespace-pre-wrap break-words">{entry.title}</p>
 
-                  {/* Type badge */}
-                  <Badge
-                    size="xs"
-                    variant="light"
-                    color={isObjective ? "yellow" : entry.origin === "equipe" ? "green" : "blue"}
-                    className="shrink-0"
-                  >
-                    {isObjective ? "🎯 " : ""}
-                    {TYPE_LABELS[entry.type] ?? entry.type}
-                  </Badge>
-
-                  {/* Title */}
-                  <span className="flex-1 truncate">{entry.title}</span>
-
-                  {/* Origin hint */}
-                  <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
-                    {isObjective
-                      ? "Objectif"
-                      : entry.origin === "equipe"
-                      ? "Équipe"
-                      : "Individuel"}
-                  </span>
-
-                  {/* Copy / Edit / Delete */}
-                  {canCreate && (
-                    <div className="flex shrink-0 gap-0.5">
-                      {/* Copy */}
-                      <button
-                        type="button"
-                        aria-label="Copier"
-                        onClick={() => {
-                          setCopyTarget(entry)
-                          setCopyDate(selectedDateStr)
-                        }}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="Copier sur un autre jour"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Modifier"
-                        onClick={() => setEditingId(entry.id)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Supprimer"
-                        onClick={() => void handleDelete(entry)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {/* Actions */}
+                  <div className="mt-1 flex items-center gap-1 justify-end">
+                    <button
+                      type="button"
+                      aria-label="Modifier"
+                      onClick={() => {
+                        setContent(entry.title)
+                        setCurrentEntryId(entry.id)
+                        setTimeout(() => textareaRef.current?.focus(), 50)
+                      }}
+                      className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Copier"
+                      onClick={() => {
+                        setCopyTarget(entry)
+                        setCopyDate(selectedDateStr)
+                      }}
+                      className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="Copier sur un autre jour"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Supprimer"
+                      onClick={() => void handleDelete(entry)}
+                      className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               )
             })}
