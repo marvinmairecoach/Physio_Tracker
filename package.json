@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:cleanup": "tsx scripts/cleanup-db.ts",
+    "db:migrate-athletes": "tsx scripts/migrate-athletes-to-users.ts",
     "setup": "npm run db:generate && npm run db:push",
     "railway-build": "prisma generate && next build",
     "railway-start": "prisma db push && next start"

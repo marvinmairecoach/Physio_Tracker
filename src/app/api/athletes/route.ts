@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, hashPassword } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +126,47 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Auto-create a User account for this athlete
+    const userEmail = email || `athlete-${athlete.id.slice(0, 8)}@placeholder.pp`;
+    const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+    let userId: string;
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      const passwordHash = await hashPassword("changeme123");
+      const newUser = await prisma.user.create({
+        data: {
+          email: userEmail,
+          passwordHash,
+          firstName,
+          lastName,
+          phone: phone || null,
+          role: "athlete",
+          isActive: true,
+        },
+      });
+      userId = newUser.id;
+    }
+
+    // Link athlete to user
+    await prisma.athlete.update({
+      where: { id: athlete.id },
+      data: { userId },
+    });
+
+    // Assign "Athlète" role
+    const athleteRole = await prisma.userRole.findUnique({ where: { name: "Athlète" } });
+    if (athleteRole) {
+      const existingAssignment = await prisma.userRoleAssignment.findUnique({
+        where: { userId_roleId: { userId, roleId: athleteRole.id } },
+      });
+      if (!existingAssignment) {
+        await prisma.userRoleAssignment.create({
+          data: { userId, roleId: athleteRole.id },
+        });
+      }
+    }
 
     // If no team was selected, find or create "Individuel" team and assign
     if (!teamId) {
