@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         age,
         poids: athlete.weightKg ? Number(athlete.weightKg) : null,
         taille: athlete.heightCm ? Number(athlete.heightCm) : null,
+        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 0 : null,
       },
     };
 
@@ -206,6 +207,7 @@ export async function GET(request: NextRequest) {
         age,
         poids: athlete.weightKg ? Number(athlete.weightKg) : null,
         taille: athlete.heightCm ? Number(athlete.heightCm) : null,
+        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 0 : null,
       },
     };
 
@@ -218,6 +220,7 @@ export async function GET(request: NextRequest) {
     inputValues["age"] = ctx.athlete.age;
     inputValues["poids"] = ctx.athlete.poids;
     inputValues["taille"] = ctx.athlete.taille;
+    inputValues["genre"] = ctx.athlete.genre;
 
     // 7. Evaluate
     const computed = await evaluateFormula(testType.formula, inputs, ctx);

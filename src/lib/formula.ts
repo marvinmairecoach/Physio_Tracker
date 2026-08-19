@@ -24,6 +24,7 @@ export interface FormulaContext {
     age?: number | null
     poids?: number | null
     taille?: number | null
+    genre?: number | null
   }
 }
 
@@ -55,6 +56,7 @@ export async function evaluateFormula(
     age: ctx.athlete.age,
     poids: ctx.athlete.poids,
     taille: ctx.athlete.taille,
+    genre: ctx.athlete.genre,
   }
   for (const [key, val] of Object.entries(builtins)) {
     const placeholder = `{${key}}`
