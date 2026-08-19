@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         age,
         poids: athlete.weightKg ? Number(athlete.weightKg) : null,
         taille: athlete.heightCm ? Number(athlete.heightCm) : null,
-        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 0 : null,
+        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 2 : null,
       },
     };
 
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
         age,
         poids: athlete.weightKg ? Number(athlete.weightKg) : null,
         taille: athlete.heightCm ? Number(athlete.heightCm) : null,
-        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 0 : null,
+        genre: athlete.gender === "M" ? 1 : athlete.gender === "F" ? 2 : null,
       },
     };
 

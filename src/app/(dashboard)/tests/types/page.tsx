@@ -38,7 +38,7 @@ const BUILTIN_VARS = [
   { name: "age", label: "Âge de l'athlète", description: "Calculé depuis la date de naissance" },
   { name: "poids", label: "Poids (kg)", description: "Poids actuel de l'athlète" },
   { name: "taille", label: "Taille (cm)", description: "Taille de l'athlète" },
-  { name: "genre", label: "Genre (M=1, F=0)", description: "1 pour homme, 0 pour femme" },
+  { name: "genre", label: "Genre (M=1, F=2)", description: "1 pour homme, 2 pour femme" },
 ]
 
 function SortIcon({
