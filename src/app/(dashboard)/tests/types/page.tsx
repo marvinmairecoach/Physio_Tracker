@@ -661,7 +661,7 @@ export default function TestTypesPage() {
       </Card>
 
       {/* Edit Modal */}
-      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md" trapFocus={false} returnFocus={false}>
+      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }}>
         <p className="text-sm text-muted-foreground mb-4">
           Modifiez les informations du type de test.
         </p>
@@ -777,7 +777,7 @@ export default function TestTypesPage() {
       </Modal>
 
       {/* Create Dialog */}
-      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md" trapFocus={false} returnFocus={false}>
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }}>
         <p className="text-sm text-muted-foreground mb-4">
           Créez un nouveau type de test pour les évaluations.
         </p>

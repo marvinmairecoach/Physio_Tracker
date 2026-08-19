@@ -79,20 +79,39 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // 6. Evaluate
+    // 6. Gather input values before evaluating (for error reporting)
+    const inputValues: Record<string, number | null> = {};
+    for (const input of inputs) {
+      const val = await getTestValue(input.testTypeId);
+      inputValues[input.alias] = val;
+    }
+    inputValues["age"] = ctx.athlete.age;
+    inputValues["poids"] = ctx.athlete.poids;
+    inputValues["taille"] = ctx.athlete.taille;
+    inputValues["genre"] = ctx.athlete.genre;
+
+    const missingInputs = Object.entries(inputValues)
+      .filter(([, v]) => v === null)
+      .map(([k]) => k);
+
+    // 7. Evaluate
     const computed = await evaluateFormula(testType.formula, inputs, ctx);
     if (computed === null) {
+      const detail =
+        missingInputs.length > 0
+          ? `Données manquantes : ${missingInputs.join(", ")}.`
+          : "La formule n'a pas pu être évaluée (vérifiez la syntaxe).";
       return NextResponse.json(
         {
-          error:
-            "Impossible de calculer : certaines données d'entrée sont manquantes. " +
-            "Vérifiez que l'athlète a des résultats pour tous les types de test requis.",
+          error: `Impossible de calculer. ${detail}`,
+          missingInputs,
+          inputValues,
         },
         { status: 400 }
       );
     }
 
-    // 7. Save the result
+    // 8. Save the result
     const result = await prisma.testResult.create({
       data: {
         athleteId: typedAthleteId,
