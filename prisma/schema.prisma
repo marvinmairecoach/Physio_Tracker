@@ -198,6 +198,9 @@ model TestType {
   showOnTeamPage Boolean  @default(true) @map("show_on_team_page")
   isSystem       Boolean  @default(false) @map("is_system")
   isUnilateral   Boolean  @default(false) @map("is_unilateral")
+  isCalculated   Boolean  @default(false) @map("is_calculated")
+  formula        String?  @db.Text
+  formulaInputs  Json?    @map("formula_inputs") // [{ testTypeId, alias, unit }]
   createdAt      DateTime @default(now()) @map("created_at")
 
   results TestResult[]

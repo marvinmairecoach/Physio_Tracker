@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     await requireAuth();
 
     const body = await request.json();
-    const { name, category, unit, higherIsBetter, description, normMale, normFemale, showOnTeamPage, isUnilateral } = body;
+    const { name, category, unit, higherIsBetter, description, normMale, normFemale, showOnTeamPage, isUnilateral, isCalculated, formula, formulaInputs } = body;
 
     if (!name || !category || !unit) {
       return NextResponse.json(
@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
         normFemale: normFemale ? Number(normFemale) : null,
         showOnTeamPage: showOnTeamPage ?? true,
         isUnilateral: isUnilateral ?? false,
+        isCalculated: isCalculated ?? false,
+        formula: formula || null,
+        formulaInputs: formulaInputs || undefined,
       },
     });
 

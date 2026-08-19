@@ -52,6 +52,9 @@ export default function TestTypesPage() {
     normFemale: "",
     showOnTeamPage: true,
     isUnilateral: false,
+    isCalculated: false,
+    formula: "",
+    formulaInputs: [],
   })
   const [creating, setCreating] = useState(false)
 
@@ -67,6 +70,9 @@ export default function TestTypesPage() {
     normFemale: "",
     showOnTeamPage: true,
     isUnilateral: false,
+    isCalculated: false,
+    formula: "",
+    formulaInputs: [],
   })
   const [saving, setSaving] = useState(false)
 
@@ -154,11 +160,14 @@ export default function TestTypesPage() {
           normFemale: newType.normFemale || null,
           showOnTeamPage: newType.showOnTeamPage,
           isUnilateral: newType.isUnilateral,
+          isCalculated: newType.isCalculated,
+          formula: newType.isCalculated ? newType.formula : null,
+          formulaInputs: newType.isCalculated ? newType.formulaInputs : undefined,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la création")
       setCreateOpen(false)
-      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true, isUnilateral: false })
+      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true, isUnilateral: false, isCalculated: false, formula: "", formulaInputs: [] })
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -178,6 +187,9 @@ export default function TestTypesPage() {
       normFemale: t.normFemale !== null ? String(t.normFemale) : "",
       showOnTeamPage: t.showOnTeamPage,
       isUnilateral: t.isUnilateral,
+      isCalculated: (t as any).isCalculated ?? false,
+      formula: (t as any).formula ?? "",
+      formulaInputs: (t as any).formulaInputs ?? [],
     })
     setEditModalOpen(true)
   }
@@ -203,6 +215,9 @@ export default function TestTypesPage() {
           normFemale: editForm.normFemale || null,
           showOnTeamPage: editForm.showOnTeamPage,
           isUnilateral: editForm.isUnilateral,
+          isCalculated: editForm.isCalculated,
+          formula: editForm.isCalculated ? editForm.formula : null,
+          formulaInputs: editForm.isCalculated ? editForm.formulaInputs : undefined,
         }),
       })
       if (!res.ok) throw new Error("Erreur lors de la modification")
@@ -292,23 +307,6 @@ export default function TestTypesPage() {
       return 0
     })
   }, [testTypes, sortField, sortDir])
-
-  const categorySelectData = [
-    { value: "", label: "Sélectionner une catégorie" },
-    ...existingCategories.map((c) => ({ value: c.name, label: c.name })),
-  ]
-
-  function getEditCategoryData() {
-    const names = existingCategories.map((c) => c.name)
-    const data = [
-      { value: "", label: "Sélectionner une catégorie" },
-      ...existingCategories.map((c) => ({ value: c.name, label: c.name })),
-    ]
-    if (editForm.category && !names.includes(editForm.category)) {
-      data.push({ value: editForm.category, label: editForm.category })
-    }
-    return data
-  }
 
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
@@ -444,13 +442,19 @@ export default function TestTypesPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Catégorie</label>
             <div className="flex items-center gap-1">
-              <NativeSelect
-                data={getEditCategoryData()}
+              <select
                 value={editForm.category}
-                onChange={(e) => setEditForm((p) => ({ ...p, category: e.currentTarget.value }))}
-                className="flex-1"
-                size="sm"
-              />
+                onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {existingCategories.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+                {editForm.category && !existingCategories.some((c) => c.name === editForm.category) && (
+                  <option value={editForm.category}>{editForm.category}</option>
+                )}
+              </select>
               <Button
                 variant="outline"
                 size="compact-sm"
@@ -496,6 +500,26 @@ export default function TestTypesPage() {
               onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
             />
           </div>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Test calculé (formule)"
+              id="edit-is-calculated"
+              checked={editForm.isCalculated}
+              onChange={(e) => setEditForm((p) => ({ ...p, isCalculated: e.currentTarget.checked }))}
+            />
+          </div>
+          {editForm.isCalculated && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+              <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
+              <TextInput
+                label="Formule"
+                value={editForm.formula}
+                onChange={(e) => setEditForm((p) => ({ ...p, formula: e.target.value }))}
+                placeholder={'Ex: {distance} / {temps} * 3.6'}
+                size="xs"
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
@@ -543,13 +567,16 @@ export default function TestTypesPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Catégorie</label>
             <div className="flex items-center gap-1">
-              <NativeSelect
-                data={categorySelectData}
+              <select
                 value={newType.category}
-                onChange={(e) => setNewType((p) => ({ ...p, category: e.currentTarget.value }))}
-                className="flex-1"
-                size="sm"
-              />
+                onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {existingCategories.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
               <Button
                 variant="outline"
                 size="compact-sm"
@@ -595,6 +622,29 @@ export default function TestTypesPage() {
               onChange={(e) => setNewType((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
             />
           </div>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              label="Test calculé (formule)"
+              id="new-is-calculated"
+              checked={newType.isCalculated}
+              onChange={(e) => setNewType((p) => ({ ...p, isCalculated: e.currentTarget.checked, formula: "", formulaInputs: [] }))}
+            />
+          </div>
+          {newType.isCalculated && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+              <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
+              <p className="text-xs text-muted-foreground">
+                Utilisez des alias entre accolades pour les datas d&apos;entrée, par exemple : <code>{`{distance} / {temps} * 3.6`}</code>
+              </p>
+              <TextInput
+                label="Formule"
+                value={newType.formula}
+                onChange={(e) => setNewType((p) => ({ ...p, formula: e.target.value }))}
+                placeholder={'Ex: {distance} / {temps} * 3.6'}
+                size="xs"
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
