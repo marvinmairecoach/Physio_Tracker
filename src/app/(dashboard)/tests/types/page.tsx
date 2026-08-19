@@ -736,7 +736,7 @@ export default function TestTypesPage() {
               onChange={(e) => setEditForm((p) => ({ ...p, isCalculated: e.currentTarget.checked }))}
             />
           </div>
-          {editForm.isCalculated && (
+          <div style={{ display: editForm.isCalculated ? "block" : "none" }}>
             <FormulaConfigSection
               inputs={editForm.formulaInputs}
               formula={editForm.formula}
@@ -746,7 +746,7 @@ export default function TestTypesPage() {
               onUpdateAlias={(id, alias) => updateAlias("edit", id, alias)}
               getTestTypeName={getTestTypeName}
             />
-          )}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
@@ -849,7 +849,7 @@ export default function TestTypesPage() {
               onChange={(e) => setNewType((p) => ({ ...p, isCalculated: e.currentTarget.checked, formula: "", formulaInputs: [] }))}
             />
           </div>
-          {newType.isCalculated && (
+          <div style={{ display: newType.isCalculated ? "block" : "none" }}>
             <FormulaConfigSection
               inputs={newType.formulaInputs}
               formula={newType.formula}
@@ -859,7 +859,7 @@ export default function TestTypesPage() {
               onUpdateAlias={(id, alias) => updateAlias("create", id, alias)}
               getTestTypeName={getTestTypeName}
             />
-          )}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
