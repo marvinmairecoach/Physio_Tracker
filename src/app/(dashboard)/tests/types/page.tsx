@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Plus, ArrowUpDown, ArrowUp, ArrowDown, FolderKanban, Trash2 } from "lucide-react"
+import { Pencil, Plus, ArrowUpDown, ArrowUp, ArrowDown, FolderKanban, Trash2, X } from "lucide-react"
 
-import { Button, Card, Table, Badge, TextInput, Modal, Switch, NativeSelect } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal, Switch } from "@mantine/core"
 
 interface TestType {
   id: string
@@ -16,6 +16,9 @@ interface TestType {
   normFemale: number | null
   showOnTeamPage: boolean
   isUnilateral: boolean
+  isCalculated?: boolean
+  formula?: string | null
+  formulaInputs?: { testTypeId: string; alias: string }[] | null
 }
 
 interface Category {
@@ -26,9 +29,16 @@ interface Category {
 type SortField = "name" | "category" | "unit"
 type SortDir = "asc" | "desc"
 
-// Fallback — categories now come from the API as [{id, name}]
-// The category value is the name string directly (e.g., "Vitesse")
-const CATEGORY_LABELS: Record<string, string> = {}
+interface FormulaInputEntry {
+  testTypeId: string
+  alias: string
+}
+
+const BUILTIN_VARS = [
+  { name: "age", label: "Âge de l'athlète", description: "Calculé depuis la date de naissance" },
+  { name: "poids", label: "Poids (kg)", description: "Poids actuel de l'athlète" },
+  { name: "taille", label: "Taille (cm)", description: "Taille de l'athlète" },
+]
 
 export default function TestTypesPage() {
   const router = useRouter()
@@ -54,7 +64,7 @@ export default function TestTypesPage() {
     isUnilateral: false,
     isCalculated: false,
     formula: "",
-    formulaInputs: [],
+    formulaInputs: [] as FormulaInputEntry[],
   })
   const [creating, setCreating] = useState(false)
 
@@ -72,7 +82,7 @@ export default function TestTypesPage() {
     isUnilateral: false,
     isCalculated: false,
     formula: "",
-    formulaInputs: [],
+    formulaInputs: [] as FormulaInputEntry[],
   })
   const [saving, setSaving] = useState(false)
 
@@ -84,6 +94,10 @@ export default function TestTypesPage() {
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<TestType | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Pick formula input test type
+  const [pickInputOpen, setPickInputOpen] = useState<"create" | "edit" | null>(null)
+  const [inputSearch, setInputSearch] = useState("")
 
   useEffect(() => {
     fetchTestTypes()
@@ -127,11 +141,9 @@ export default function TestTypesPage() {
       if (!res.ok) throw new Error("Erreur lors de la création de la catégorie")
       await fetchCategories()
       const createdName = newCatName.trim()
-      // If the create modal is open, select the new category
       if (createOpen) {
         setNewType((p) => ({ ...p, category: createdName }))
       }
-      // If the edit modal is open, select the new category
       if (editModalOpen) {
         setEditForm((p) => ({ ...p, category: createdName }))
       }
@@ -142,6 +154,53 @@ export default function TestTypesPage() {
     } finally {
       setCreatingCategory(false)
     }
+  }
+
+  /** Get non-calculated test types excluding already-selected ones */
+  function getAvailableInputTypes(currentInputs: FormulaInputEntry[]): TestType[] {
+    const selectedIds = new Set(currentInputs.map((i) => i.testTypeId))
+    return testTypes.filter(
+      (t) => !t.isCalculated && !selectedIds.has(t.id)
+    )
+  }
+
+  function addFormulaInput(target: "create" | "edit", testType: TestType, alias: string) {
+    const entry: FormulaInputEntry = { testTypeId: testType.id, alias }
+    if (target === "create") {
+      setNewType((p) => ({ ...p, formulaInputs: [...p.formulaInputs, entry] }))
+    } else {
+      setEditForm((p) => ({ ...p, formulaInputs: [...p.formulaInputs, entry] }))
+    }
+    setPickInputOpen(null)
+    setInputSearch("")
+  }
+
+  function removeFormulaInput(target: "create" | "edit", testTypeId: string) {
+    if (target === "create") {
+      setNewType((p) => ({
+        ...p,
+        formulaInputs: p.formulaInputs.filter((i) => i.testTypeId !== testTypeId),
+      }))
+    } else {
+      setEditForm((p) => ({
+        ...p,
+        formulaInputs: p.formulaInputs.filter((i) => i.testTypeId !== testTypeId),
+      }))
+    }
+  }
+
+  function updateAlias(target: "create" | "edit", testTypeId: string, alias: string) {
+    const updater = (inputs: FormulaInputEntry[]) =>
+      inputs.map((i) => (i.testTypeId === testTypeId ? { ...i, alias } : i))
+    if (target === "create") {
+      setNewType((p) => ({ ...p, formulaInputs: updater(p.formulaInputs) }))
+    } else {
+      setEditForm((p) => ({ ...p, formulaInputs: updater(p.formulaInputs) }))
+    }
+  }
+
+  function getTestTypeName(id: string): string {
+    return testTypes.find((t) => t.id === id)?.name ?? id
   }
 
   async function handleCreate() {
@@ -187,9 +246,9 @@ export default function TestTypesPage() {
       normFemale: t.normFemale !== null ? String(t.normFemale) : "",
       showOnTeamPage: t.showOnTeamPage,
       isUnilateral: t.isUnilateral,
-      isCalculated: (t as any).isCalculated ?? false,
-      formula: (t as any).formula ?? "",
-      formulaInputs: (t as any).formulaInputs ?? [],
+      isCalculated: t.isCalculated ?? false,
+      formula: t.formula ?? "",
+      formulaInputs: (t.formulaInputs as FormulaInputEntry[]) ?? [],
     })
     setEditModalOpen(true)
   }
@@ -235,9 +294,7 @@ export default function TestTypesPage() {
       const res = await fetch(`/api/tests/types/${testType.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          showOnTeamPage: !testType.showOnTeamPage,
-        }),
+        body: JSON.stringify({ showOnTeamPage: !testType.showOnTeamPage }),
       })
       if (!res.ok) throw new Error("Erreur")
       await fetchTestTypes()
@@ -251,9 +308,7 @@ export default function TestTypesPage() {
       const res = await fetch(`/api/tests/types/${testType.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          isUnilateral: !testType.isUnilateral,
-        }),
+        body: JSON.stringify({ isUnilateral: !testType.isUnilateral }),
       })
       if (!res.ok) throw new Error("Erreur")
       await fetchTestTypes()
@@ -308,6 +363,167 @@ export default function TestTypesPage() {
     })
   }, [testTypes, sortField, sortDir])
 
+  /** Render the formula configuration section (shared between create and edit) */
+  function FormulaConfigSection({
+    inputs,
+    formula,
+    onFormulaChange,
+    target,
+    onAddInput,
+    onRemoveInput,
+    onUpdateAlias,
+  }: {
+    inputs: FormulaInputEntry[]
+    formula: string
+    onFormulaChange: (v: string) => void
+    target: "create" | "edit"
+    onAddInput: () => void
+    onRemoveInput: (testTypeId: string) => void
+    onUpdateAlias: (testTypeId: string, alias: string) => void
+  }) {
+    return (
+      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+        <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
+
+        {/* Formula inputs: selected test types */}
+        <div>
+          <label className="block text-xs font-medium text-blue-600 mb-1">
+            Types de test en entrée
+          </label>
+          {inputs.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic mb-2">
+              Aucun type de test source sélectionné
+            </p>
+          ) : (
+            <div className="space-y-1.5 mb-2">
+              {inputs.map((input) => (
+                <div key={input.testTypeId} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 min-w-[120px] truncate">
+                    {getTestTypeName(input.testTypeId)}
+                  </span>
+                  <span className="text-xs text-gray-400">→</span>
+                  <TextInput
+                    size="xs"
+                    placeholder="alias"
+                    value={input.alias}
+                    onChange={(e) => onUpdateAlias(input.testTypeId, e.target.value)}
+                    className="flex-1"
+                    styles={{ input: { fontSize: "0.75rem" } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveInput(input.testTypeId)}
+                    className="p-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" size="compact-xs" onClick={onAddInput}>
+            <Plus className="mr-1 h-3 w-3" />
+            Ajouter un type de test
+          </Button>
+        </div>
+
+        {/* Built-in variables */}
+        <div>
+          <label className="block text-xs font-medium text-blue-600 mb-1">
+            Variables prédéfinies disponibles
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {BUILTIN_VARS.map((v) => (
+              <span
+                key={v.name}
+                className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
+                title={v.description}
+              >
+                <code>{`{${v.name}}`}</code>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Formula */}
+        <div>
+          <label className="block text-xs font-medium text-blue-600 mb-1">
+            Formule <span className="text-gray-400 font-normal">(ex: {`{vitesse} / {temps} * 3.6`})</span>
+          </label>
+          <TextInput
+            size="xs"
+            value={formula}
+            onChange={(e) => onFormulaChange(e.target.value)}
+            placeholder={'Ex: {distance} / {temps} * 3.6'}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  /** Picker modal for selecting a test type as formula input */
+  function FormulaInputPickerModal({
+    opened,
+    target,
+    onClose,
+    onSelect,
+  }: {
+    opened: boolean
+    target: "create" | "edit"
+    onClose: () => void
+    onSelect: (tt: TestType) => void
+  }) {
+    const currentInputs = target === "create" ? newType.formulaInputs : editForm.formulaInputs
+    const available = getAvailableInputTypes(currentInputs)
+    const filtered = available.filter(
+      (t) =>
+        !inputSearch ||
+        t.name.toLowerCase().includes(inputSearch.toLowerCase()) ||
+        t.category?.toLowerCase().includes(inputSearch.toLowerCase())
+    )
+
+    return (
+      <Modal
+        opened={opened}
+        onClose={() => { onClose(); setInputSearch("") }}
+        title="Ajouter un type de test source"
+        size="sm"
+      >
+        <TextInput
+          placeholder="Rechercher un type de test..."
+          value={inputSearch}
+          onChange={(e) => setInputSearch(e.target.value)}
+          size="xs"
+          className="mb-2"
+        />
+        {filtered.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {available.length === 0
+              ? "Tous les types de test sont déjà utilisés comme entrée."
+              : "Aucun résultat trouvé."}
+          </p>
+        ) : (
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            {filtered.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  const defaultAlias = t.name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")
+                  addFormulaInput(target, t, defaultAlias)
+                }}
+                className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-blue-50 transition-colors"
+              >
+                <span className="font-medium">{t.name}</span>
+                <span className="text-xs text-muted-foreground ml-2">({t.category})</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Modal>
+    )
+  }
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
@@ -360,14 +576,15 @@ export default function TestTypesPage() {
                 <Table.Th ta="center">Norme H</Table.Th>
                 <Table.Th ta="center">Norme F</Table.Th>
                 <Table.Th ta="center">Afficher équipe</Table.Th>
-                <Table.Th ta="center">Test unilatéral</Table.Th>
+                <Table.Th ta="center">Unilatéral</Table.Th>
+                <Table.Th ta="center">Calculé</Table.Th>
                 <Table.Th ta="center">Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {sortedTestTypes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={9} className="text-center text-muted-foreground">
+                  <Table.Td colSpan={10} className="text-center text-muted-foreground">
                     Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
@@ -375,7 +592,7 @@ export default function TestTypesPage() {
                 sortedTestTypes.map((t) => (
                   <Table.Tr key={t.id}>
                     <Table.Td className="font-medium">{t.name}</Table.Td>
-                    <Table.Td>{CATEGORY_LABELS[t.category] ?? t.category}</Table.Td>
+                    <Table.Td>{t.category}</Table.Td>
                     <Table.Td>{t.unit}</Table.Td>
                     <Table.Td ta="center">
                       <Badge color={t.higherIsBetter ? "blue" : "gray"}>
@@ -407,6 +624,13 @@ export default function TestTypesPage() {
                       />
                     </Table.Td>
                     <Table.Td ta="center">
+                      {t.isCalculated ? (
+                        <Badge color="violet">Oui</Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </Table.Td>
+                    <Table.Td ta="center">
                       <div className="flex justify-center gap-1">
                         <Button variant="outline" size="compact-sm" onClick={() => openEditModal(t)}>
                           <Pencil className="mr-1 h-3 w-3" />
@@ -434,7 +658,6 @@ export default function TestTypesPage() {
         <div className="space-y-4">
           <TextInput
             label="Nom"
-            id="edit-name"
             value={editForm.name}
             onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="Ex: Sprint 30m"
@@ -467,14 +690,12 @@ export default function TestTypesPage() {
           </div>
           <TextInput
             label="Unité"
-            id="edit-unit"
             value={editForm.unit}
             onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
             placeholder="Ex: secondes, cm, kg..."
           />
           <TextInput
             label="Supérieur = Meilleur"
-            id="edit-higher"
             component="select"
             value={editForm.higherIsBetter ? "true" : "false"}
             onChange={(e) =>
@@ -487,7 +708,6 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Afficher dans les résultats de l'équipe"
-              id="edit-show-team"
               checked={editForm.showOnTeamPage}
               onChange={(e) => setEditForm((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
             />
@@ -495,7 +715,6 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Test unilatéral"
-              id="edit-is-unilateral"
               checked={editForm.isUnilateral}
               onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
             />
@@ -503,27 +722,24 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Test calculé (formule)"
-              id="edit-is-calculated"
               checked={editForm.isCalculated}
               onChange={(e) => setEditForm((p) => ({ ...p, isCalculated: e.currentTarget.checked }))}
             />
           </div>
           {editForm.isCalculated && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
-              <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
-              <TextInput
-                label="Formule"
-                value={editForm.formula}
-                onChange={(e) => setEditForm((p) => ({ ...p, formula: e.target.value }))}
-                placeholder={'Ex: {distance} / {temps} * 3.6'}
-                size="xs"
-              />
-            </div>
+            <FormulaConfigSection
+              inputs={editForm.formulaInputs}
+              formula={editForm.formula}
+              onFormulaChange={(v) => setEditForm((p) => ({ ...p, formula: v }))}
+              target="edit"
+              onAddInput={() => setPickInputOpen("edit")}
+              onRemoveInput={(id) => removeFormulaInput("edit", id)}
+              onUpdateAlias={(id, alias) => updateAlias("edit", id, alias)}
+            />
           )}
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
-              id="edit-norm-male"
               type="number"
               step="0.01"
               value={editForm.normMale}
@@ -532,7 +748,6 @@ export default function TestTypesPage() {
             />
             <TextInput
               label="Norme Femmes"
-              id="edit-norm-female"
               type="number"
               step="0.01"
               value={editForm.normFemale}
@@ -559,7 +774,6 @@ export default function TestTypesPage() {
         <div className="space-y-4">
           <TextInput
             label="Nom"
-            id="new-name"
             value={newType.name}
             onChange={(e) => setNewType((p) => ({ ...p, name: e.target.value }))}
             placeholder="Ex: Sprint 30m"
@@ -589,14 +803,12 @@ export default function TestTypesPage() {
           </div>
           <TextInput
             label="Unité"
-            id="new-unit"
             value={newType.unit}
             onChange={(e) => setNewType((p) => ({ ...p, unit: e.target.value }))}
             placeholder="Ex: secondes, cm, kg..."
           />
           <TextInput
             label="Supérieur = Meilleur"
-            id="new-higher"
             component="select"
             value={newType.higherIsBetter ? "true" : "false"}
             onChange={(e) =>
@@ -609,7 +821,6 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Afficher dans les résultats de l'équipe"
-              id="new-show-team"
               checked={newType.showOnTeamPage}
               onChange={(e) => setNewType((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
             />
@@ -617,7 +828,6 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Test unilatéral"
-              id="new-is-unilateral"
               checked={newType.isUnilateral}
               onChange={(e) => setNewType((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
             />
@@ -625,30 +835,24 @@ export default function TestTypesPage() {
           <div className="flex items-center gap-3 py-2">
             <Switch
               label="Test calculé (formule)"
-              id="new-is-calculated"
               checked={newType.isCalculated}
               onChange={(e) => setNewType((p) => ({ ...p, isCalculated: e.currentTarget.checked, formula: "", formulaInputs: [] }))}
             />
           </div>
           {newType.isCalculated && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
-              <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
-              <p className="text-xs text-muted-foreground">
-                Utilisez des alias entre accolades pour les datas d&apos;entrée, par exemple : <code>{`{distance} / {temps} * 3.6`}</code>
-              </p>
-              <TextInput
-                label="Formule"
-                value={newType.formula}
-                onChange={(e) => setNewType((p) => ({ ...p, formula: e.target.value }))}
-                placeholder={'Ex: {distance} / {temps} * 3.6'}
-                size="xs"
-              />
-            </div>
+            <FormulaConfigSection
+              inputs={newType.formulaInputs}
+              formula={newType.formula}
+              onFormulaChange={(v) => setNewType((p) => ({ ...p, formula: v }))}
+              target="create"
+              onAddInput={() => setPickInputOpen("create")}
+              onRemoveInput={(id) => removeFormulaInput("create", id)}
+              onUpdateAlias={(id, alias) => updateAlias("create", id, alias)}
+            />
           )}
           <div className="grid grid-cols-2 gap-4">
             <TextInput
               label="Norme Hommes"
-              id="new-norm-male"
               type="number"
               step="0.01"
               value={newType.normMale}
@@ -657,7 +861,6 @@ export default function TestTypesPage() {
             />
             <TextInput
               label="Norme Femmes"
-              id="new-norm-female"
               type="number"
               step="0.01"
               value={newType.normFemale}
@@ -671,7 +874,7 @@ export default function TestTypesPage() {
             Annuler
           </Button>
           <Button onClick={handleCreate} disabled={creating}>
-            {creating ? "Création..." : "Créer"}
+            {creating ? "Création...": "Créer"}
           </Button>
         </div>
       </Modal>
@@ -714,6 +917,14 @@ export default function TestTypesPage() {
           </Button>
         </div>
       </Modal>
+
+      {/* Formula input picker */}
+      <FormulaInputPickerModal
+        opened={pickInputOpen !== null}
+        target={pickInputOpen ?? "create"}
+        onClose={() => { setPickInputOpen(null); setInputSearch("") }}
+        onSelect={() => {}}
+      />
     </div>
   )
 }

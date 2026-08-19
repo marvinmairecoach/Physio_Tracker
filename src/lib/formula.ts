@@ -1,58 +1,85 @@
 /**
  * Safe formula evaluator for calculated test types.
  *
- * The formula uses aliases in braces, e.g.: "{distance} / {temps} * 3.6"
- * Only digits, operators ( + - * / ^ ( ) . , ) and whitespace are allowed
- * after alias substitution — no arbitrary JavaScript.
+ * The formula uses aliases in braces that reference:
+ *   - Other test types (by alias defined in formulaInputs)
+ *   - Built-in athlete variables: {age}, {poids}, {taille}
+ *
+ * Examples:
+ *   "{distance} / {temps} * 3.6"  → speed from distance + time
+ *   "{gauche} + {droite}"         → total from two unilateral tests
+ *   "({poids} * {reps}) / 100"    → relative load
  */
 
 export interface FormulaInput {
   testTypeId: string
   alias: string
-  unit?: string
+}
+
+export interface FormulaContext {
+  /** Resolve a test type alias to its latest numeric value for the athlete */
+  getTestValue: (testTypeId: string) => Promise<number | null>
+  /** Built-in athlete data */
+  athlete: {
+    age?: number | null
+    poids?: number | null
+    taille?: number | null
+  }
 }
 
 /**
- * Substitute aliases with numeric values, then safely evaluate.
- * @param formula  e.g. "{distance} / {temps} * 3.6"
- * @param values   e.g. { distance: 30, temps: 4.2 }
- * @returns number, or null if the formula is invalid / incomplete.
+ * Safely evaluate a formula by substituting {aliases} with values from the context.
+ * Returns null if any required input is missing or the expression is invalid.
  */
-export function evaluateFormula(
+export async function evaluateFormula(
   formula: string,
-  values: Record<string, number>
-): number | null {
+  inputs: FormulaInput[],
+  ctx: FormulaContext
+): Promise<number | null> {
   if (!formula || !formula.trim()) return null
 
   let expression = formula
 
-  // Replace each {alias} with its numeric value
-  const aliasPattern = /\{([^}]+)\}/g
-  let match: RegExpExecArray | null
-  while ((match = aliasPattern.exec(formula)) !== null) {
-    const alias = match[1].trim()
-    const val = values[alias]
-    if (val === undefined || val === null || Number.isNaN(Number(val))) {
-      return null // missing input
+  // 1. Resolve test type aliases
+  for (const input of inputs) {
+    const val = await ctx.getTestValue(input.testTypeId)
+    if (val === null || val === undefined || Number.isNaN(Number(val))) {
+      return null // missing input data
     }
-    expression = expression.replace(match[0], `(${Number(val)})`)
+    const placeholder = `{${input.alias}}`
+    expression = expression.split(placeholder).join(`(${Number(val)})`)
   }
 
-  // Strip any remaining braces (treat as invalid → null)
-  if (/\{|\}/.test(expression)) return null
+  // 2. Resolve built-in athlete variables
+  const builtins: Record<string, number | null | undefined> = {
+    age: ctx.athlete.age,
+    poids: ctx.athlete.poids,
+    taille: ctx.athlete.taille,
+  }
+  for (const [key, val] of Object.entries(builtins)) {
+    const placeholder = `{${key}}`
+    if (expression.includes(placeholder)) {
+      if (val === null || val === undefined || Number.isNaN(Number(val))) {
+        return null
+      }
+      expression = expression.split(placeholder).join(`(${Number(val)})`)
+    }
+  }
 
-  // Only allow safe characters
+  // 3. Check for any remaining unresolved braces
+  if (/\{|}/.test(expression)) return null
+
+  // 4. Only allow safe characters
   if (!/^[0-9+\-*/().,\s]+$/.test(expression)) return null
 
-  // Normalize commas as decimal separators
+  // 5. Normalize commas as decimal separators
   expression = expression.replace(/,/g, ".")
 
-  // Reject division by zero / empty expression
+  // 6. Reject division by zero / empty expression
   if (!expression.trim()) return null
   if (/\/\s*0(\.0+)?([^0-9]|$)/.test(expression)) return null
 
   try {
-    // Safe evaluation: build a function body with only arithmetic
     // eslint-disable-next-line no-new-func
     const fn = new Function(`"use strict"; return (${expression});`)
     const result = fn()
