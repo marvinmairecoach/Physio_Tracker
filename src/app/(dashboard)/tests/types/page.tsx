@@ -40,6 +40,189 @@ const BUILTIN_VARS = [
   { name: "taille", label: "Taille (cm)", description: "Taille de l'athlète" },
 ]
 
+function SortIcon({
+  field,
+  sortField,
+  sortDir,
+}: {
+  field: SortField
+  sortField: SortField | null
+  sortDir: SortDir
+}) {
+  if (sortField !== field) {
+    return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-muted-foreground/40" />
+  }
+  return sortDir === "asc" ? (
+    <ArrowUp className="ml-1 inline h-3.5 w-3.5" />
+  ) : (
+    <ArrowDown className="ml-1 inline h-3.5 w-3.5" />
+  )
+}
+
+/** Render the formula configuration section (shared between create and edit) */
+function FormulaConfigSection({
+  inputs,
+  formula,
+  onFormulaChange,
+  onAddInput,
+  onRemoveInput,
+  onUpdateAlias,
+  getTestTypeName,
+}: {
+  inputs: FormulaInputEntry[]
+  formula: string
+  onFormulaChange: (v: string) => void
+  onAddInput: () => void
+  onRemoveInput: (testTypeId: string) => void
+  onUpdateAlias: (testTypeId: string, alias: string) => void
+  getTestTypeName: (id: string) => string
+}) {
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+      <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
+
+      {/* Formula inputs: selected test types */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Types de test en entrée
+        </label>
+        {inputs.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic mb-2">
+            Aucun type de test source sélectionné
+          </p>
+        ) : (
+          <div className="space-y-1.5 mb-2">
+            {inputs.map((input) => (
+              <div key={input.testTypeId} className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 min-w-[120px] truncate">
+                  {getTestTypeName(input.testTypeId)}
+                </span>
+                <span className="text-xs text-gray-400">→</span>
+                <TextInput
+                  size="xs"
+                  placeholder="alias"
+                  value={input.alias}
+                  onChange={(e) => onUpdateAlias(input.testTypeId, e.target.value)}
+                  className="flex-1"
+                  styles={{ input: { fontSize: "0.75rem" } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveInput(input.testTypeId)}
+                  className="p-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button variant="outline" size="compact-xs" onClick={onAddInput}>
+          <Plus className="mr-1 h-3 w-3" />
+          Ajouter un type de test
+        </Button>
+      </div>
+
+      {/* Built-in variables */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Variables prédéfinies disponibles
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {BUILTIN_VARS.map((v) => (
+            <span
+              key={v.name}
+              className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
+              title={v.description}
+            >
+              <code>{`{${v.name}}`}</code>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Formula */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Formule <span className="text-gray-400 font-normal">(ex: {`{vitesse} / {temps} * 3.6`})</span>
+        </label>
+        <TextInput
+          size="xs"
+          value={formula}
+          onChange={(e) => onFormulaChange(e.target.value)}
+          placeholder={'Ex: {distance} / {temps} * 3.6'}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** Picker modal for selecting a test type as formula input */
+function FormulaInputPickerModal({
+  opened,
+  available,
+  onClose,
+  onSelect,
+}: {
+  opened: boolean
+  available: TestType[]
+  onClose: () => void
+  onSelect: (tt: TestType) => void
+}) {
+  const [inputSearch, setInputSearch] = useState("")
+
+  useEffect(() => {
+    if (!opened) setInputSearch("")
+  }, [opened])
+
+  const filtered = available.filter(
+    (t) =>
+      !inputSearch ||
+      t.name.toLowerCase().includes(inputSearch.toLowerCase()) ||
+      t.category?.toLowerCase().includes(inputSearch.toLowerCase())
+  )
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Ajouter un type de test source"
+      size="sm"
+      trapFocus={false}
+      returnFocus={false}
+    >
+      <TextInput
+        placeholder="Rechercher un type de test..."
+        value={inputSearch}
+        onChange={(e) => setInputSearch(e.target.value)}
+        size="xs"
+        className="mb-2"
+      />
+      {filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {available.length === 0
+            ? "Tous les types de test sont déjà utilisés comme entrée."
+            : "Aucun résultat trouvé."}
+        </p>
+      ) : (
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {filtered.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t)}
+              className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-blue-50 transition-colors"
+            >
+              <span className="font-medium">{t.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">({t.category})</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 export default function TestTypesPage() {
   const router = useRouter()
   const [testTypes, setTestTypes] = useState<TestType[]>([])
@@ -97,7 +280,6 @@ export default function TestTypesPage() {
 
   // Pick formula input test type
   const [pickInputOpen, setPickInputOpen] = useState<"create" | "edit" | null>(null)
-  const [inputSearch, setInputSearch] = useState("")
 
   useEffect(() => {
     fetchTestTypes()
@@ -172,7 +354,6 @@ export default function TestTypesPage() {
       setEditForm((p) => ({ ...p, formulaInputs: [...p.formulaInputs, entry] }))
     }
     setPickInputOpen(null)
-    setInputSearch("")
   }
 
   function removeFormulaInput(target: "create" | "edit", testTypeId: string) {
@@ -341,17 +522,6 @@ export default function TestTypesPage() {
     }
   }
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) {
-      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-muted-foreground/40" />
-    }
-    return sortDir === "asc" ? (
-      <ArrowUp className="ml-1 inline h-3.5 w-3.5" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3.5 w-3.5" />
-    )
-  }
-
   const sortedTestTypes = useMemo(() => {
     if (!sortField) return testTypes
     return [...testTypes].sort((a, b) => {
@@ -362,167 +532,6 @@ export default function TestTypesPage() {
       return 0
     })
   }, [testTypes, sortField, sortDir])
-
-  /** Render the formula configuration section (shared between create and edit) */
-  function FormulaConfigSection({
-    inputs,
-    formula,
-    onFormulaChange,
-    target,
-    onAddInput,
-    onRemoveInput,
-    onUpdateAlias,
-  }: {
-    inputs: FormulaInputEntry[]
-    formula: string
-    onFormulaChange: (v: string) => void
-    target: "create" | "edit"
-    onAddInput: () => void
-    onRemoveInput: (testTypeId: string) => void
-    onUpdateAlias: (testTypeId: string, alias: string) => void
-  }) {
-    return (
-      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
-        <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
-
-        {/* Formula inputs: selected test types */}
-        <div>
-          <label className="block text-xs font-medium text-blue-600 mb-1">
-            Types de test en entrée
-          </label>
-          {inputs.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic mb-2">
-              Aucun type de test source sélectionné
-            </p>
-          ) : (
-            <div className="space-y-1.5 mb-2">
-              {inputs.map((input) => (
-                <div key={input.testTypeId} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 min-w-[120px] truncate">
-                    {getTestTypeName(input.testTypeId)}
-                  </span>
-                  <span className="text-xs text-gray-400">→</span>
-                  <TextInput
-                    size="xs"
-                    placeholder="alias"
-                    value={input.alias}
-                    onChange={(e) => onUpdateAlias(input.testTypeId, e.target.value)}
-                    className="flex-1"
-                    styles={{ input: { fontSize: "0.75rem" } }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onRemoveInput(input.testTypeId)}
-                    className="p-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <Button variant="outline" size="compact-xs" onClick={onAddInput}>
-            <Plus className="mr-1 h-3 w-3" />
-            Ajouter un type de test
-          </Button>
-        </div>
-
-        {/* Built-in variables */}
-        <div>
-          <label className="block text-xs font-medium text-blue-600 mb-1">
-            Variables prédéfinies disponibles
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {BUILTIN_VARS.map((v) => (
-              <span
-                key={v.name}
-                className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
-                title={v.description}
-              >
-                <code>{`{${v.name}}`}</code>
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Formula */}
-        <div>
-          <label className="block text-xs font-medium text-blue-600 mb-1">
-            Formule <span className="text-gray-400 font-normal">(ex: {`{vitesse} / {temps} * 3.6`})</span>
-          </label>
-          <TextInput
-            size="xs"
-            value={formula}
-            onChange={(e) => onFormulaChange(e.target.value)}
-            placeholder={'Ex: {distance} / {temps} * 3.6'}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  /** Picker modal for selecting a test type as formula input */
-  function FormulaInputPickerModal({
-    opened,
-    target,
-    onClose,
-    onSelect,
-  }: {
-    opened: boolean
-    target: "create" | "edit"
-    onClose: () => void
-    onSelect: (tt: TestType) => void
-  }) {
-    const currentInputs = target === "create" ? newType.formulaInputs : editForm.formulaInputs
-    const available = getAvailableInputTypes(currentInputs)
-    const filtered = available.filter(
-      (t) =>
-        !inputSearch ||
-        t.name.toLowerCase().includes(inputSearch.toLowerCase()) ||
-        t.category?.toLowerCase().includes(inputSearch.toLowerCase())
-    )
-
-    return (
-      <Modal
-        opened={opened}
-        onClose={() => { onClose(); setInputSearch("") }}
-        title="Ajouter un type de test source"
-        size="sm"
-      >
-        <TextInput
-          placeholder="Rechercher un type de test..."
-          value={inputSearch}
-          onChange={(e) => setInputSearch(e.target.value)}
-          size="xs"
-          className="mb-2"
-        />
-        {filtered.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {available.length === 0
-              ? "Tous les types de test sont déjà utilisés comme entrée."
-              : "Aucun résultat trouvé."}
-          </p>
-        ) : (
-          <div className="max-h-48 overflow-y-auto space-y-0.5">
-            {filtered.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  const defaultAlias = t.name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")
-                  addFormulaInput(target, t, defaultAlias)
-                }}
-                className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-blue-50 transition-colors"
-              >
-                <span className="font-medium">{t.name}</span>
-                <span className="text-xs text-muted-foreground ml-2">({t.category})</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </Modal>
-    )
-  }
 
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
@@ -557,19 +566,19 @@ export default function TestTypesPage() {
                 <Table.Th>
                   <button onClick={() => handleSort("name")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
                     Nom
-                    <SortIcon field="name" />
+                    <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </Table.Th>
                 <Table.Th>
                   <button onClick={() => handleSort("category")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
                     Catégorie
-                    <SortIcon field="category" />
+                    <SortIcon field="category" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </Table.Th>
                 <Table.Th>
                   <button onClick={() => handleSort("unit")} className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline">
                     Unité
-                    <SortIcon field="unit" />
+                    <SortIcon field="unit" sortField={sortField} sortDir={sortDir} />
                   </button>
                 </Table.Th>
                 <Table.Th ta="center">Supérieur = Meilleur</Table.Th>
@@ -651,7 +660,7 @@ export default function TestTypesPage() {
       </Card>
 
       {/* Edit Modal */}
-      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md">
+      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md" trapFocus={false} returnFocus={false}>
         <p className="text-sm text-muted-foreground mb-4">
           Modifiez les informations du type de test.
         </p>
@@ -731,10 +740,10 @@ export default function TestTypesPage() {
               inputs={editForm.formulaInputs}
               formula={editForm.formula}
               onFormulaChange={(v) => setEditForm((p) => ({ ...p, formula: v }))}
-              target="edit"
               onAddInput={() => setPickInputOpen("edit")}
               onRemoveInput={(id) => removeFormulaInput("edit", id)}
               onUpdateAlias={(id, alias) => updateAlias("edit", id, alias)}
+              getTestTypeName={getTestTypeName}
             />
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -767,7 +776,7 @@ export default function TestTypesPage() {
       </Modal>
 
       {/* Create Dialog */}
-      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md">
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md" trapFocus={false} returnFocus={false}>
         <p className="text-sm text-muted-foreground mb-4">
           Créez un nouveau type de test pour les évaluations.
         </p>
@@ -844,10 +853,10 @@ export default function TestTypesPage() {
               inputs={newType.formulaInputs}
               formula={newType.formula}
               onFormulaChange={(v) => setNewType((p) => ({ ...p, formula: v }))}
-              target="create"
               onAddInput={() => setPickInputOpen("create")}
               onRemoveInput={(id) => removeFormulaInput("create", id)}
               onUpdateAlias={(id, alias) => updateAlias("create", id, alias)}
+              getTestTypeName={getTestTypeName}
             />
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -921,9 +930,19 @@ export default function TestTypesPage() {
       {/* Formula input picker */}
       <FormulaInputPickerModal
         opened={pickInputOpen !== null}
-        target={pickInputOpen ?? "create"}
-        onClose={() => { setPickInputOpen(null); setInputSearch("") }}
-        onSelect={() => {}}
+        available={getAvailableInputTypes(
+          pickInputOpen === "create" ? newType.formulaInputs : editForm.formulaInputs
+        )}
+        onClose={() => setPickInputOpen(null)}
+        onSelect={(tt) => {
+          const target = pickInputOpen ?? "create"
+          const defaultAlias = tt.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "_")
+            .replace(/_+/g, "_")
+            .replace(/^_|_$/g, "")
+          addFormulaInput(target, tt, defaultAlias)
+        }}
       />
     </div>
   )
