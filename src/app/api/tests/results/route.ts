@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { evaluateFormula, FormulaInput } from "@/lib/formula";
 
 export const dynamic = "force-dynamic";
 
@@ -143,6 +144,107 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // ── Auto-calculation of dependent test results ──
+    try {
+      // Find all calculated test types whose formulaInputs contain the saved testTypeId
+      const calculatedTypes = await prisma.testType.findMany({
+        where: { isCalculated: true },
+        select: { id: true, name: true, formula: true, formulaInputs: true },
+      });
+
+      for (const calcType of calculatedTypes) {
+        if (!calcType.formula) continue;
+        const inputs = (calcType.formulaInputs as FormulaInput[] | null) ?? [];
+
+        // Does this calculated type depend on the test type that was just saved?
+        const dependsOnSaved = inputs.some(
+          (input) => input.testTypeId === testTypeId
+        );
+        if (!dependsOnSaved) continue;
+
+        // Check if ALL inputs for this calculated test type have results for this athlete
+        let allInputsAvailable = true;
+        for (const input of inputs) {
+          const existing = await prisma.testResult.findFirst({
+            where: { athleteId, testTypeId: input.testTypeId },
+            orderBy: { date: "desc" },
+          });
+          if (!existing) {
+            allInputsAvailable = false;
+            break;
+          }
+        }
+        if (!allInputsAvailable) continue;
+
+        // Build the athlete context for evaluation
+        const athleteForCalc = athlete; // already fetched above
+
+        let age: number | null = null;
+        if (athleteForCalc.birthDate) {
+          const now = new Date();
+          const birth = new Date(athleteForCalc.birthDate);
+          age = now.getFullYear() - birth.getFullYear();
+          const m = now.getMonth() - birth.getMonth();
+          if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+            age--;
+          }
+        }
+
+        const getTestValue = async (tid: string): Promise<number | null> => {
+          const r = await prisma.testResult.findFirst({
+            where: { athleteId, testTypeId: tid },
+            orderBy: { date: "desc" },
+          });
+          if (!r) return null;
+          return Number(r.value);
+        };
+
+        const ctx = {
+          getTestValue,
+          athlete: {
+            age,
+            poids: athleteForCalc.weightKg
+              ? Number(athleteForCalc.weightKg)
+              : null,
+            taille: athleteForCalc.heightCm
+              ? Number(athleteForCalc.heightCm)
+              : null,
+            genre:
+              athleteForCalc.gender === "M"
+                ? 1
+                : athleteForCalc.gender === "F"
+                  ? 2
+                  : null,
+          },
+        };
+
+        const formulaResult = await evaluateFormula(
+          calcType.formula,
+          inputs,
+          ctx
+        );
+
+        if (formulaResult.value !== null) {
+          await prisma.testResult.create({
+            data: {
+              athleteId,
+              testTypeId: calcType.id,
+              value: formulaResult.value,
+              date: date ? new Date(date) : new Date(),
+              notes: "Calculé automatiquement",
+              recordedById: session.userId,
+            },
+          });
+        }
+      }
+    } catch (calcError) {
+      // Log but don't fail the original request
+      console.error(
+        "Auto-calculation error (non-fatal):",
+        calcError
+      );
+    }
 
     return NextResponse.json(
       {

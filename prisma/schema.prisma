@@ -84,6 +84,7 @@ model Team {
   assignments SessionAssignment[]
   sessions   Session[]
   planningEntries PlanningEntry[]
+  visibleTests    TeamTestType[]
 
   @@map("Team")
 }
@@ -195,7 +196,6 @@ model TestType {
   description    String?
   normMale       Decimal? @map("norm_male") @db.Decimal(10, 2)
   normFemale     Decimal? @map("norm_female") @db.Decimal(10, 2)
-  showOnTeamPage Boolean  @default(true) @map("show_on_team_page")
   isSystem       Boolean  @default(false) @map("is_system")
   isUnilateral   Boolean  @default(false) @map("is_unilateral")
   isCalculated   Boolean  @default(false) @map("is_calculated")
@@ -203,7 +203,8 @@ model TestType {
   formulaInputs  Json?    @map("formula_inputs") // [{ testTypeId, alias, unit }]
   createdAt      DateTime @default(now()) @map("created_at")
 
-  results TestResult[]
+  results     TestResult[]
+  teamVisibilities TeamTestType[]
 
   @@map("TestType")
 }
@@ -483,4 +484,17 @@ model UserRoleAssignment {
 
   @@unique([userId, roleId])
   @@map("UserRoleAssignment")
+}
+
+model TeamTestType {
+  id         String @id @default(uuid())
+  teamId     String @map("team_id")
+  testTypeId String @map("test_type_id")
+  visible    Boolean @default(true)
+
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  testType TestType @relation(fields: [testTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, testTypeId])
+  @@map("TeamTestType")
 }

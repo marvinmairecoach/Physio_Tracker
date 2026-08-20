@@ -14,7 +14,6 @@ interface TestType {
   higherIsBetter: boolean
   normMale: number | null
   normFemale: number | null
-  showOnTeamPage: boolean
   isUnilateral: boolean
   isCalculated?: boolean
   formula?: string | null
@@ -281,7 +280,6 @@ export default function TestTypesPage() {
     higherIsBetter: true,
     normMale: "",
     normFemale: "",
-    showOnTeamPage: true,
     isUnilateral: false,
     isCalculated: false,
     formula: "",
@@ -299,7 +297,6 @@ export default function TestTypesPage() {
     higherIsBetter: true,
     normMale: "",
     normFemale: "",
-    showOnTeamPage: true,
     isUnilateral: false,
     isCalculated: false,
     formula: "",
@@ -436,7 +433,6 @@ export default function TestTypesPage() {
           higherIsBetter: newType.higherIsBetter,
           normMale: newType.normMale || null,
           normFemale: newType.normFemale || null,
-          showOnTeamPage: newType.showOnTeamPage,
           isUnilateral: newType.isUnilateral,
           isCalculated: newType.isCalculated,
           formula: newType.isCalculated ? newType.formula : null,
@@ -445,7 +441,7 @@ export default function TestTypesPage() {
       })
       if (!res.ok) throw new Error("Erreur lors de la création")
       setCreateOpen(false)
-      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", showOnTeamPage: true, isUnilateral: false, isCalculated: false, formula: "", formulaInputs: [] })
+      setNewType({ name: "", category: "", unit: "", higherIsBetter: true, normMale: "", normFemale: "", isUnilateral: false, isCalculated: false, formula: "", formulaInputs: [] })
       await fetchTestTypes()
     } catch (err: unknown) {
       console.error(err)
@@ -463,7 +459,6 @@ export default function TestTypesPage() {
       higherIsBetter: t.higherIsBetter,
       normMale: t.normMale !== null ? String(t.normMale) : "",
       normFemale: t.normFemale !== null ? String(t.normFemale) : "",
-      showOnTeamPage: t.showOnTeamPage,
       isUnilateral: t.isUnilateral,
       isCalculated: t.isCalculated ?? false,
       formula: t.formula ?? "",
@@ -491,7 +486,6 @@ export default function TestTypesPage() {
           higherIsBetter: editForm.higherIsBetter,
           normMale: editForm.normMale || null,
           normFemale: editForm.normFemale || null,
-          showOnTeamPage: editForm.showOnTeamPage,
           isUnilateral: editForm.isUnilateral,
           isCalculated: editForm.isCalculated,
           formula: editForm.isCalculated ? editForm.formula : null,
@@ -505,20 +499,6 @@ export default function TestTypesPage() {
       console.error(err)
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleToggleShowOnTeamPage(testType: TestType) {
-    try {
-      const res = await fetch(`/api/tests/types/${testType.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ showOnTeamPage: !testType.showOnTeamPage }),
-      })
-      if (!res.ok) throw new Error("Erreur")
-      await fetchTestTypes()
-    } catch (err: unknown) {
-      console.error(err)
     }
   }
 
@@ -622,7 +602,6 @@ export default function TestTypesPage() {
                 <Table.Th ta="center">Supérieur = Meilleur</Table.Th>
                 <Table.Th ta="center">Norme H</Table.Th>
                 <Table.Th ta="center">Norme F</Table.Th>
-                <Table.Th ta="center">Afficher équipe</Table.Th>
                 <Table.Th ta="center">Unilatéral</Table.Th>
                 <Table.Th ta="center">Calculé</Table.Th>
                 <Table.Th ta="center">Actions</Table.Th>
@@ -631,7 +610,7 @@ export default function TestTypesPage() {
             <Table.Tbody>
               {sortedTestTypes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={10} className="text-center text-muted-foreground">
+                  <Table.Td colSpan={9} className="text-center text-muted-foreground">
                     Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
@@ -655,14 +634,6 @@ export default function TestTypesPage() {
                       <span className="text-sm font-medium">
                         {t.normFemale !== null ? t.normFemale : "—"}
                       </span>
-                    </Table.Td>
-                    <Table.Td ta="center">
-                      <Toggle
-                        id={`show-team-${t.id}`}
-                        checked={t.showOnTeamPage}
-                        onChange={() => handleToggleShowOnTeamPage(t)}
-                        label=""
-                      />
                     </Table.Td>
                     <Table.Td ta="center">
                       <Toggle
@@ -754,14 +725,6 @@ export default function TestTypesPage() {
             <option value="true">Oui</option>
             <option value="false">Non</option>
           </TextInput>
-          <div className="flex items-center gap-3 py-2">
-            <Toggle
-              id="edit-show-team"
-              checked={editForm.showOnTeamPage}
-              onChange={(v) => setEditForm((p) => ({ ...p, showOnTeamPage: v }))}
-              label="Afficher dans les résultats de l'équipe"
-            />
-          </div>
           <div className="flex items-center gap-3 py-2">
             <Toggle
               id="edit-is-unilateral"
@@ -870,14 +833,6 @@ export default function TestTypesPage() {
             <option value="true">Oui</option>
             <option value="false">Non</option>
           </TextInput>
-          <div className="flex items-center gap-3 py-2">
-            <Toggle
-              id="new-show-team"
-              checked={newType.showOnTeamPage}
-              onChange={(v) => setNewType((p) => ({ ...p, showOnTeamPage: v }))}
-              label="Afficher dans les résultats de l'équipe"
-            />
-          </div>
           <div className="flex items-center gap-3 py-2">
             <Toggle
               id="new-is-unilateral"

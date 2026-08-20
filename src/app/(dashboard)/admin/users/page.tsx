@@ -64,6 +64,15 @@ export default function AdminUsersPage() {
   const [roleEditCheckedIds, setRoleEditCheckedIds] = useState<string[]>([])
   const [savingRoles, setSavingRoles] = useState(false)
 
+  // Role definition management (CRUD)
+  const [roleManageOpen, setRoleManageOpen] = useState(false)
+  const [newRoleName, setNewRoleName] = useState("")
+  const [creatingRole, setCreatingRole] = useState(false)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+  const [editingRoleName, setEditingRoleName] = useState("")
+  const [savingEditRole, setSavingEditRole] = useState(false)
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
+
   useEffect(() => {
     fetchUsers()
     fetchRoles()
@@ -141,6 +150,70 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleCreateRole(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newRoleName.trim()) return
+    setCreatingRole(true)
+    try {
+      const res = await fetch("/api/users/roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newRoleName.trim() }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur")
+      }
+      setNewRoleName("")
+      fetchRoles()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setCreatingRole(false)
+    }
+  }
+
+  async function handleRenameRole(roleId: string) {
+    if (!editingRoleName.trim()) return
+    setSavingEditRole(true)
+    try {
+      const res = await fetch(`/api/users/roles/${roleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editingRoleName.trim() }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur")
+      }
+      setEditingRoleId(null)
+      setEditingRoleName("")
+      fetchRoles()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setSavingEditRole(false)
+    }
+  }
+
+  async function handleDeleteRole(roleId: string) {
+    setDeletingRoleId(roleId)
+    try {
+      const res = await fetch(`/api/users/roles/${roleId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur")
+      }
+      setDeletingRoleId(null)
+      fetchRoles()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+      setDeletingRoleId(null)
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -172,10 +245,16 @@ export default function AdminUsersPage() {
             Administrer les comptes, rôles et permissions
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvel utilisateur
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setRoleManageOpen(true)}>
+            <Shield className="mr-2 h-4 w-4" />
+            Gérer les rôles
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvel utilisateur
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -381,6 +460,114 @@ export default function AdminUsersPage() {
           <Button onClick={handleSaveRoles} disabled={savingRoles}>
             {savingRoles ? "Enregistrement..." : "Enregistrer"}
           </Button>
+        </div>
+      </Modal>
+
+      {/* Manage role definitions (CRUD) */}
+      <Modal
+        opened={roleManageOpen}
+        onClose={() => setRoleManageOpen(false)}
+        title="Gérer les définitions de rôles"
+        size="md"
+      >
+        <p className="text-sm text-muted-foreground mb-4">
+          Créez, renommez ou supprimez les rôles disponibles dans l'application.
+        </p>
+
+        {/* Create new role */}
+        <form onSubmit={handleCreateRole} className="flex items-center gap-2 mb-4">
+          <input
+            type="text"
+            value={newRoleName}
+            onChange={(e) => setNewRoleName(e.target.value)}
+            placeholder="Nom du nouveau rôle"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            required
+          />
+          <Button type="submit" disabled={creatingRole || !newRoleName.trim()}>
+            {creatingRole ? "Création..." : "Créer"}
+          </Button>
+        </form>
+
+        {/* Existing roles list */}
+        <div className="space-y-1">
+          {allRoles.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">
+              Aucun rôle défini. Créez-en un ci-dessus.
+            </p>
+          ) : (
+            allRoles.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+              >
+                {editingRoleId === r.id ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="text"
+                      value={editingRoleName}
+                      onChange={(e) => setEditingRoleName(e.target.value)}
+                      className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRenameRole(r.id)
+                        if (e.key === "Escape") {
+                          setEditingRoleId(null)
+                          setEditingRoleName("")
+                        }
+                      }}
+                    />
+                    <Button
+                      size="compact-sm"
+                      onClick={() => handleRenameRole(r.id)}
+                      disabled={savingEditRole || !editingRoleName.trim()}
+                    >
+                      {savingEditRole ? "..." : "OK"}
+                    </Button>
+                    <Button
+                      size="compact-sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingRoleId(null)
+                        setEditingRoleName("")
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-sm font-medium">{r.name}</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="compact-sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingRoleId(r.id)
+                          setEditingRoleName(r.name)
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="compact-sm"
+                        variant="outline"
+                        className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                        onClick={() => handleDeleteRole(r.id)}
+                        disabled={deletingRoleId === r.id}
+                      >
+                        {deletingRoleId === r.id ? (
+                          <span className="text-xs">...</span>
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </Modal>
     </div>

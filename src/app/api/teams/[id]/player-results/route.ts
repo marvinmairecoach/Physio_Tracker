@@ -35,9 +35,21 @@ export async function GET(
     }
 
     // Récupérer tous les types de test
-    const testTypes = await prisma.testType.findMany({
+    let testTypes = await prisma.testType.findMany({
       orderBy: { name: "asc" },
     });
+
+    // Filter to only visible test types for this team
+    const teamVisibilities = await prisma.teamTestType.findMany({
+      where: { teamId: id },
+    });
+    if (teamVisibilities.length > 0) {
+      const visibleIds = new Set(
+        teamVisibilities.filter((tv) => tv.visible).map((tv) => tv.testTypeId)
+      );
+      testTypes = testTypes.filter((tt) => visibleIds.has(tt.id));
+    }
+    // If no TeamTestType records exist yet for this team, show all test types (default)
 
     // Pour chaque type de test, calculer la moyenne d'équipe
     const testTypeAverages: Record<string, { average: number; higherIsBetter: boolean; unit: string }> = {};
@@ -108,7 +120,6 @@ export async function GET(
         name: tt.name,
         unit: tt.unit,
         higherIsBetter: tt.higherIsBetter,
-        showOnTeamPage: tt.showOnTeamPage,
         teamAverage: testTypeAverages[tt.id].average,
         normMale: tt.normMale ? Number(tt.normMale) : null,
         normFemale: tt.normFemale ? Number(tt.normFemale) : null,

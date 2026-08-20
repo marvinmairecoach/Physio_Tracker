@@ -27,6 +27,11 @@ export default function EditTeamPage() {
   const [coachSearch, setCoachSearch] = useState("")
   const [addingCoach, setAddingCoach] = useState(false)
 
+  // Test type visibility
+  const [allTestTypes, setAllTestTypes] = useState<{ id: string; name: string; category: string; unit: string }[]>([])
+  const [visibleTestTypeIds, setVisibleTestTypeIds] = useState<Set<string>>(new Set())
+  const [testTypesLoaded, setTestTypesLoaded] = useState(false)
+
   useEffect(() => {
     async function loadTeam() {
       try {
@@ -55,6 +60,25 @@ export default function EditTeamPage() {
             )
           )
         }
+
+        // Load test types and team visibility
+        const [testTypesRes, teamTestTypesRes] = await Promise.all([
+          fetch("/api/tests/types"),
+          fetch(`/api/teams/${teamId}/test-types`),
+        ])
+        if (testTypesRes.ok) {
+          const ttData = await testTypesRes.json()
+          setAllTestTypes(Array.isArray(ttData) ? ttData : ttData.testTypes ?? [])
+        }
+        if (teamTestTypesRes.ok) {
+          const ttData = await teamTestTypesRes.json()
+          const visibleIds = new Set<string>()
+          for (const tt of (ttData.testTypes ?? [])) {
+            if (tt.visible) visibleIds.add(tt.id)
+          }
+          setVisibleTestTypeIds(visibleIds)
+        }
+        setTestTypesLoaded(true)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Une erreur est survenue")
       } finally {
@@ -86,6 +110,18 @@ export default function EditTeamPage() {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.error || "Erreur lors de la modification")
       }
+
+      // Save test type visibility
+      const testTypesRes = await fetch(`/api/teams/${teamId}/test-types`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testTypeIds: Array.from(visibleTestTypeIds) }),
+      })
+      if (!testTypesRes.ok) {
+        const errData = await testTypesRes.json().catch(() => ({}))
+        throw new Error(errData.error || "Erreur lors de la sauvegarde des types de test")
+      }
+
       router.push("/teams")
       router.refresh()
     } catch (err: unknown) {
@@ -261,6 +297,42 @@ export default function EditTeamPage() {
             )}
             {coachSearch && filteredAvailable.length === 0 && (
               <p className="text-sm text-gray-500 mt-1">Aucun coach disponible</p>
+            )}
+          </div>
+
+          {/* Types de test visibles */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Types de test visibles</label>
+            {!testTypesLoaded ? (
+              <p className="text-sm text-gray-500">Chargement...</p>
+            ) : allTestTypes.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucun type de test disponible</p>
+            ) : (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-1">
+                {allTestTypes.map((tt) => (
+                  <label
+                    key={tt.id}
+                    className="flex items-center gap-2 cursor-pointer py-0.5 text-sm hover:text-blue-700 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleTestTypeIds.has(tt.id)}
+                      onChange={(e) => {
+                        const next = new Set(visibleTestTypeIds)
+                        if (e.target.checked) {
+                          next.add(tt.id)
+                        } else {
+                          next.delete(tt.id)
+                        }
+                        setVisibleTestTypeIds(next)
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{tt.name}</span>
+                    <span className="text-xs text-gray-400">({tt.category} - {tt.unit})</span>
+                  </label>
+                ))}
+              </div>
             )}
           </div>
 

@@ -13,7 +13,7 @@ export async function PATCH(
 
     const { id } = params;
     const body = await request.json();
-    const { name, category, unit, higherIsBetter, description, normMale, normFemale, showOnTeamPage, isUnilateral, isCalculated, formula, formulaInputs } = body;
+    const { name, category, unit, higherIsBetter, description, normMale, normFemale, isUnilateral, isCalculated, formula, formulaInputs } = body;
 
     const existing = await prisma.testType.findUnique({ where: { id } });
     if (!existing) {
@@ -33,7 +33,6 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(normMale !== undefined && { normMale: normMale ? Number(normMale) : null }),
         ...(normFemale !== undefined && { normFemale: normFemale ? Number(normFemale) : null }),
-        ...(showOnTeamPage !== undefined && { showOnTeamPage }),
         ...(isUnilateral !== undefined && { isUnilateral }),
         ...(isCalculated !== undefined && { isCalculated }),
         ...(formula !== undefined && { formula: formula || null }),

@@ -33,7 +33,6 @@ interface TestTypeInfo {
   name: string
   unit: string
   higherIsBetter: boolean
-  showOnTeamPage: boolean
   teamAverage: number
   normMale: number | null
   normFemale: number | null
@@ -342,12 +341,8 @@ export default function TeamDetailPage() {
   // Show only active members in the table by default (can toggle with sort)
   const visibleMembers = sortedMembers
 
-  // Filter test types based on showOnTeamPage
-  const teamPageTestTypes = useMemo(
-    () => testTypes.filter((tt) => tt.showOnTeamPage === true),
-    [testTypes]
-  )
-  const displayTestTypes = showAllTests ? testTypes : teamPageTestTypes
+  // By default, show all test types (TeamTestType filtering will be added later)
+  const displayTestTypes = testTypes
 
   if (loading) return <div className="p-6 text-center text-gray-500">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
@@ -527,17 +522,6 @@ export default function TeamDetailPage() {
                   <span className="text-red-500 font-medium"> rouge</span> = en dessous de la moyenne
                 </p>
               </div>
-              {teamPageTestTypes.length < testTypes.length && (
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={() => setShowAllTests((prev) => !prev)}
-                >
-                  {showAllTests
-                    ? `Voir uniquement les ${teamPageTestTypes.length} test(s) sélectionné(s)`
-                    : `Voir tous les ${testTypes.length} tests`}
-                </Button>
-              )}
             </div>
           </div>
           {displayTestTypes.length === 0 ? (
