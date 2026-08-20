@@ -147,13 +147,6 @@ export async function POST(request: NextRequest) {
         assignments: createAssignments.length > 0
           ? { create: createAssignments }
           : undefined,
-        exercises: exerciseIds?.length
-          ? {
-              create: exerciseIds.map((exId: string) => ({
-                exerciseId: exId,
-              })),
-            }
-          : undefined,
       },
       include: {
         team: { select: { id: true, name: true } },
@@ -163,11 +156,33 @@ export async function POST(request: NextRequest) {
             athlete: { select: { id: true, firstName: true, lastName: true } },
           },
         },
-        exercises: {
-          include: { exercise: true },
-        },
       },
     });
+
+    // Auto-create SessionInvitations for all athletes in assigned teams
+    const teamIdsForInvites = new Set<string>();
+    createAssignments.forEach((a) => {
+      if (a.teamId) teamIdsForInvites.add(a.teamId);
+    });
+    for (const tId of teamIdsForInvites) {
+      const teamAthletes = await prisma.athleteTeam.findMany({
+        where: { teamId: tId, isActive: true },
+        select: { athleteId: true },
+      });
+      for (const ta of teamAthletes) {
+        const existing = await prisma.sessionInvitation.findFirst({
+          where: { sessionId: newSession.id, athleteId: ta.athleteId },
+        });
+        if (!existing) {
+          await prisma.sessionInvitation.create({
+            data: {
+              sessionId: newSession.id,
+              athleteId: ta.athleteId,
+            },
+          });
+        }
+      }
+    }
 
     return NextResponse.json(newSession, { status: 201 });
   } catch (error) {

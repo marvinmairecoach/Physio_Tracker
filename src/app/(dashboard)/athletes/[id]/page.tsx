@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, FileText, Upload, UserPlus, User, Phone, Mail, Calendar, Pencil, Trash2, Target, Search, Ruler, Weight, Loader2, Trash2 as TrashIcon, Check, X, CalendarDays, Archive } from "lucide-react"
 import {
@@ -110,6 +110,8 @@ export default function AthleteDetailPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState("")
+  const [sessionsList, setSessionsList] = useState<any[]>([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
 
   const isAdmin = userRole === "admin"
   const isStaff = userRole === "admin" || userRole === "coach"
@@ -179,6 +181,28 @@ export default function AthleteDetailPage() {
     }
     fetchDocuments()
   }, [athleteId])
+
+  // Fetch sessions
+  const fetchSessions = useCallback(async () => {
+    setSessionsLoading(true)
+    try {
+      const res = await fetch(`/api/athletes/${athleteId}/sessions`)
+      if (res.ok) {
+        const data = await res.json()
+        setSessionsList(Array.isArray(data) ? data : data.sessions ?? [])
+      } else {
+        setSessionsList([])
+      }
+    } catch {
+      setSessionsList([])
+    } finally {
+      setSessionsLoading(false)
+    }
+  }, [athleteId])
+
+  useEffect(() => {
+    fetchSessions()
+  }, [fetchSessions])
 
   // Fetch training load data
   useEffect(() => {
@@ -1366,6 +1390,68 @@ export default function AthleteDetailPage() {
           </div>
         </Card>
       )}
+
+      {/* Séances */}
+      <Card shadow="sm" radius="md" withBorder>
+        <Card.Section withBorder inheritPadding py="sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-700">
+              <CalendarDays className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">Séances</h2>
+            </div>
+          </div>
+        </Card.Section>
+        <div className="p-4">
+          {sessionsLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            </div>
+          ) : sessionsList.length === 0 ? (
+            <p className="text-center text-gray-400 py-4">Aucune séance</p>
+          ) : (
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Titre</Table.Th>
+                  <Table.Th>Type</Table.Th>
+                  <Table.Th className="whitespace-nowrap">Date</Table.Th>
+                  <Table.Th>Équipe</Table.Th>
+                  <Table.Th className="text-right">Participants</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {sessionsList.map((session: any) => (
+                  <Table.Tr
+                    key={session.id}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => router.push(`/sessions/${session.id}`)}
+                  >
+                    <Table.Td className="font-medium">{session.title}</Table.Td>
+                    <Table.Td>
+                      {session.type === "TRAINING" ? (
+                        <Badge color="blue" variant="light">Entraînement</Badge>
+                      ) : session.type === "MATCH" ? (
+                        <Badge color="green" variant="light">Match</Badge>
+                      ) : (
+                        <Badge color="gray" variant="light">{session.type}</Badge>
+                      )}
+                    </Table.Td>
+                    <Table.Td className="whitespace-nowrap text-sm text-gray-500">
+                      {new Date(session.date).toLocaleDateString("fr-FR")}
+                    </Table.Td>
+                    <Table.Td className="text-sm text-gray-500">
+                      {session.team?.name ?? "—"}
+                    </Table.Td>
+                    <Table.Td className="text-right text-sm text-gray-500">
+                      {session._count?.invitations ?? 0}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </div>
+      </Card>
 
       {/* Documents */}
       <Card shadow="sm" radius="md" withBorder>

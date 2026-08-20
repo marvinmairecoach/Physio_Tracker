@@ -13,7 +13,7 @@ export async function POST(
     await requireAuth();
     const { id } = params;
     const body = await request.json();
-    const { results } = body;
+    const { results, durationMin } = body;
 
     // results = [{ athleteId, rpe, rpeNotes }]
     if (!Array.isArray(results) || results.length === 0) {
@@ -87,6 +87,7 @@ export async function POST(
           where: { id: existingLoad.id },
           data: {
             rpe: r.rpe,
+            durationMin: durationMin || existingLoad.durationMin,
             notes: r.rpeNotes || existingLoad.notes,
           },
         });
@@ -104,13 +105,16 @@ export async function POST(
         });
         const recordedById = user?.id || "unknown";
 
+        const load = r.rpe * (durationMin || 0);
+
         await prisma.trainingLoad.create({
           data: {
             athlete: { connect: { id: r.athleteId } },
             recorder: { connect: { id: recordedById } },
             date: session.date,
             rpe: r.rpe,
-            durationMin: 0,
+            durationMin: durationMin || 0,
+            load,
             sessionType: "session",
             notes: r.rpeNotes || `RPE pour la séance: ${session.title}`,
           },

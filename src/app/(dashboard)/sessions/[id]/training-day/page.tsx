@@ -98,6 +98,9 @@ export default function TrainingDayPage() {
   const [savingRpe, setSavingRpe] = useState(false)
   const [rpeSaved, setRpeSaved] = useState(false)
 
+  // ── Session duration ──
+  const [sessionDuration, setSessionDuration] = useState(0)
+
   // ── Toast state ──
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -336,7 +339,7 @@ export default function TrainingDayPage() {
       const res = await fetch(`/api/sessions/${sessionId}/rpe/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results }),
+        body: JSON.stringify({ results, durationMin: sessionDuration }),
       })
 
       if (!res.ok) {
@@ -515,19 +518,37 @@ export default function TrainingDayPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {showWellness && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
-                  <CheckCircle className="h-3 w-3" />
-                  Questionnaire bien-être
-                </span>
-              )}
+            <div className="flex items-center gap-4">
               {showRpe && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-3 py-1 text-xs font-medium text-green-700">
-                  <Dumbbell className="h-3 w-3" />
-                  RPE
-                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground whitespace-nowrap">Durée (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={sessionDuration}
+                    onChange={(e) => setSessionDuration(parseInt(e.target.value) || 0)}
+                    className={`h-9 w-20 text-sm text-center rounded-md border border-input bg-background px-2 py-2 ${
+                      sessionDuration > 0 ? "border-[#228be6]/30 bg-blue-50/30" : ""
+                    }`}
+                    placeholder="min"
+                  />
+                </div>
               )}
+              <div className="flex items-center gap-2">
+                {showWellness && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+                    <CheckCircle className="h-3 w-3" />
+                    Questionnaire bien-être
+                  </span>
+                )}
+                {showRpe && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-3 py-1 text-xs font-medium text-green-700">
+                    <Dumbbell className="h-3 w-3" />
+                    RPE
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

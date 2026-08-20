@@ -7,21 +7,13 @@ import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import {
   ArrowLeft,
-  Dumbbell,
   Trash2,
-  Clock,
-  GripVertical,
-  Search,
-  ChevronUp,
-  ChevronDown,
-  Check,
   Loader2,
-  Image as ImageIcon,
   FileText,
   ClipboardCheck,
 } from "lucide-react"
 
-import { Button, Card, Badge, TextInput, Modal, Text, Group } from "@mantine/core"
+import { Button, Card, Badge, Modal, Text, Group } from "@mantine/core"
 
 // ── Interfaces ──────────────────────────────────
 interface Exercise {
@@ -644,133 +636,6 @@ export default function SessionDetailPage() {
             <EditorContent editor={descEditor} />
           </div>
       </Card>
-      <Card withBorder padding="md" radius="md">
-        <div className="flex flex-row items-center justify-between">
-          <Text fw={700} size="lg" className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5" />
-            Exercices <span className="text-muted-foreground font-normal">({items.length})</span>
-          </Text>
-          <div className="flex items-center gap-3">
-            {itemsSaving && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Sauvegarde...</span>}
-            {itemsLastSaved && !itemsSaving && <span className="flex items-center gap-1 text-xs text-green-600"><Check className="h-3 w-3" />Enregistré</span>}
-            {totalDuration > 0 && <span className="flex items-center gap-1 text-sm text-muted-foreground"><Clock className="h-4 w-4" /><strong>{totalDuration} min</strong></span>}
-            <Button variant="outline" size="compact-sm" onClick={() => setExoSearchOpen(true)}><Search className="mr-1 h-4 w-4" />Ajouter</Button>
-            <Button variant="outline" size="compact-sm" onClick={addRestPeriod}><Clock className="mr-1 h-4 w-4" />Récup</Button>
-          </div>
-        </div>
-        {items.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Dumbbell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Aucun exercice ajouté</p>
-              <div className="flex gap-2 justify-center mt-2">
-                <Button variant="subtle" size="compact-sm" onClick={() => setExoSearchOpen(true)}>Ajouter des exercices</Button>
-                <Button variant="subtle" size="compact-sm" onClick={addRestPeriod}>Ajouter une récupération</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div
-                  key={item.id}
-                  draggable
-                  onDragStart={() => handleDragStart(idx)}
-                  onDragOver={(e) => handleDragOver(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  className={`flex items-center gap-2 rounded-lg border p-2.5 transition-colors ${
-                    dragIndex === idx ? "opacity-50 border-primary" : "hover:bg-muted/30"
-                  } ${item.isRest ? "border-amber-200 bg-amber-50/30" : ""}`}
-                >
-                  <div className="cursor-grab text-muted-foreground hover:text-foreground"><GripVertical className="h-4 w-4" /></div>
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-bold text-primary">{idx + 1}</span>
-
-                  {item.isRest ? (
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-amber-700">⏱️ {item.label || "Récupération"}</p>
-                    </div>
-                  ) : (
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.exercise?.name}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-medium ${catColor(item.exercise?.category ?? "")}`}>
-                          {catLabel(item.exercise?.category ?? "")}
-                        </span>
-                        {item.exercise?.imageUrl && (
-                          <img src={item.exercise.imageUrl} alt="" className="h-5 w-5 rounded object-cover border" />
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-1">
-                    <TextInput type="number" min="0" max="999" placeholder="min"
-                      value={item.durationMin ?? ""}
-                      onChange={(e) => updateDuration(idx, e.target.value)}
-                      className="w-16 h-7 text-xs text-center" />
-                    <span className="text-xs text-muted-foreground">min</span>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5">
-                    <button type="button" onClick={() => moveItem(idx, "up")} disabled={idx === 0}
-                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveItem(idx, "down")} disabled={idx === items.length - 1}
-                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
-                  </div>
-
-                  <button type="button" onClick={() => removeItem(idx)}
-                    className="p-1 rounded hover:bg-red-50 hover:text-red-500 text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
-                </div>
-              ))}
-
-              {/* Total */}
-              {items.length > 0 && (
-                <div className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-2 mt-3">
-                  <span className="text-sm font-medium">Durée totale</span>
-                  <span className="text-lg font-bold">{totalDuration > 0 ? `${totalDuration} min` : "—"}</span>
-                </div>
-              )}
-            </div>
-          )}
-      </Card>
-
-      {/* ── Ajouter exercices dialog ── */}
-      <Modal opened={exoSearchOpen} onClose={() => setExoSearchOpen(false)} title="Ajouter des exercices" size="lg">
-        <Text size="sm" c="dimmed" mb="md">Sélectionne les exercices à ajouter à cette séance</Text>
-        <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <TextInput placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" autoFocus />
-            </div>
-            <div className="max-h-60 overflow-y-auto space-y-1 rounded-lg border p-1">
-              {filteredLibrary.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-3 text-center">Aucun exercice trouvé</p>
-              ) : (
-                filteredLibrary.map((ex) => {
-                  const added = items.some((item) => !item.isRest && item.exercise?.id === ex.id)
-                  return (
-                    <div key={ex.id}
-                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                        added ? "bg-muted/50 opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted"
-                      }`}
-                      onClick={() => !added && addExercise(ex)}>
-                      {ex.imageUrl ? (
-                        <img src={ex.imageUrl} alt="" className="w-7 h-7 rounded object-cover border" />
-                      ) : (
-                        <ImageIcon className="w-7 h-7 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-medium flex-1 truncate">{ex.name}</span>
-                      <span className={`text-[10px] rounded-full border px-2 py-0.5 shrink-0 ${catColor(ex.category)}`}>{catLabel(ex.category)}</span>
-                      {added && <Badge color="gray" variant="outline" size="xs">Ajouté</Badge>}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </div>
-          <Group justify="flex-end" mt="md">
-            <Button variant="outline" onClick={() => setExoSearchOpen(false)}>Terminé</Button>
-          </Group>
-      </Modal>
-
       {/* ── Delete Dialog ── */}
       <Modal opened={deleteOpen} onClose={() => setDeleteOpen(false)} title="Confirmer la suppression">
         <Text size="sm" mb="md">Êtes-vous sûr de vouloir supprimer la session &ldquo;{session.title}&rdquo; ?</Text>
