@@ -19,6 +19,7 @@ import {
   Activity,
   Timer,
   Mail,
+  CalendarDays,
 } from "lucide-react"
 
 interface NavItem {
@@ -54,6 +55,7 @@ const sections: NavSection[] = [
   {
     label: "COLLECTIF",
     items: [
+      { href: "/sessions", label: "Séances", icon: CalendarDays, roles: ["admin", "coach", "athlete"] },
       { href: "/teams", label: "Équipes", icon: Trophy, roles: ["admin", "coach", "athlete"] },
       { href: "/tests/field", label: "Jour de test", icon: ClipboardCheck, roles: ["admin", "coach"] },
     ],

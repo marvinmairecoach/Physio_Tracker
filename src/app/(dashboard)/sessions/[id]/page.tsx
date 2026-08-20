@@ -52,9 +52,16 @@ interface Session {
   endTime: string | null
   location: string | null
   status: string
+  dataCollectionStatus?: string
   isRecurring: boolean
   recurrenceRule: string | null
   team?: { id: string; name: string } | null
+  assignments?: {
+    id: string
+    teamId: string | null
+    team?: { id: string; name: string } | null
+    athlete?: { id: string; firstName: string; lastName: string } | null
+  }[]
   exercises?: SessionItem[]
 }
 
@@ -533,6 +540,7 @@ export default function SessionDetailPage() {
   })
   const totalDuration = items.reduce((sum, item) => sum + (item.durationMin ?? 0), 0)
   const isTraining = session?.type === "TRAINING"
+  const hasTeamAssignment = session?.team || session?.assignments?.some(a => a.teamId)
 
   // ── Render ──
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
@@ -562,7 +570,7 @@ export default function SessionDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {isTraining && session.team && (
+          {isTraining && hasTeamAssignment && (
             <Button variant="outline" component="a" href={`/sessions/${session.id}/training-day`}>
               <ClipboardCheck className="mr-2 h-4 w-4" />
               Jour d&apos;entraînement
