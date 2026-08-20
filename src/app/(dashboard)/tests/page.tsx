@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Search, Save, Pencil, Trash2, X, Check, Calculator } from "lucide-react"
 
 import { Button, Card, Table, TextInput, Modal, Select } from "@mantine/core"
@@ -27,6 +27,11 @@ interface TestType {
   unit: string
   isUnilateral?: boolean
   isCalculated?: boolean
+}
+
+interface Category {
+  id: string
+  name: string
 }
 
 interface TestResult {
@@ -82,6 +87,11 @@ export default function TestsPage() {
   } | null>(null)
   const [calcLoading, setCalcLoading] = useState(false)
 
+  // Category filter state
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const [testSearch, setTestSearch] = useState("")
+
   // Result search state
   const [resultSearch, setResultSearch] = useState("")
   // Edit state
@@ -101,11 +111,12 @@ export default function TestsPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [athletesRes, typesRes, resultsRes, teamsRes] = await Promise.all([
+        const [athletesRes, typesRes, resultsRes, teamsRes, catsRes] = await Promise.all([
           fetch("/api/athletes"),
           fetch("/api/tests/types"),
           fetch("/api/tests/results?limit=100"),
           fetch("/api/teams"),
+          fetch("/api/tests/categories"),
         ])
 
         if (athletesRes.ok) {
@@ -123,6 +134,10 @@ export default function TestsPage() {
         if (teamsRes.ok) {
           const data = await teamsRes.json()
           setTeams(Array.isArray(data) ? data : [])
+        }
+        if (catsRes.ok) {
+          const data = await catsRes.json()
+          setCategories(data.categories ?? [])
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Une erreur est survenue")
@@ -190,6 +205,32 @@ export default function TestsPage() {
   const selectedTestType = testTypes.find((tt) => tt.id === formData.testTypeId)
   const isUnilateral = selectedTestType?.isUnilateral ?? false
   const isCalculated = selectedTestType?.isCalculated ?? false
+
+  // Filter and group test types by category
+  const filteredTestTypes = useMemo(() => {
+    let filtered = testTypes
+    if (selectedCategory) {
+      filtered = filtered.filter((tt) => tt.category === selectedCategory)
+    }
+    if (testSearch) {
+      const q = testSearch.toLowerCase()
+      filtered = filtered.filter(
+        (tt) =>
+          tt.name.toLowerCase().includes(q) ||
+          tt.unit.toLowerCase().includes(q)
+      )
+    }
+    return filtered
+  }, [testTypes, selectedCategory, testSearch])
+
+  // Group test types by category name for display counts
+  const testTypeCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {}
+    testTypes.forEach((tt) => {
+      counts[tt.category] = (counts[tt.category] || 0) + 1
+    })
+    return counts
+  }, [testTypes])
 
   // Compute which results to show (filter by selected team + paginate)
   const teamAthleteIds = new Set(
@@ -411,8 +452,8 @@ export default function TestsPage() {
         </div>
         <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+              <div className="sm:col-span-1">
                 <label className="block text-sm font-medium mb-1">Équipe</label>
                 <select
                   value={selectedTeamId}
@@ -427,7 +468,7 @@ export default function TestsPage() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className="sm:col-span-1">
                 <Select
                   label="Athlète"
                   id="athleteId"
@@ -441,22 +482,78 @@ export default function TestsPage() {
                   nothingFoundMessage="Aucun athlète trouvé"
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-4">
                 <label className="block text-sm font-medium mb-1">Type de test</label>
-                <select
-                  name="testTypeId"
-                  value={formData.testTypeId}
-                  onChange={handleChange}
-                  required
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
-                  <option value="">Sélectionner...</option>
-                  {testTypes.map((tt) => (
-                    <option key={tt.id} value={tt.id}>
-                      {tt.name} ({tt.unit}){tt.isCalculated ? " ⚡" : ""}
-                    </option>
+                {/* Category chips */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCategory(""); setTestSearch("") }}
+                    className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                      selectedCategory === ""
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    Tous ({testTypes.length})
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(selectedCategory === cat.name ? "" : cat.name)}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${
+                        selectedCategory === cat.name
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      {cat.name} ({testTypeCountByCategory[cat.name] || 0})
+                    </button>
                   ))}
-                </select>
+                </div>
+                {/* Search + test type buttons */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher un test..."
+                    value={testSearch}
+                    onChange={(e) => setTestSearch(e.target.value)}
+                    className="w-full h-8 pl-7 pr-2 text-sm rounded-md border border-input bg-background"
+                  />
+                </div>
+                <div className="max-h-[160px] overflow-y-auto border rounded-md divide-y">
+                  {filteredTestTypes.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-400 text-center">
+                      Aucun test trouvé
+                    </div>
+                  ) : (
+                    filteredTestTypes.map((tt) => (
+                      <button
+                        key={tt.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, testTypeId: tt.id }))
+                          setTestSearch("")
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 transition-colors hover:bg-blue-50 ${
+                          formData.testTypeId === tt.id
+                            ? "bg-blue-100 font-medium text-blue-800"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        <span className="truncate">{tt.name}</span>
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs text-gray-400">{tt.unit}</span>
+                          {tt.isCalculated && (
+                            <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Calculé</span>
+                          )}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
               {isCalculated ? (
                 <div className="col-span-1 lg:col-span-2">
