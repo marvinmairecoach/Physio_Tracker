@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Pencil, Plus, ArrowUpDown, ArrowUp, ArrowDown, FolderKanban, Trash2, X } from "lucide-react"
 
-import { Button, Card, Table, Badge, TextInput, Modal, Switch } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
 
 interface TestType {
   id: string
@@ -40,6 +40,43 @@ const BUILTIN_VARS = [
   { name: "taille", label: "Taille (cm)", description: "Taille de l'athlète" },
   { name: "genre", label: "Genre (M=1, F=2)", description: "1 pour homme, 2 pour femme" },
 ]
+
+/** Simple toggle switch using native checkbox */
+function Toggle({
+  checked,
+  onChange,
+  label,
+  id,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+  id: string
+}) {
+  return (
+    <label htmlFor={id} className="inline-flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div
+        className={`relative w-10 h-5 rounded-full transition-colors ${
+          checked ? "bg-blue-600" : "bg-gray-300"
+        }`}
+      >
+        <div
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </div>
+      {label && <span className="text-sm">{label}</span>}
+    </label>
+  )
+}
 
 function SortIcon({
   field,
@@ -620,17 +657,19 @@ export default function TestTypesPage() {
                       </span>
                     </Table.Td>
                     <Table.Td ta="center">
-                      <Switch
+                      <Toggle
+                        id={`show-team-${t.id}`}
                         checked={t.showOnTeamPage}
                         onChange={() => handleToggleShowOnTeamPage(t)}
-                        size="sm"
+                        label=""
                       />
                     </Table.Td>
                     <Table.Td ta="center">
-                      <Switch
+                      <Toggle
+                        id={`uni-${t.id}`}
                         checked={t.isUnilateral}
                         onChange={() => handleToggleIsUnilateral(t)}
-                        size="sm"
+                        label=""
                       />
                     </Table.Td>
                     <Table.Td ta="center">
@@ -661,7 +700,7 @@ export default function TestTypesPage() {
       </Card>
 
       {/* Edit Modal */}
-      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }}>
+      <Modal opened={editModalOpen} onClose={closeEditModal} title="Modifier le type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }} keepMounted={false}>
         <p className="text-sm text-muted-foreground mb-4">
           Modifiez les informations du type de test.
         </p>
@@ -716,24 +755,27 @@ export default function TestTypesPage() {
             <option value="false">Non</option>
           </TextInput>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Afficher dans les résultats de l'équipe"
+            <Toggle
+              id="edit-show-team"
               checked={editForm.showOnTeamPage}
-              onChange={(e) => setEditForm((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
+              onChange={(v) => setEditForm((p) => ({ ...p, showOnTeamPage: v }))}
+              label="Afficher dans les résultats de l'équipe"
             />
           </div>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Test unilatéral"
+            <Toggle
+              id="edit-is-unilateral"
               checked={editForm.isUnilateral}
-              onChange={(e) => setEditForm((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
+              onChange={(v) => setEditForm((p) => ({ ...p, isUnilateral: v }))}
+              label="Test unilatéral"
             />
           </div>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Test calculé (formule)"
+            <Toggle
+              id="edit-is-calculated"
               checked={editForm.isCalculated}
-              onChange={(e) => setEditForm((p) => ({ ...p, isCalculated: e.currentTarget.checked }))}
+              onChange={(v) => setEditForm((p) => ({ ...p, isCalculated: v }))}
+              label="Test calculé (formule)"
             />
           </div>
           <div style={{ display: editForm.isCalculated ? "block" : "none" }}>
@@ -777,7 +819,7 @@ export default function TestTypesPage() {
       </Modal>
 
       {/* Create Dialog */}
-      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }}>
+      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau type de test" size="md" trapFocus={false} returnFocus={false} transitionProps={{ duration: 0, timingFunction: "ease" }} keepMounted={false}>
         <p className="text-sm text-muted-foreground mb-4">
           Créez un nouveau type de test pour les évaluations.
         </p>
@@ -829,24 +871,29 @@ export default function TestTypesPage() {
             <option value="false">Non</option>
           </TextInput>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Afficher dans les résultats de l'équipe"
+            <Toggle
+              id="new-show-team"
               checked={newType.showOnTeamPage}
-              onChange={(e) => setNewType((p) => ({ ...p, showOnTeamPage: e.currentTarget.checked }))}
+              onChange={(v) => setNewType((p) => ({ ...p, showOnTeamPage: v }))}
+              label="Afficher dans les résultats de l'équipe"
             />
           </div>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Test unilatéral"
+            <Toggle
+              id="new-is-unilateral"
               checked={newType.isUnilateral}
-              onChange={(e) => setNewType((p) => ({ ...p, isUnilateral: e.currentTarget.checked }))}
+              onChange={(v) => setNewType((p) => ({ ...p, isUnilateral: v }))}
+              label="Test unilatéral"
             />
           </div>
           <div className="flex items-center gap-3 py-2">
-            <Switch
-              label="Test calculé (formule)"
+            <Toggle
+              id="new-is-calculated"
               checked={newType.isCalculated}
-              onChange={(e) => setNewType((p) => ({ ...p, isCalculated: e.currentTarget.checked, formula: "", formulaInputs: [] }))}
+              onChange={(v) => {
+                setNewType((p) => ({ ...p, isCalculated: v, formula: "", formulaInputs: [] }))
+              }}
+              label="Test calculé (formule)"
             />
           </div>
           <div style={{ display: newType.isCalculated ? "block" : "none" }}>
@@ -890,7 +937,7 @@ export default function TestTypesPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm">
+      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm" transitionProps={{ duration: 0, timingFunction: "ease" }}>
         {deleteTarget && (
           <>
             <p className="text-sm text-muted-foreground mb-4">
@@ -907,7 +954,7 @@ export default function TestTypesPage() {
       </Modal>
 
       {/* New Category Modal */}
-      <Modal opened={newCatModalOpen} onClose={() => { setNewCatModalOpen(false); setNewCatName(""); }} title="Nouvelle catégorie" size="sm">
+      <Modal opened={newCatModalOpen} onClose={() => { setNewCatModalOpen(false); setNewCatName(""); }} title="Nouvelle catégorie" size="sm" transitionProps={{ duration: 0, timingFunction: "ease" }}>
         <p className="text-sm text-muted-foreground mb-4">
           Créez une nouvelle catégorie de test.
         </p>
