@@ -83,17 +83,9 @@ export async function POST(request: NextRequest) {
     const formulaResult = await evaluateFormula(testType.formula, inputs, ctx);
 
     if (formulaResult.value === null) {
-      let detail = "";
-      if (formulaResult.unknownAliases.length > 0) {
-        detail = `Alias inconnus dans la formule : ${formulaResult.unknownAliases.join(", ")}. Vérifiez l'orthographe.`;
-      } else if (formulaResult.missingInputs.length > 0) {
-        detail = `Données manquantes : ${formulaResult.missingInputs.join(", ")}.`;
-      } else {
-        detail = "La formule n'a pas pu être évaluée (vérifiez la syntaxe).";
-      }
       return NextResponse.json(
         {
-          error: `Impossible de calculer. ${detail}`,
+          error: `Impossible de calculer. ${formulaResult.errorMessage ?? "Vérifiez la syntaxe de la formule."}`,
           missingInputs: formulaResult.missingInputs,
           unknownAliases: formulaResult.unknownAliases,
         },
@@ -240,6 +232,7 @@ export async function GET(request: NextRequest) {
       inputValues,
       missingInputs: formulaResult.missingInputs,
       unknownAliases: formulaResult.unknownAliases,
+      errorMessage: formulaResult.errorMessage,
       missing: formulaResult.value === null,
     });
   } catch (error) {

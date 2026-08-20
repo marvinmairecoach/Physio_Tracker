@@ -77,6 +77,7 @@ export default function TestsPage() {
     inputValues: Record<string, number | null>
     missingInputs: string[]
     unknownAliases: string[]
+    errorMessage: string | null
     missing: boolean
   } | null>(null)
   const [calcLoading, setCalcLoading] = useState(false)
@@ -491,7 +492,12 @@ export default function TestsPage() {
                             ⚠️ Alias inconnus dans la formule : {calcPreview.unknownAliases.join(", ")}
                           </div>
                         )}
-                        {calcPreview.computed === null && (
+                        {calcPreview.computed === null && calcPreview.errorMessage && (
+                          <div className="text-xs text-red-600 font-medium">
+                            ⚠️ {calcPreview.errorMessage}
+                          </div>
+                        )}
+                        {calcPreview.computed === null && !calcPreview.errorMessage && (
                           <div className="text-xs text-amber-600">
                             ⚠️ Enregistrez d&apos;abord les résultats des tests sources pour cet athlète.
                           </div>
