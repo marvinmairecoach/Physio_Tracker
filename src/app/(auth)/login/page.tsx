@@ -1,12 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { TextInput, PasswordInput, Button, Card, Title, Text, Anchor } from "@mantine/core"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -25,8 +23,8 @@ export default function LoginPage() {
       })
 
       if (res.ok) {
-        router.push("/")
-        router.refresh()
+        // Full redirect to ensure cookie is properly set (fix Safari iPadOS)
+        window.location.href = "/"
       } else {
         const data = await res.json()
         setError(data.error || "Identifiants invalides")

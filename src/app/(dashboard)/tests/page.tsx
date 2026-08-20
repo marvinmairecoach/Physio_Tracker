@@ -76,6 +76,7 @@ export default function TestsPage() {
     computed: number | null
     inputValues: Record<string, number | null>
     missingInputs: string[]
+    unknownAliases: string[]
     missing: boolean
   } | null>(null)
   const [calcLoading, setCalcLoading] = useState(false)
@@ -483,6 +484,11 @@ export default function TestsPage() {
                         {calcPreview.computed === null && calcPreview.missingInputs?.length > 0 && (
                           <div className="text-xs text-red-600 font-medium">
                             ❌ Manquants : {calcPreview.missingInputs.join(", ")}
+                          </div>
+                        )}
+                        {calcPreview.computed === null && calcPreview.unknownAliases?.length > 0 && (
+                          <div className="text-xs text-red-600 font-medium">
+                            ⚠️ Alias inconnus dans la formule : {calcPreview.unknownAliases.join(", ")}
                           </div>
                         )}
                         {calcPreview.computed === null && (

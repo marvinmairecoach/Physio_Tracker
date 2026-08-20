@@ -79,44 +79,34 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // 6. Gather input values before evaluating (for error reporting)
-    const inputValues: Record<string, number | null> = {};
-    for (const input of inputs) {
-      const val = await getTestValue(input.testTypeId);
-      inputValues[input.alias] = val;
-    }
-    inputValues["age"] = ctx.athlete.age;
-    inputValues["poids"] = ctx.athlete.poids;
-    inputValues["taille"] = ctx.athlete.taille;
-    inputValues["genre"] = ctx.athlete.genre;
+    // 6. Evaluate
+    const formulaResult = await evaluateFormula(testType.formula, inputs, ctx);
 
-    const missingInputs = Object.entries(inputValues)
-      .filter(([, v]) => v === null)
-      .map(([k]) => k);
-
-    // 7. Evaluate
-    const computed = await evaluateFormula(testType.formula, inputs, ctx);
-    if (computed === null) {
-      const detail =
-        missingInputs.length > 0
-          ? `Données manquantes : ${missingInputs.join(", ")}.`
-          : "La formule n'a pas pu être évaluée (vérifiez la syntaxe).";
+    if (formulaResult.value === null) {
+      let detail = "";
+      if (formulaResult.unknownAliases.length > 0) {
+        detail = `Alias inconnus dans la formule : ${formulaResult.unknownAliases.join(", ")}. Vérifiez l'orthographe.`;
+      } else if (formulaResult.missingInputs.length > 0) {
+        detail = `Données manquantes : ${formulaResult.missingInputs.join(", ")}.`;
+      } else {
+        detail = "La formule n'a pas pu être évaluée (vérifiez la syntaxe).";
+      }
       return NextResponse.json(
         {
           error: `Impossible de calculer. ${detail}`,
-          missingInputs,
-          inputValues,
+          missingInputs: formulaResult.missingInputs,
+          unknownAliases: formulaResult.unknownAliases,
         },
         { status: 400 }
       );
     }
 
-    // 8. Save the result
+    // 7. Save the result
     const result = await prisma.testResult.create({
       data: {
         athleteId: typedAthleteId,
         testTypeId: typedTestTypeId,
-        value: computed,
+        value: formulaResult.value ?? 0,
         date: date ? new Date(date) : new Date(),
         notes: "Calculé automatiquement",
         recordedById: session.userId,
@@ -135,7 +125,7 @@ export async function POST(request: NextRequest) {
       {
         ...result,
         value: Number(result.value),
-        computed,
+        computed: formulaResult.value,
       },
       { status: 201 }
     );
@@ -230,7 +220,7 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // 6. Gather input values for the response (for debugging)
+    // 6. Gather input values for display
     const inputValues: Record<string, number | null> = {};
     for (const input of inputs) {
       const val = await getTestValue(input.testTypeId);
@@ -241,19 +231,16 @@ export async function GET(request: NextRequest) {
     inputValues["taille"] = ctx.athlete.taille;
     inputValues["genre"] = ctx.athlete.genre;
 
-    const missingInputs = Object.entries(inputValues)
-      .filter(([, v]) => v === null)
-      .map(([k]) => k);
-
     // 7. Evaluate
-    const computed = await evaluateFormula(testType.formula, inputs, ctx);
+    const formulaResult = await evaluateFormula(testType.formula, inputs, ctx);
 
     return NextResponse.json({
-      computed,
+      computed: formulaResult.value,
       formula: testType.formula,
       inputValues,
-      missingInputs,
-      missing: computed === null,
+      missingInputs: formulaResult.missingInputs,
+      unknownAliases: formulaResult.unknownAliases,
+      missing: formulaResult.value === null,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
