@@ -18,6 +18,7 @@ import {
   Loader2,
   Image as ImageIcon,
   FileText,
+  ClipboardCheck,
 } from "lucide-react"
 
 import { Button, Card, Badge, TextInput, Modal, Text, Group } from "@mantine/core"
@@ -561,6 +562,12 @@ export default function SessionDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {isTraining && session.team && (
+            <Button variant="outline" component="a" href={`/sessions/${session.id}/training-day`}>
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              Jour d&apos;entraînement
+            </Button>
+          )}
           {isTraining && (
             <Button variant="outline" onClick={generatePdf} disabled={generatingPdf}>
               <FileText className="mr-2 h-4 w-4" />

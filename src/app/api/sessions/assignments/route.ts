@@ -76,12 +76,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create the assignment
     const assignment = await prisma.sessionAssignment.create({
       data: {
         sessionId,
         teamId: teamId || null,
         athleteId: athleteId || null,
       },
+    });
+
+    // Auto-create SessionInvitations for all affected athletes
+    let athleteIds: string[] = [];
+    if (teamId) {
+      // Get all active athletes in the team
+      const teamAthletes = await prisma.athleteTeam.findMany({
+        where: { teamId, isActive: true },
+        select: { athleteId: true },
+      });
+      athleteIds = teamAthletes.map((at) => at.athleteId);
+    } else if (athleteId) {
+      athleteIds = [athleteId];
+    }
+
+    // Create invitations (skip if already exist)
+    for (const aId of athleteIds) {
+      const existingInvite = await prisma.sessionInvitation.findFirst({
+        where: { sessionId, athleteId: aId },
+      });
+      if (!existingInvite) {
+        await prisma.sessionInvitation.create({
+          data: {
+            sessionId,
+            athleteId: aId,
+          },
+        });
+      }
+    }
+
+    // Return assignment with related data
+    const created = await prisma.sessionAssignment.findUnique({
+      where: { id: assignment.id },
       include: {
         session: true,
         team: true,
@@ -95,7 +129,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(assignment, { status: 201 });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

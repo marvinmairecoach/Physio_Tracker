@@ -274,6 +274,7 @@ model Session {
   location        String?
   teamId          String?     @map("team_id")
   status          String      @default("draft") // 'draft' | 'published'
+  dataCollectionStatus String  @default("pending") @map("data_collection_status") // 'pending' | 'closed' | 'completed'
   isRecurring     Boolean     @default(false) @map("is_recurring")
   recurrenceRule  String?     @map("recurrence_rule") // 'daily' | 'weekly' | 'biweekly' | 'monthly'
   recurrenceEnd   DateTime?   @map("recurrence_end") @db.Date
@@ -316,6 +317,11 @@ model SessionInvitation {
   physicalFeel Int?         @map("physical_feel") // 1-10
   mentalFeel   Int?         @map("mental_feel")   // 1-10
   sleepQuality  Int?        @map("sleep_quality") // 1-10
+  wellnessNotes String?     @map("wellness_notes") // Optional note from athlete
+  wellnessFilledBy String?  @map("wellness_filled_by") // 'coach' | 'athlete'
+  rpe           Int?         // 1-10 RPE rating
+  rpeNotes      String?     @map("rpe_notes") // Reported feedback from athlete
+  rpeFilledBy   String?     @map("rpe_filled_by") // 'coach' | 'athlete'
   createdAt    DateTime     @default(now()) @map("created_at")
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
