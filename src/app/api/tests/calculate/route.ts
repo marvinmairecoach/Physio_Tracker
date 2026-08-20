@@ -241,6 +241,10 @@ export async function GET(request: NextRequest) {
     inputValues["taille"] = ctx.athlete.taille;
     inputValues["genre"] = ctx.athlete.genre;
 
+    const missingInputs = Object.entries(inputValues)
+      .filter(([, v]) => v === null)
+      .map(([k]) => k);
+
     // 7. Evaluate
     const computed = await evaluateFormula(testType.formula, inputs, ctx);
 
@@ -248,6 +252,7 @@ export async function GET(request: NextRequest) {
       computed,
       formula: testType.formula,
       inputValues,
+      missingInputs,
       missing: computed === null,
     });
   } catch (error) {

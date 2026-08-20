@@ -75,6 +75,7 @@ export default function TestsPage() {
   const [calcPreview, setCalcPreview] = useState<{
     computed: number | null
     inputValues: Record<string, number | null>
+    missingInputs: string[]
     missing: boolean
   } | null>(null)
   const [calcLoading, setCalcLoading] = useState(false)
@@ -472,17 +473,21 @@ export default function TestsPage() {
                         </div>
                         {calcPreview.computed === null && (
                           <div className="text-xs text-blue-600">
-                            Valeurs disponibles :{" "}
+                            Présents :{" "}
                             {Object.entries(calcPreview.inputValues)
                               .filter(([, v]) => v !== null)
                               .map(([k, v]) => `${k}=${v}`)
-                              .join(", ") || "aucune"}
+                              .join(", ") || "aucun"}
+                          </div>
+                        )}
+                        {calcPreview.computed === null && calcPreview.missingInputs?.length > 0 && (
+                          <div className="text-xs text-red-600 font-medium">
+                            ❌ Manquants : {calcPreview.missingInputs.join(", ")}
                           </div>
                         )}
                         {calcPreview.computed === null && (
                           <div className="text-xs text-amber-600">
-                            ⚠️ Certaines données d&apos;entrée sont manquantes.
-                            Enregistrez d&apos;abord les tests sources.
+                            ⚠️ Enregistrez d&apos;abord les résultats des tests sources pour cet athlète.
                           </div>
                         )}
                       </div>
