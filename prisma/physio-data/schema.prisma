@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma/physio-client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("PHYSIO_DATABASE_URL")
+}
+
+enum Gender {
+  M
+  F
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  phone         String?
+  role          String   @default("coach") // admin | coach
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  athletes      Athlete[]   @relation("AthleteCreator")
+  results       TestResult[] @relation("TestRecorder")
+  planningEntries PlanningEntry[]
+
+  @@map("User")
+}
+
+model Athlete {
+  id         String   @id @default(uuid())
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  birthDate  DateTime? @map("birth_date") @db.Date
+  phone      String?
+  email      String?
+  gender     Gender?
+  heightCm   Decimal?  @map("height_cm") @db.Decimal(5, 1)
+  weightKg   Decimal?  @map("weight_kg") @db.Decimal(5, 1)
+  notes      String?
+  photoUrl   String?   @map("photo_url") @db.MediumText
+  isActive   Boolean   @default(true) @map("is_active")
+  isArchived Boolean   @default(false) @map("is_archived")
+  createdById String  @map("created_by_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  creator     User        @relation("AthleteCreator", fields: [createdById], references: [id])
+  testResults TestResult[]
+  bilans       Bilan[]
+  planningEntries PlanningEntry[]
+
+  @@map("Athlete")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("Category")
+}
+
+model TestType {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  category       String
+  unit           String
+  higherIsBetter Boolean  @default(true) @map("higher_is_better")
+  description    String?
+  normMale       Decimal? @map("norm_male") @db.Decimal(10, 2)
+  normFemale     Decimal? @map("norm_female") @db.Decimal(10, 2)
+  isSystem       Boolean  @default(false) @map("is_system")
+  isUnilateral   Boolean  @default(false) @map("is_unilateral")
+  isCalculated   Boolean  @default(false) @map("is_calculated")
+  formula        String?  @db.Text
+  formulaInputs  Json?    @map("formula_inputs")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  results TestResult[]
+
+  @@map("TestType")
+}
+
+model TestResult {
+  id          String   @id @default(uuid())
+  athleteId   String   @map("athlete_id")
+  testTypeId  String   @map("test_type_id")
+  value       Decimal  @db.Decimal(10, 2)
+  valueLeft   Decimal? @map("value_left") @db.Decimal(10, 2)
+  valueRight  Decimal? @map("value_right") @db.Decimal(10, 2)
+  date        DateTime @default(now())
+  notes       String?
+  recordedById String  @map("recorded_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  athlete  Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  testType TestType @relation(fields: [testTypeId], references: [id], onDelete: Restrict)
+  recorder User     @relation("TestRecorder", fields: [recordedById], references: [id])
+
+  @@index([athleteId, testTypeId, date(sort: Desc)])
+  @@index([testTypeId, date(sort: Desc)])
+  @@map("TestResult")
+}
+
+model Bilan {
+  id          String   @id @default(uuid())
+  title       String
+  athleteId   String   @map("athlete_id")
+  description String?
+  config      Json     @default("{\"selectedTestIds\":[],\"radarTestCount\":6,\"showNorms\":true,\"showTeamComparison\":false}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@map("Bilan")
+}
+
+model PlanningEntry {
+  id          String   @id @default(uuid())
+  athleteId   String?  @map("athlete_id")
+  date        DateTime @db.Date
+  dateEnd     DateTime? @map("date_end") @db.Date
+  title       String
+  type        String   @default("ENTRAINEMENT")
+  isObjective Boolean  @default(false) @map("is_objective")
+  notes       String?  @db.Text
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  athlete Athlete? @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  creator User     @relation(fields: [createdById], references: [id])
+
+  @@index([athleteId, date])
+  @@map("PlanningEntry")
+}
