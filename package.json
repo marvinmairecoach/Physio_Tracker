@@ -17,7 +17,7 @@
     "db:migrate-athletes": "tsx scripts/migrate-athletes-to-users.ts",
     "setup": "npm run db:generate",
     "railway-build": "prisma generate --schema=prisma/physio-data/schema.prisma && prisma generate --schema=prisma/club-data/schema.prisma && next build",
-    "railway-start": "prisma db push --schema=prisma/physio-data/schema.prisma --accept-data-loss --skip-generate && prisma db push --schema=prisma/club-data/schema.prisma --accept-data-loss --skip-generate && next start"
+    "railway-start": "next start"
   },
   "dependencies": {
     "@mantine/charts": "^7.17.8",
