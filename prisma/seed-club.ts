@@ -156,6 +156,7 @@ async function main() {
   const session1 = await prisma.session.create({
     data: {
       title: "Séance de VMA",
+      description: "Séance de travail de VMA",
       date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
       startTime: new Date("2024-01-01T10:00:00"),
       endTime: new Date("2024-01-01T11:30:00"),
