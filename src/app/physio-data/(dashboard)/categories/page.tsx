@@ -126,7 +126,7 @@ export default function CategoriesPage() {
     setDeleting(true)
     try {
       const res = await fetch(
-        `/api/tests/categories/${deleteTarget.id}`,
+        `/physio-data/api/tests/categories/${deleteTarget.id}`,
         { method: "DELETE" }
       )
       if (!res.ok) {

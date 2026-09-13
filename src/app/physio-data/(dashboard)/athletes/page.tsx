@@ -41,7 +41,7 @@ export default function AthletesPage() {
   const isAdmin = userRole === "admin"
 
   async function fetchAthletes(includeArchived = false) {
-    const url = includeArchived ? "/api/athletes?includeArchived=true" : "/api/athletes"
+    const url = includeArchived ? "/physio-data/api/athletes?includeArchived=true" : "/physio-data/api/athletes"
     const res = await fetch(url)
     if (!res.ok) throw new Error("Erreur lors du chargement des athlètes")
     const data = await res.json()
