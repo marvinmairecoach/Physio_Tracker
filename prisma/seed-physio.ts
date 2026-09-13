@@ -6,14 +6,12 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding PhysioData...");
 
-  // Clean
-  await prisma.planningEntry.deleteMany();
-  await prisma.bilan.deleteMany();
-  await prisma.testResult.deleteMany();
-  await prisma.testType.deleteMany();
-  await prisma.athlete.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.user.deleteMany();
+  // Check if already seeded
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.log(`ℹ️  Skipping PhysioData seed — ${existingUsers} user(s) already exist.`);
+    return;
+  }
 
   const passwordHash = await bcrypt.hash("test1234", 12);
 
@@ -63,7 +61,7 @@ async function main() {
     testTypes.push(tt);
   }
 
-  // Test results
+  // Test results (4 months of historical data)
   const now = new Date();
   for (let monthOffset = 3; monthOffset >= 0; monthOffset--) {
     for (const athlete of athletes) {
