@@ -36,7 +36,7 @@ export default function ClubDataLoginPage() {
 
     setLoading(true)
     try {
-      const res = await fetch("/api/club/auth/login", {
+      const res = await fetch("/club/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
