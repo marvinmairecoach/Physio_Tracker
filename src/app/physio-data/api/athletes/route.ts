@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, hashPassword } from "@/lib/auth";
+import { physioPrisma } from "@/lib/prisma-physio";
+import { requireAuth, hashPassword } from "@/lib/auth-physio";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const teamId = searchParams.get("teamId");
     const isActive = searchParams.get("isActive");
     const includeArchived = searchParams.get("includeArchived") === "true";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -34,29 +33,19 @@ export async function GET(request: NextRequest) {
       where.isActive = isActive === "true";
     }
 
-    if (teamId) {
-      where.teams = {
-        some: {
-          teamId,
-          isActive: true,
-        },
-      };
-    }
-
     const [athletes, total] = await Promise.all([
-      prisma.athlete.findMany({
+      physioPrisma.athlete.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          teams: {
-            where: { isActive: true },
-            include: { team: true },
+          creator: {
+            select: { id: true, firstName: true, lastName: true, role: true },
           },
         },
       }),
-      prisma.athlete.count({ where }),
+      physioPrisma.athlete.count({ where }),
     ]);
 
     return NextResponse.json({ athletes, total });
@@ -65,10 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("GET /api/athletes error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -88,7 +74,6 @@ export async function POST(request: NextRequest) {
       weightKg,
       notes,
       photoUrl,
-      teamId,
     } = body;
 
     if (!firstName || !lastName) {
@@ -98,7 +83,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const athlete = await prisma.athlete.create({
+    const athlete = await physioPrisma.athlete.create({
       data: {
         firstName,
         lastName,
@@ -111,31 +96,18 @@ export async function POST(request: NextRequest) {
         notes,
         photoUrl,
         createdById: session.userId,
-        teams: teamId
-          ? {
-              create: {
-                teamId,
-              },
-            }
-          : undefined,
-      },
-      include: {
-        teams: {
-          where: { isActive: true },
-          include: { team: true },
-        },
       },
     });
 
     // Auto-create a User account for this athlete
     const userEmail = email || `athlete-${athlete.id.slice(0, 8)}@placeholder.pp`;
-    const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+    const existingUser = await physioPrisma.user.findUnique({ where: { email: userEmail } });
     let userId: string;
     if (existingUser) {
       userId = existingUser.id;
     } else {
       const passwordHash = await hashPassword("changeme123");
-      const newUser = await prisma.user.create({
+      const newUser = await physioPrisma.user.create({
         data: {
           email: userEmail,
           passwordHash,
@@ -150,59 +122,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Link athlete to user
-    await prisma.athlete.update({
+    await physioPrisma.athlete.update({
       where: { id: athlete.id },
       data: { userId },
     });
-
-    // Assign "Athlète" role
-    const athleteRole = await prisma.userRole.findUnique({ where: { name: "Athlète" } });
-    if (athleteRole) {
-      const existingAssignment = await prisma.userRoleAssignment.findUnique({
-        where: { userId_roleId: { userId, roleId: athleteRole.id } },
-      });
-      if (!existingAssignment) {
-        await prisma.userRoleAssignment.create({
-          data: { userId, roleId: athleteRole.id },
-        });
-      }
-    }
-
-    // If no team was selected, find or create "Individuel" team and assign
-    if (!teamId) {
-      let individuelTeam = await prisma.team.findFirst({
-        where: { name: "Individuel" },
-      })
-
-      if (!individuelTeam) {
-        individuelTeam = await prisma.team.create({
-          data: {
-            name: "Individuel",
-            createdById: session.userId,
-          },
-        })
-      }
-
-      await prisma.athleteTeam.create({
-        data: {
-          athleteId: athlete.id,
-          teamId: individuelTeam.id,
-        },
-      })
-
-      // Re-fetch athlete with team included
-      const updatedAthlete = await prisma.athlete.findUnique({
-        where: { id: athlete.id },
-        include: {
-          teams: {
-            where: { isActive: true },
-            include: { team: true },
-          },
-        },
-      })
-
-      return NextResponse.json(updatedAthlete, { status: 201 });
-    }
 
     return NextResponse.json(athlete, { status: 201 });
   } catch (error) {
@@ -210,9 +133,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("POST /api/athletes error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

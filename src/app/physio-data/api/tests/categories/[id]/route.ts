@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { physioPrisma } from "@/lib/prisma-physio";
 import { requireAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function PATCH(
       );
     }
 
-    const category = await prisma.category.update({
+    const category = await physioPrisma.category.update({
       where: { id },
       data: { name: name.trim() },
     });
@@ -49,7 +49,7 @@ export async function DELETE(
 
     const { id } = params;
 
-    await prisma.category.delete({
+    await physioPrisma.category.delete({
       where: { id },
     });
 

@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { physioPrisma } from "@/lib/prisma-physio";
 import { requireAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export async function GET() {
   try {
     await requireAuth();
 
-    const categories = await prisma.category.findMany({
+    const categories = await physioPrisma.category.findMany({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const category = await prisma.category.create({
+    const category = await physioPrisma.category.create({
       data: { name: name.trim() },
     });
 

@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   BarChart3,
+  MessageSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AuthGuard } from "@/components/layout/auth-guard"
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { href: "/physio-data/tests", label: "Tests", icon: ClipboardCheck },
   { href: "/physio-data/bilans", label: "Bilans", icon: FileText },
   { href: "/physio-data/planning", label: "Planning", icon: Calendar },
+  { href: "/physio-data/messages", label: "Messages", icon: MessageSquare },
   { href: "/physio-data/profile", label: "Profil", icon: User },
 ]
 

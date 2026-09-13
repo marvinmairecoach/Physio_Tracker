@@ -1,32 +1,34 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Search, Save, Pencil, Trash2, X, Check, Calculator } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import {
+  Pencil,
+  Plus,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  X,
+  FolderKanban,
+  Tag,
+} from "lucide-react"
 
-import { Button, Card, Table, TextInput, Modal, Select } from "@mantine/core"
+import { Button, Card, Table, Badge, TextInput, Modal } from "@mantine/core"
 
-interface Athlete {
-  id: string
-  firstName: string
-  lastName: string
-}
-
-interface Team {
-  id: string
-  name: string
-}
-
-interface TeamAthlete {
-  athlete: Athlete
-}
+const API_PREFIX = "/physio-data/api"
 
 interface TestType {
   id: string
   name: string
   category: string
   unit: string
-  isUnilateral?: boolean
+  higherIsBetter: boolean
+  normMale: number | null
+  normFemale: number | null
+  isUnilateral: boolean
   isCalculated?: boolean
+  formula?: string | null
+  formulaInputs?: { testTypeId: string; alias: string }[] | null
 }
 
 interface Category {
@@ -34,197 +36,566 @@ interface Category {
   name: string
 }
 
-interface TestResult {
+type SortField = "name" | "category" | "unit"
+type SortDir = "asc" | "desc"
+
+interface FormulaInputEntry {
+  testTypeId: string
+  alias: string
+}
+
+const BUILTIN_VARS = [
+  { name: "age", label: "Âge de l'athlète", description: "Calculé depuis la date de naissance" },
+  { name: "poids", label: "Poids (kg)", description: "Poids actuel de l'athlète" },
+  { name: "taille", label: "Taille (cm)", description: "Taille de l'athlète" },
+  { name: "genre", label: "Genre (M=1, F=2)", description: "1 pour homme, 2 pour femme" },
+]
+
+/** Simple toggle switch using native checkbox */
+function Toggle({
+  checked,
+  onChange,
+  label,
+  id,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
   id: string
-  value: number
-  date: string
-  athlete: {
-    id: string
-    firstName: string
-    lastName: string
+}) {
+  return (
+    <label htmlFor={id} className="inline-flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div
+        className={`relative w-10 h-5 rounded-full transition-colors ${
+          checked ? "bg-blue-600" : "bg-gray-300"
+        }`}
+      >
+        <div
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </div>
+      {label && <span className="text-sm">{label}</span>}
+    </label>
+  )
+}
+
+function SortIcon({
+  field,
+  sortField,
+  sortDir,
+}: {
+  field: SortField
+  sortField: SortField | null
+  sortDir: SortDir
+}) {
+  if (sortField !== field) {
+    return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-muted-foreground/40" />
   }
-  testType: {
-    name: string
-    unit: string
-  }
+  return sortDir === "asc" ? (
+    <ArrowUp className="ml-1 inline h-3.5 w-3.5" />
+  ) : (
+    <ArrowDown className="ml-1 inline h-3.5 w-3.5" />
+  )
+}
+
+/** Render the formula configuration section (shared between create and edit) */
+function FormulaConfigSection({
+  inputs,
+  formula,
+  onFormulaChange,
+  onAddInput,
+  onRemoveInput,
+  onUpdateAlias,
+  getTestTypeName,
+}: {
+  inputs: FormulaInputEntry[]
+  formula: string
+  onFormulaChange: (v: string) => void
+  onAddInput: () => void
+  onRemoveInput: (testTypeId: string) => void
+  onUpdateAlias: (testTypeId: string, alias: string) => void
+  getTestTypeName: (id: string) => string
+}) {
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+      <p className="text-xs font-medium text-blue-700">Configuration du test calculé</p>
+
+      {/* Formula inputs: selected test types */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Types de test en entrée
+        </label>
+        {inputs.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic mb-2">
+            Aucun type de test source sélectionné
+          </p>
+        ) : (
+          <div className="space-y-1.5 mb-2">
+            {inputs.map((input) => (
+              <div key={input.testTypeId} className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 min-w-[120px] truncate">
+                  {getTestTypeName(input.testTypeId)}
+                </span>
+                <span className="text-xs text-gray-400">→</span>
+                <TextInput
+                  size="xs"
+                  placeholder="alias"
+                  value={input.alias}
+                  onChange={(e) => onUpdateAlias(input.testTypeId, e.target.value)}
+                  className="flex-1"
+                  styles={{ input: { fontSize: "0.75rem" } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveInput(input.testTypeId)}
+                  className="p-0.5 rounded hover:bg-red-100 text-red-400 hover:text-red-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button variant="outline" size="compact-xs" onClick={onAddInput}>
+          <Plus className="mr-1 h-3 w-3" />
+          Ajouter un type de test
+        </Button>
+      </div>
+
+      {/* Built-in variables */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Variables prédéfinies disponibles
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {BUILTIN_VARS.map((v) => (
+            <span
+              key={v.name}
+              className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
+              title={v.description}
+            >
+              <code>{`{${v.name}}`}</code>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Formula */}
+      <div>
+        <label className="block text-xs font-medium text-blue-600 mb-1">
+          Formule{" "}
+          <span className="text-gray-400 font-normal">(ex: {`{vitesse} / {temps} * 3.6`})</span>
+        </label>
+        <TextInput
+          size="xs"
+          value={formula}
+          onChange={(e) => onFormulaChange(e.target.value)}
+          placeholder={"Ex: {distance} / {temps} * 3.6"}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** Picker modal for selecting a test type as formula input */
+function FormulaInputPickerModal({
+  opened,
+  available,
+  onClose,
+  onSelect,
+}: {
+  opened: boolean
+  available: TestType[]
+  onClose: () => void
+  onSelect: (tt: TestType) => void
+}) {
+  const [inputSearch, setInputSearch] = useState("")
+
+  useEffect(() => {
+    if (!opened) setInputSearch("")
+  }, [opened])
+
+  const filtered = available.filter(
+    (t) =>
+      !inputSearch ||
+      t.name.toLowerCase().includes(inputSearch.toLowerCase()) ||
+      t.category?.toLowerCase().includes(inputSearch.toLowerCase())
+  )
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Ajouter un type de test source"
+      size="sm"
+      trapFocus={false}
+      returnFocus={false}
+    >
+      <TextInput
+        placeholder="Rechercher un type de test..."
+        value={inputSearch}
+        onChange={(e) => setInputSearch(e.target.value)}
+        size="xs"
+        className="mb-2"
+      />
+      {filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {available.length === 0
+            ? "Tous les types de test sont déjà utilisés comme entrée."
+            : "Aucun résultat trouvé."}
+        </p>
+      ) : (
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {filtered.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t)}
+              className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-blue-50 transition-colors"
+            >
+              <span className="font-medium">{t.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">({t.category})</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
 }
 
 export default function TestsPage() {
-  const [athletes, setAthletes] = useState<Athlete[]>([])
   const [testTypes, setTestTypes] = useState<TestType[]>([])
-  const [recentResults, setRecentResults] = useState<TestResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [existingCategories, setExistingCategories] = useState<Category[]>([])
 
-  // Team filter state
-  const [teams, setTeams] = useState<Team[]>([])
-  const [selectedTeamId, setSelectedTeamId] = useState("")
-  const [teamAthletes, setTeamAthletes] = useState<Athlete[]>([])
+  // Sort state
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
 
-  // Pagination state
-  const [page, setPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
+  // Create dialog
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newType, setNewType] = useState({
+    name: "",
+    category: "",
+    unit: "",
+    higherIsBetter: true,
+    normMale: "",
+    normFemale: "",
+    isUnilateral: false,
+    isCalculated: false,
+    formula: "",
+    formulaInputs: [] as FormulaInputEntry[],
+  })
+  const [creating, setCreating] = useState(false)
 
-  const [formData, setFormData] = useState({
-    athleteId: "",
-    testTypeId: "",
-    value: "",
-    valueLeft: "",
-    valueRight: "",
-    date: new Date().toISOString().split("T")[0],
-    notes: "",
+  // Edit modal state
+  const [editTarget, setEditTarget] = useState<TestType | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    category: "",
+    unit: "",
+    higherIsBetter: true,
+    normMale: "",
+    normFemale: "",
+    isUnilateral: false,
+    isCalculated: false,
+    formula: "",
+    formulaInputs: [] as FormulaInputEntry[],
   })
   const [saving, setSaving] = useState(false)
 
-  // Calculated test state
-  const [calcPreview, setCalcPreview] = useState<{
-    computed: number | null
-    inputValues: Record<string, number | null>
-    missingInputs: string[]
-    unknownAliases: string[]
-    errorMessage: string | null
-    missing: boolean
-  } | null>(null)
-  const [calcLoading, setCalcLoading] = useState(false)
+  // New category modal
+  const [newCatModalOpen, setNewCatModalOpen] = useState(false)
+  const [newCatName, setNewCatName] = useState("")
+  const [creatingCategory, setCreatingCategory] = useState(false)
 
-  // Category filter state
-  const [categories, setCategories] = useState<Category[]>([])
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [testSearch, setTestSearch] = useState("")
+  // Delete state (test type)
+  const [deleteTarget, setDeleteTarget] = useState<TestType | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  // Result search state
-  const [resultSearch, setResultSearch] = useState("")
-  // Edit state
-  const [editTarget, setEditTarget] = useState<TestResult | null>(null)
-  const [editValue, setEditValue] = useState("")
-  const [editDate, setEditDate] = useState("")
-  const [editSaving, setEditSaving] = useState(false)
+  // Delete category state
+  const [deleteCatTarget, setDeleteCatTarget] = useState<Category | null>(null)
+  const [deletingCat, setDeletingCat] = useState(false)
 
-  // Delete state
-  const [deleteTarget, setDeleteTarget] = useState<TestResult | null>(null)
-  const [deleteSaving, setDeleteSaving] = useState(false)
+  // Pick formula input test type
+  const [pickInputOpen, setPickInputOpen] = useState<"create" | "edit" | null>(null)
 
-  // Refs
-  const valueRef = useRef<HTMLInputElement>(null)
-
-  // Fetch initial data
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [athletesRes, typesRes, resultsRes, teamsRes, catsRes] = await Promise.all([
-          fetch("/api/athletes"),
-          fetch("/api/tests/types"),
-          fetch("/api/tests/results?limit=100"),
-          fetch("/api/teams"),
-          fetch("/api/tests/categories"),
-        ])
-
-        if (athletesRes.ok) {
-          const data = await athletesRes.json()
-          setAthletes(Array.isArray(data) ? data : data.athletes ?? [])
-        }
-        if (typesRes.ok) {
-          const data = await typesRes.json()
-          setTestTypes(Array.isArray(data) ? data : data.types ?? [])
-        }
-        if (resultsRes.ok) {
-          const data = await resultsRes.json()
-          setRecentResults(Array.isArray(data) ? data : data.results ?? [])
-        }
-        if (teamsRes.ok) {
-          const data = await teamsRes.json()
-          setTeams(Array.isArray(data) ? data : [])
-        }
-        if (catsRes.ok) {
-          const data = await catsRes.json()
-          setCategories(data.categories ?? [])
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Une erreur est survenue")
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    fetchTestTypes()
+    fetchCategories()
   }, [])
 
-  // Fetch team athletes when selected team changes
-  useEffect(() => {
-    if (!selectedTeamId) {
-      setTeamAthletes([])
-      return
-    }
-    async function fetchTeamAthletes() {
-      try {
-        const res = await fetch(`/api/teams/${selectedTeamId}/athletes`)
-        if (res.ok) {
-          const data: TeamAthlete[] = await res.json()
-          setTeamAthletes(Array.isArray(data) ? data.map((ta) => ta.athlete) : [])
-        }
-      } catch {
-        // ignore
+  async function fetchCategories() {
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/categories`)
+      if (res.ok) {
+        const data = await res.json()
+        setExistingCategories(data.categories ?? [])
       }
+    } catch {
+      // Silent fail
     }
-    fetchTeamAthletes()
-  }, [selectedTeamId])
+  }
 
-  // Auto-focus value field when both athlete and test type are selected (only for non-calculated)
-  useEffect(() => {
-    if (formData.athleteId && formData.testTypeId && !isCalculated && valueRef.current) {
-      valueRef.current.focus()
+  async function fetchTestTypes() {
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/types`)
+      if (!res.ok) throw new Error("Erreur lors du chargement")
+      const data = await res.json()
+      setTestTypes(Array.isArray(data) ? data : data.types ?? [])
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue")
+    } finally {
+      setLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.athleteId, formData.testTypeId])
+  }
 
-  // Preview calculation when athlete+test type changes
-  useEffect(() => {
-    if (formData.athleteId && formData.testTypeId && isCalculated) {
-      previewCalculation()
+  async function handleCreateCategory() {
+    if (!newCatName.trim()) return
+    setCreatingCategory(true)
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/categories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      })
+      if (!res.ok) throw new Error("Erreur lors de la création de la catégorie")
+      await fetchCategories()
+      const createdName = newCatName.trim()
+      if (createOpen) {
+        setNewType((p) => ({ ...p, category: createdName }))
+      }
+      if (editModalOpen) {
+        setEditForm((p) => ({ ...p, category: createdName }))
+      }
+      setNewCatModalOpen(false)
+      setNewCatName("")
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setCreatingCategory(false)
+    }
+  }
+
+  /** Get non-calculated test types excluding already-selected ones */
+  function getAvailableInputTypes(currentInputs: FormulaInputEntry[]): TestType[] {
+    const selectedIds = new Set(currentInputs.map((i) => i.testTypeId))
+    return testTypes.filter((t) => !t.isCalculated && !selectedIds.has(t.id))
+  }
+
+  function addFormulaInput(target: "create" | "edit", testType: TestType, alias: string) {
+    const entry: FormulaInputEntry = { testTypeId: testType.id, alias }
+    if (target === "create") {
+      setNewType((p) => ({ ...p, formulaInputs: [...p.formulaInputs, entry] }))
     } else {
-      setCalcPreview(null)
+      setEditForm((p) => ({ ...p, formulaInputs: [...p.formulaInputs, entry] }))
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.athleteId, formData.testTypeId])
+    setPickInputOpen(null)
+  }
 
-  // Reset page when team filter changes
-  useEffect(() => {
-    setPage(1)
-  }, [selectedTeamId])
-
-  // Reset page when result search changes
-  useEffect(() => {
-    setPage(1)
-  }, [resultSearch])
-
-  // Compute which athletes to show in the dropdown
-  const baseAthletes = selectedTeamId && teamAthletes.length > 0
-    ? teamAthletes
-    : athletes
-
-  // Find the selected test type
-  const selectedTestType = testTypes.find((tt) => tt.id === formData.testTypeId)
-  const isUnilateral = selectedTestType?.isUnilateral ?? false
-  const isCalculated = selectedTestType?.isCalculated ?? false
-
-  // Filter and group test types by category
-  const filteredTestTypes = useMemo(() => {
-    let filtered = testTypes
-    if (selectedCategory) {
-      filtered = filtered.filter((tt) => tt.category === selectedCategory)
+  function removeFormulaInput(target: "create" | "edit", testTypeId: string) {
+    if (target === "create") {
+      setNewType((p) => ({
+        ...p,
+        formulaInputs: p.formulaInputs.filter((i) => i.testTypeId !== testTypeId),
+      }))
+    } else {
+      setEditForm((p) => ({
+        ...p,
+        formulaInputs: p.formulaInputs.filter((i) => i.testTypeId !== testTypeId),
+      }))
     }
-    if (testSearch) {
-      const q = testSearch.toLowerCase()
-      filtered = filtered.filter(
-        (tt) =>
-          tt.name.toLowerCase().includes(q) ||
-          tt.unit.toLowerCase().includes(q)
-      )
-    }
-    return filtered
-  }, [testTypes, selectedCategory, testSearch])
+  }
 
-  // Group test types by category name for display counts
-  const testTypeCountByCategory = useMemo(() => {
+  function updateAlias(target: "create" | "edit", testTypeId: string, alias: string) {
+    const updater = (inputs: FormulaInputEntry[]) =>
+      inputs.map((i) => (i.testTypeId === testTypeId ? { ...i, alias } : i))
+    if (target === "create") {
+      setNewType((p) => ({ ...p, formulaInputs: updater(p.formulaInputs) }))
+    } else {
+      setEditForm((p) => ({ ...p, formulaInputs: updater(p.formulaInputs) }))
+    }
+  }
+
+  function getTestTypeName(id: string): string {
+    return testTypes.find((t) => t.id === id)?.name ?? id
+  }
+
+  async function handleCreate() {
+    if (!newType.name.trim() || !newType.unit.trim()) return
+    setCreating(true)
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/types`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newType.name,
+          category: newType.category,
+          unit: newType.unit,
+          higherIsBetter: newType.higherIsBetter,
+          normMale: newType.normMale || null,
+          normFemale: newType.normFemale || null,
+          isUnilateral: newType.isUnilateral,
+          isCalculated: newType.isCalculated,
+          formula: newType.isCalculated ? newType.formula : null,
+          formulaInputs: newType.isCalculated ? newType.formulaInputs : undefined,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur lors de la création")
+      setCreateOpen(false)
+      setNewType({
+        name: "",
+        category: "",
+        unit: "",
+        higherIsBetter: true,
+        normMale: "",
+        normFemale: "",
+        isUnilateral: false,
+        isCalculated: false,
+        formula: "",
+        formulaInputs: [],
+      })
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  function openEditModal(t: TestType) {
+    setEditTarget(t)
+    setEditForm({
+      name: t.name,
+      category: t.category,
+      unit: t.unit,
+      higherIsBetter: t.higherIsBetter,
+      normMale: t.normMale !== null ? String(t.normMale) : "",
+      normFemale: t.normFemale !== null ? String(t.normFemale) : "",
+      isUnilateral: t.isUnilateral,
+      isCalculated: t.isCalculated ?? false,
+      formula: t.formula ?? "",
+      formulaInputs: (t.formulaInputs as FormulaInputEntry[]) ?? [],
+    })
+    setEditModalOpen(true)
+  }
+
+  function closeEditModal() {
+    setEditModalOpen(false)
+    setEditTarget(null)
+  }
+
+  async function handleSave() {
+    if (!editTarget || !editForm.name.trim() || !editForm.unit.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/types/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          category: editForm.category,
+          unit: editForm.unit,
+          higherIsBetter: editForm.higherIsBetter,
+          normMale: editForm.normMale || null,
+          normFemale: editForm.normFemale || null,
+          isUnilateral: editForm.isUnilateral,
+          isCalculated: editForm.isCalculated,
+          formula: editForm.isCalculated ? editForm.formula : null,
+          formulaInputs: editForm.isCalculated ? editForm.formulaInputs : undefined,
+        }),
+      })
+      if (!res.ok) throw new Error("Erreur lors de la modification")
+      closeEditModal()
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleToggleIsUnilateral(testType: TestType) {
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/types/${testType.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isUnilateral: !testType.isUnilateral }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/types/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Erreur lors de la suppression")
+      setDeleteTarget(null)
+      await fetchTestTypes()
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleDeleteCategory() {
+    if (!deleteCatTarget) return
+    setDeletingCat(true)
+    try {
+      const res = await fetch(`${API_PREFIX}/tests/categories/${deleteCatTarget.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Erreur lors de la suppression de la catégorie")
+      setDeleteCatTarget(null)
+      await fetchCategories()
+    } catch (err: unknown) {
+      console.error(err)
+    } finally {
+      setDeletingCat(false)
+    }
+  }
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDir("asc")
+    }
+  }
+
+  const sortedTestTypes = useMemo(() => {
+    if (!sortField) return testTypes
+    return [...testTypes].sort((a, b) => {
+      const aVal = (a[sortField] ?? "").toLowerCase()
+      const bVal = (b[sortField] ?? "").toLowerCase()
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1
+      return 0
+    })
+  }, [testTypes, sortField, sortDir])
+
+  // Count test types per category
+  const typeCountByCategory = useMemo(() => {
     const counts: Record<string, number> = {}
     testTypes.forEach((tt) => {
       counts[tt.category] = (counts[tt.category] || 0) + 1
@@ -232,525 +603,176 @@ export default function TestsPage() {
     return counts
   }, [testTypes])
 
-  // Compute which results to show (filter by selected team + paginate)
-  const teamAthleteIds = new Set(
-    selectedTeamId
-      ? teamAthletes.map((a) => a.id)
-      : athletes.map((a) => a.id)
-  )
-
-  const teamFilteredResults = (() => {
-    let results = selectedTeamId
-      ? recentResults.filter((r) => teamAthleteIds.has(r.athlete.id))
-      : recentResults
-
-    if (resultSearch) {
-      const q = resultSearch.toLowerCase()
-      results = results.filter(
-        (r) =>
-          r.athlete.firstName.toLowerCase().includes(q) ||
-          r.athlete.lastName.toLowerCase().includes(q) ||
-          `${r.athlete.firstName} ${r.athlete.lastName}`.toLowerCase().includes(q) ||
-          r.testType.name.toLowerCase().includes(q)
-      )
-    }
-
-    return results
-  })()
-
-  const totalPages = Math.ceil(teamFilteredResults.length / ITEMS_PER_PAGE)
-  const paginatedResults = teamFilteredResults.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  )
-
-  const resultStart = teamFilteredResults.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1
-  const resultEnd = Math.min(page * ITEMS_PER_PAGE, teamFilteredResults.length)
-
-  async function previewCalculation() {
-    if (!formData.athleteId || !formData.testTypeId) return
-    setCalcLoading(true)
-    try {
-      const res = await fetch(
-        `/api/tests/calculate?athleteId=${formData.athleteId}&testTypeId=${formData.testTypeId}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        setCalcPreview(data)
-      }
-    } catch {
-      setCalcPreview(null)
-    } finally {
-      setCalcLoading(false)
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!formData.athleteId || !formData.testTypeId) {
-      setError("Veuillez remplir tous les champs obligatoires")
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-
-    try {
-      if (isCalculated) {
-        // For calculated tests, call the calculate API
-        const res = await fetch("/api/tests/calculate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            athleteId: formData.athleteId,
-            testTypeId: formData.testTypeId,
-            date: formData.date,
-          }),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || "Erreur lors du calcul")
-        }
-      } else {
-        // For regular tests
-        let submitValue: string
-        if (isUnilateral) {
-          if (!formData.valueLeft || !formData.valueRight) {
-            setError("Veuillez saisir les valeurs gauche et droite")
-            setSaving(false)
-            return
-          }
-          const avg = (parseFloat(formData.valueLeft) + parseFloat(formData.valueRight)) / 2
-          submitValue = avg.toString()
-        } else {
-          if (!formData.value) {
-            setError("Veuillez saisir la valeur")
-            setSaving(false)
-            return
-          }
-          submitValue = formData.value
-        }
-
-        const res = await fetch("/api/tests/results", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            athleteId: formData.athleteId,
-            testTypeId: formData.testTypeId,
-            value: parseFloat(submitValue),
-            valueLeft: formData.valueLeft ? parseFloat(formData.valueLeft) : null,
-            valueRight: formData.valueRight ? parseFloat(formData.valueRight) : null,
-            date: formData.date,
-            notes: formData.notes || null,
-          }),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.message || "Erreur lors de l'enregistrement")
-        }
-      }
-
-      // Reset form
-      setFormData((prev) => ({
-        ...prev,
-        value: "",
-        valueLeft: "",
-        valueRight: "",
-        notes: "",
-        date: new Date().toISOString().split("T")[0],
-      }))
-      setCalcPreview(null)
-
-      // Refresh results
-      const resultsRes = await fetch("/api/tests/results?limit=100")
-      if (resultsRes.ok) {
-        const data = await resultsRes.json()
-        setRecentResults(Array.isArray(data) ? data : data.results ?? [])
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Une erreur est survenue")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  function openEdit(result: TestResult) {
-    setEditTarget(result)
-    setEditValue(result.value.toString())
-    setEditDate(result.date.split("T")[0])
-  }
-
-  async function handleEditSave() {
-    if (!editTarget) return
-    setEditSaving(true)
-    try {
-      const res = await fetch(`/api/tests/results/${editTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          value: parseFloat(editValue),
-          date: editDate,
-        }),
-      })
-      if (!res.ok) throw new Error("Erreur")
-
-      // Refresh
-      const resultsRes = await fetch("/api/tests/results?limit=100")
-      if (resultsRes.ok) {
-        const data = await resultsRes.json()
-        setRecentResults(Array.isArray(data) ? data : data.results ?? [])
-      }
-      setEditTarget(null)
-    } catch {
-      setError("Erreur lors de la modification")
-    } finally {
-      setEditSaving(false)
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleteSaving(true)
-    try {
-      const res = await fetch(`/api/tests/results/${deleteTarget.id}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) throw new Error("Erreur")
-
-      setRecentResults((prev) => prev.filter((r) => r.id !== deleteTarget.id))
-      setDeleteTarget(null)
-    } catch {
-      setError("Erreur lors de la suppression")
-    } finally {
-      setDeleteSaving(false)
-    }
-  }
-
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
+  if (error) return <div className="p-6 text-center text-red-500">{error}</div>
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Tests & Évaluations</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Types de données</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setNewCatModalOpen(true)}>
+            <FolderKanban className="mr-2 h-4 w-4" />
+            Nouvelle catégorie
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau type
+          </Button>
+        </div>
+      </div>
 
-      {/* Record Test Form */}
+      {/* Categories section */}
       <Card withBorder className="max-w-none">
         <div className="px-6 pt-6 pb-3">
-          <h2 className="text-xl font-semibold">Enregistrer un résultat</h2>
+          <h2 className="text-xl font-semibold">
+            <Tag className="mr-2 h-5 w-5 inline text-blue-600" />
+            Catégories
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Sélectionnez un athlète et un type de test.
-            {isCalculated
-              ? " Les tests calculés s&apos;évaluent automatiquement à partir des autres données."
-              : " Saisissez la valeur obtenue."}
-            L&apos;athlète et le test restent sélectionnés après enregistrement.
+            {existingCategories.length} catégorie
+            {existingCategories.length > 1 ? "s" : ""} définie
+            {existingCategories.length > 1 ? "s" : ""}.
           </p>
         </div>
         <div className="px-6 pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-              <div className="sm:col-span-1">
-                <label className="block text-sm font-medium mb-1">Équipe</label>
-                <select
-                  value={selectedTeamId}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+          {existingCategories.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">
+              Aucune catégorie définie. Créez-en une pour organiser vos types de tests.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {existingCategories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between rounded-lg border bg-white px-3 py-2.5"
                 >
-                  <option value="">Toutes les équipes</option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-1">
-                <Select
-                  label="Athlète"
-                  id="athleteId"
-                  name="athleteId"
-                  placeholder="Rechercher un athlète..."
-                  data={baseAthletes.map((a) => ({ value: a.id, label: `${a.firstName} ${a.lastName}` }))}
-                  value={formData.athleteId}
-                  onChange={(val) => setFormData((prev) => ({ ...prev, athleteId: val || "" }))}
-                  searchable
-                  clearable
-                  nothingFoundMessage="Aucun athlète trouvé"
-                />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-4">
-                <label className="block text-sm font-medium mb-1">Type de test</label>
-                {/* Category chips */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium truncate">{cat.name}</span>
+                    <Badge color="gray" size="sm" className="shrink-0">
+                      {typeCountByCategory[cat.name] || 0}
+                    </Badge>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => { setSelectedCategory(""); setTestSearch("") }}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
-                      selectedCategory === ""
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
-                    }`}
+                    onClick={() => setDeleteCatTarget(cat)}
+                    className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 shrink-0 ml-2"
+                    title="Supprimer la catégorie"
                   >
-                    Tous ({testTypes.length})
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategory(selectedCategory === cat.name ? "" : cat.name)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${
-                        selectedCategory === cat.name
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
-                      }`}
-                    >
-                      {cat.name} ({testTypeCountByCategory[cat.name] || 0})
-                    </button>
-                  ))}
                 </div>
-                {/* Search + test type buttons */}
-                <div className="relative mb-2">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un test..."
-                    value={testSearch}
-                    onChange={(e) => setTestSearch(e.target.value)}
-                    className="w-full h-8 pl-7 pr-2 text-sm rounded-md border border-input bg-background"
-                  />
-                </div>
-                <div className="max-h-[160px] overflow-y-auto border rounded-md divide-y">
-                  {filteredTestTypes.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-400 text-center">
-                      Aucun test trouvé
-                    </div>
-                  ) : (
-                    filteredTestTypes.map((tt) => (
-                      <button
-                        key={tt.id}
-                        type="button"
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, testTypeId: tt.id }))
-                          setTestSearch("")
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 transition-colors hover:bg-blue-50 ${
-                          formData.testTypeId === tt.id
-                            ? "bg-blue-100 font-medium text-blue-800"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        <span className="truncate">{tt.name}</span>
-                        <span className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-xs text-gray-400">{tt.unit}</span>
-                          {tt.isCalculated && (
-                            <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Calculé</span>
-                          )}
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-              {isCalculated ? (
-                <div className="col-span-1 lg:col-span-2">
-                  <div className="h-full flex flex-col justify-end">
-                    {calcLoading ? (
-                      <div className="text-sm text-muted-foreground">Calcul en cours...</div>
-                    ) : calcPreview ? (
-                      <div className="rounded-md border bg-blue-50 p-2 text-sm space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-blue-700 font-medium">
-                            {calcPreview.computed !== null
-                              ? `Résultat : ${calcPreview.computed.toFixed(2)} ${selectedTestType?.unit ?? ""}`
-                              : "Données insuffisantes"}
-                          </span>
-                          <Calculator className="h-4 w-4 text-blue-500" />
-                        </div>
-                        {calcPreview.computed === null && (
-                          <div className="text-xs text-blue-600">
-                            Présents :{" "}
-                            {Object.entries(calcPreview.inputValues)
-                              .filter(([, v]) => v !== null)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join(", ") || "aucun"}
-                          </div>
-                        )}
-                        {calcPreview.computed === null && calcPreview.missingInputs?.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">
-                            ❌ Manquants : {calcPreview.missingInputs.join(", ")}
-                          </div>
-                        )}
-                        {calcPreview.computed === null && calcPreview.unknownAliases?.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">
-                            ⚠️ Alias inconnus dans la formule : {calcPreview.unknownAliases.join(", ")}
-                          </div>
-                        )}
-                        {calcPreview.computed === null && calcPreview.errorMessage && (
-                          <div className="text-xs text-red-600 font-medium">
-                            ⚠️ {calcPreview.errorMessage}
-                          </div>
-                        )}
-                        {calcPreview.computed === null && !calcPreview.errorMessage && (
-                          <div className="text-xs text-amber-600">
-                            ⚠️ Enregistrez d&apos;abord les résultats des tests sources pour cet athlète.
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        Sélectionnez un athlète pour voir l&apos;aperçu du calcul
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : isUnilateral ? (
-                <>
-                  <div>
-                    <TextInput
-                      label="Valeur Gauche"
-                      id="valueLeft"
-                      name="valueLeft"
-                      type="number"
-                      step="0.01"
-                      value={formData.valueLeft}
-                      onChange={handleChange}
-                      placeholder="Ex: 10.5"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <TextInput
-                      label="Valeur Droite"
-                      id="valueRight"
-                      name="valueRight"
-                      type="number"
-                      step="0.01"
-                      value={formData.valueRight}
-                      onChange={handleChange}
-                      placeholder="Ex: 10.5"
-                      required
-                    />
-                  </div>
-                  {formData.valueLeft && formData.valueRight && (
-                    <div className="col-span-full">
-                      <p className="text-xs text-muted-foreground">
-                        Asymétrie :{" "}
-                        {(() => {
-                          const left = parseFloat(formData.valueLeft)
-                          const right = parseFloat(formData.valueRight)
-                          const avg = (left + right) / 2
-                          if (avg === 0) return "N/A"
-                          return `${(Math.abs(left - right) / avg * 100).toFixed(1)}%`
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div>
-                  <TextInput
-                    label="Valeur"
-                    id="value"
-                    name="value"
-                    type="number"
-                    step="0.01"
-                    value={formData.value}
-                    onChange={handleChange}
-                    placeholder="Ex: 10.5"
-                    required
-                    ref={valueRef}
-                  />
-                </div>
-              )}
-              <div>
-                <TextInput
-                  label="Date"
-                  id="date"
-                  name="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                />
-              </div>
+              ))}
             </div>
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
-
-            <Button type="submit" disabled={saving || (isCalculated && calcPreview?.computed === null)}>
-              {isCalculated ? (
-                <Calculator className="mr-2 h-4 w-4" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {saving
-                ? "Enregistrement..."
-                : isCalculated
-                ? "Calculer et enregistrer"
-                : "Enregistrer le résultat"}
-            </Button>
-          </form>
+          )}
         </div>
       </Card>
 
-      {/* Recent Results */}
+      {/* Test Types Table */}
       <Card withBorder className="max-w-none">
         <div className="px-6 pt-6 pb-3">
-          <h2 className="text-xl font-semibold">Résultats récents</h2>
+          <h2 className="text-xl font-semibold">Gestion des types de tests</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {selectedTeamId
-              ? `Résultats pour l'équipe sélectionnée — ${teamFilteredResults.length} au total`
-              : `${teamFilteredResults.length} résultat(s) au total`}
+            {testTypes.length} type
+            {testTypes.length > 1 ? "s" : ""} de test définis.
+            {testTypes.length > 0 &&
+              " Cliquez sur Modifier pour configurer un test ou sur le toggle Unilatéral pour basculer."}
           </p>
-        </div>
-        <div className="px-6 pb-3">
-          <TextInput
-            placeholder="Rechercher par nom d'athlète ou type de test..."
-            leftSection={<Search className="h-4 w-4" />}
-            value={resultSearch}
-            onChange={(e) => setResultSearch(e.currentTarget.value)}
-            className="max-w-sm"
-          />
         </div>
         <div className="px-6 pb-6 overflow-x-auto">
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Athlète</Table.Th>
-                <Table.Th>Test</Table.Th>
-                <Table.Th>Valeur</Table.Th>
-                <Table.Th>Date</Table.Th>
-                <Table.Th ta="right">Actions</Table.Th>
+                <Table.Th>
+                  <button
+                    onClick={() => handleSort("name")}
+                    className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline"
+                  >
+                    Nom
+                    <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
+                  </button>
+                </Table.Th>
+                <Table.Th>
+                  <button
+                    onClick={() => handleSort("category")}
+                    className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline"
+                  >
+                    Catégorie
+                    <SortIcon field="category" sortField={sortField} sortDir={sortDir} />
+                  </button>
+                </Table.Th>
+                <Table.Th>
+                  <button
+                    onClick={() => handleSort("unit")}
+                    className="inline-flex items-center gap-0 bg-transparent border-none cursor-pointer font-inherit text-inherit p-0 hover:underline"
+                  >
+                    Unité
+                    <SortIcon field="unit" sortField={sortField} sortDir={sortDir} />
+                  </button>
+                </Table.Th>
+                <Table.Th ta="center">Supérieur = Meilleur</Table.Th>
+                <Table.Th ta="center">Norme H</Table.Th>
+                <Table.Th ta="center">Norme F</Table.Th>
+                <Table.Th ta="center">Unilatéral</Table.Th>
+                <Table.Th ta="center">Calculé</Table.Th>
+                <Table.Th ta="center">Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {paginatedResults.length === 0 ? (
+              {sortedTestTypes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5} className="text-center text-muted-foreground">
-                    Aucun résultat trouvé
+                  <Table.Td colSpan={9} className="text-center text-muted-foreground">
+                    Aucun type de test défini
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                paginatedResults.map((r) => (
-                  <Table.Tr key={r.id}>
-                    <Table.Td className="font-medium">
-                      {r.athlete.firstName} {r.athlete.lastName}
+                sortedTestTypes.map((t) => (
+                  <Table.Tr key={t.id}>
+                    <Table.Td className="font-medium">{t.name}</Table.Td>
+                    <Table.Td>{t.category}</Table.Td>
+                    <Table.Td>{t.unit}</Table.Td>
+                    <Table.Td ta="center">
+                      <Badge color={t.higherIsBetter ? "blue" : "gray"}>
+                        {t.higherIsBetter ? "Oui" : "Non"}
+                      </Badge>
                     </Table.Td>
-                    <Table.Td>{r.testType.name}</Table.Td>
-                    <Table.Td>
-                      {r.value} {r.testType.unit}
+                    <Table.Td ta="center">
+                      <span className="text-sm font-medium">
+                        {t.normMale !== null ? t.normMale : "—"}
+                      </span>
                     </Table.Td>
-                    <Table.Td>{new Date(r.date).toLocaleDateString("fr-FR")}</Table.Td>
-                    <Table.Td ta="right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="outline" size="compact-sm" onClick={() => openEdit(r)}>
+                    <Table.Td ta="center">
+                      <span className="text-sm font-medium">
+                        {t.normFemale !== null ? t.normFemale : "—"}
+                      </span>
+                    </Table.Td>
+                    <Table.Td ta="center">
+                      <Toggle
+                        id={`uni-${t.id}`}
+                        checked={t.isUnilateral}
+                        onChange={() => handleToggleIsUnilateral(t)}
+                        label=""
+                      />
+                    </Table.Td>
+                    <Table.Td ta="center">
+                      {t.isCalculated ? (
+                        <Badge color="violet">Oui</Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </Table.Td>
+                    <Table.Td ta="center">
+                      <div className="flex justify-center gap-1">
+                        <Button variant="outline" size="compact-sm" onClick={() => openEditModal(t)}>
                           <Pencil className="mr-1 h-3 w-3" />
                           Modifier
                         </Button>
-                        <Button variant="outline" size="compact-sm" color="red" onClick={() => setDeleteTarget(r)}>
+                        <Button
+                          variant="outline"
+                          size="compact-sm"
+                          color="red"
+                          onClick={() => setDeleteTarget(t)}
+                        >
                           <Trash2 className="mr-1 h-3 w-3" />
                           Supprimer
                         </Button>
@@ -762,80 +784,361 @@ export default function TestsPage() {
             </Table.Tbody>
           </Table>
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 pb-6">
-            <p className="text-sm text-muted-foreground">
-              {resultStart}–{resultEnd} sur {teamFilteredResults.length}
-            </p>
-            <div className="flex gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <Button
-                  key={p}
-                  variant={p === page ? "filled" : "outline"}
-                  size="compact-sm"
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
       </Card>
 
       {/* Edit Modal */}
-      <Modal opened={!!editTarget} onClose={() => setEditTarget(null)} title="Modifier le résultat" size="sm">
-        {editTarget && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {editTarget.athlete.firstName} {editTarget.athlete.lastName} —{" "}
-              {editTarget.testType.name}
-            </p>
-            <TextInput
-              label="Valeur"
-              type="number"
-              step="0.01"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-            />
-            <TextInput
-              label="Date"
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditTarget(null)}>
-                Annuler
-              </Button>
-              <Button onClick={handleEditSave} disabled={editSaving}>
-                <Check className="mr-2 h-4 w-4" />
-                {editSaving ? "Enregistrement..." : "Enregistrer"}
+      <Modal
+        opened={editModalOpen}
+        onClose={closeEditModal}
+        title="Modifier le type de test"
+        size="md"
+        trapFocus={false}
+        returnFocus={false}
+        transitionProps={{ duration: 0, timingFunction: "ease" }}
+        keepMounted={false}
+      >
+        <p className="text-sm text-muted-foreground mb-4">
+          Modifiez les informations du type de test.
+        </p>
+        <div className="space-y-4">
+          <TextInput
+            label="Nom"
+            value={editForm.name}
+            onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Sprint 30m"
+          />
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <div className="flex items-center gap-1">
+              <select
+                value={editForm.category}
+                onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {existingCategories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+                {editForm.category &&
+                  !existingCategories.some((c) => c.name === editForm.category) && (
+                    <option value={editForm.category}>{editForm.category}</option>
+                  )}
+              </select>
+              <Button
+                variant="outline"
+                size="compact-sm"
+                onClick={() => setNewCatModalOpen(true)}
+                title="Nouvelle catégorie"
+              >
+                <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
-        )}
+          <TextInput
+            label="Unité"
+            value={editForm.unit}
+            onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
+            placeholder="Ex: secondes, cm, kg..."
+          />
+          <TextInput
+            label="Supérieur = Meilleur"
+            component="select"
+            value={editForm.higherIsBetter ? "true" : "false"}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
+            }
+          >
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </TextInput>
+          <div className="flex items-center gap-3 py-2">
+            <Toggle
+              id="edit-is-unilateral"
+              checked={editForm.isUnilateral}
+              onChange={(v) => setEditForm((p) => ({ ...p, isUnilateral: v }))}
+              label="Test unilatéral"
+            />
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <Toggle
+              id="edit-is-calculated"
+              checked={editForm.isCalculated}
+              onChange={(v) => setEditForm((p) => ({ ...p, isCalculated: v }))}
+              label="Test calculé (formule)"
+            />
+          </div>
+          <div style={{ display: editForm.isCalculated ? "block" : "none" }}>
+            <FormulaConfigSection
+              inputs={editForm.formulaInputs}
+              formula={editForm.formula}
+              onFormulaChange={(v) => setEditForm((p) => ({ ...p, formula: v }))}
+              onAddInput={() => setPickInputOpen("edit")}
+              onRemoveInput={(id) => removeFormulaInput("edit", id)}
+              onUpdateAlias={(id, alias) => updateAlias("edit", id, alias)}
+              getTestTypeName={getTestTypeName}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput
+              label="Norme Hommes"
+              type="number"
+              step="0.01"
+              value={editForm.normMale}
+              onChange={(e) => setEditForm((p) => ({ ...p, normMale: e.target.value }))}
+              placeholder="Ex: 4.5"
+            />
+            <TextInput
+              label="Norme Femmes"
+              type="number"
+              step="0.01"
+              value={editForm.normFemale}
+              onChange={(e) => setEditForm((p) => ({ ...p, normFemale: e.target.value }))}
+              placeholder="Ex: 5.2"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={closeEditModal}>
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
       </Modal>
 
-      {/* Delete Confirmation */}
-      <Modal opened={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm">
+      {/* Create Dialog */}
+      <Modal
+        opened={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Nouveau type de test"
+        size="md"
+        trapFocus={false}
+        returnFocus={false}
+        transitionProps={{ duration: 0, timingFunction: "ease" }}
+        keepMounted={false}
+      >
+        <p className="text-sm text-muted-foreground mb-4">
+          Créez un nouveau type de test pour les évaluations.
+        </p>
+        <div className="space-y-4">
+          <TextInput
+            label="Nom"
+            value={newType.name}
+            onChange={(e) => setNewType((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Sprint 30m"
+          />
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <div className="flex items-center gap-1">
+              <select
+                value={newType.category}
+                onChange={(e) => setNewType((p) => ({ ...p, category: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {existingCategories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                size="compact-sm"
+                onClick={() => setNewCatModalOpen(true)}
+                title="Nouvelle catégorie"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <TextInput
+            label="Unité"
+            value={newType.unit}
+            onChange={(e) => setNewType((p) => ({ ...p, unit: e.target.value }))}
+            placeholder="Ex: secondes, cm, kg..."
+          />
+          <TextInput
+            label="Supérieur = Meilleur"
+            component="select"
+            value={newType.higherIsBetter ? "true" : "false"}
+            onChange={(e) =>
+              setNewType((p) => ({ ...p, higherIsBetter: e.target.value === "true" }))
+            }
+          >
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </TextInput>
+          <div className="flex items-center gap-3 py-2">
+            <Toggle
+              id="new-is-unilateral"
+              checked={newType.isUnilateral}
+              onChange={(v) => setNewType((p) => ({ ...p, isUnilateral: v }))}
+              label="Test unilatéral"
+            />
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <Toggle
+              id="new-is-calculated"
+              checked={newType.isCalculated}
+              onChange={(v) => {
+                setNewType((p) => ({ ...p, isCalculated: v, formula: "", formulaInputs: [] }))
+              }}
+              label="Test calculé (formule)"
+            />
+          </div>
+          <div style={{ display: newType.isCalculated ? "block" : "none" }}>
+            <FormulaConfigSection
+              inputs={newType.formulaInputs}
+              formula={newType.formula}
+              onFormulaChange={(v) => setNewType((p) => ({ ...p, formula: v }))}
+              onAddInput={() => setPickInputOpen("create")}
+              onRemoveInput={(id) => removeFormulaInput("create", id)}
+              onUpdateAlias={(id, alias) => updateAlias("create", id, alias)}
+              getTestTypeName={getTestTypeName}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput
+              label="Norme Hommes"
+              type="number"
+              step="0.01"
+              value={newType.normMale}
+              onChange={(e) => setNewType((p) => ({ ...p, normMale: e.target.value }))}
+              placeholder="Ex: 4.5"
+            />
+            <TextInput
+              label="Norme Femmes"
+              type="number"
+              step="0.01"
+              value={newType.normFemale}
+              onChange={(e) => setNewType((p) => ({ ...p, normFemale: e.target.value }))}
+              placeholder="Ex: 5.2"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            Annuler
+          </Button>
+          <Button onClick={handleCreate} disabled={creating}>
+            {creating ? "Création..." : "Créer"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Delete Test Type Confirmation Modal */}
+      <Modal
+        opened={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirmer la suppression"
+        size="sm"
+        transitionProps={{ duration: 0, timingFunction: "ease" }}
+      >
         {deleteTarget && (
           <>
             <p className="text-sm text-muted-foreground mb-4">
-              Êtes-vous sûr de vouloir supprimer ce résultat ?
+              Êtes-vous sûr de vouloir supprimer le type de test{" "}
+              <strong>{deleteTarget.name}</strong> ?
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDeleteTarget(null)}>
                 Annuler
               </Button>
-              <Button color="red" onClick={handleDelete} disabled={deleteSaving}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                {deleteSaving ? "Suppression..." : "Supprimer"}
+              <Button color="red" onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Suppression..." : "Supprimer"}
               </Button>
             </div>
           </>
         )}
       </Modal>
+
+      {/* Delete Category Confirmation Modal */}
+      <Modal
+        opened={!!deleteCatTarget}
+        onClose={() => setDeleteCatTarget(null)}
+        title="Confirmer la suppression de la catégorie"
+        size="sm"
+        transitionProps={{ duration: 0, timingFunction: "ease" }}
+      >
+        {deleteCatTarget && (
+          <>
+            <p className="text-sm text-muted-foreground mb-4">
+              Êtes-vous sûr de vouloir supprimer la catégorie{" "}
+              <strong>{deleteCatTarget.name}</strong> ?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteCatTarget(null)}>
+                Annuler
+              </Button>
+              <Button color="red" onClick={handleDeleteCategory} disabled={deletingCat}>
+                {deletingCat ? "Suppression..." : "Supprimer"}
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* New Category Modal */}
+      <Modal
+        opened={newCatModalOpen}
+        onClose={() => {
+          setNewCatModalOpen(false)
+          setNewCatName("")
+        }}
+        title="Nouvelle catégorie"
+        size="sm"
+        transitionProps={{ duration: 0, timingFunction: "ease" }}
+      >
+        <p className="text-sm text-muted-foreground mb-4">
+          Créez une nouvelle catégorie de test.
+        </p>
+        <TextInput
+          label="Nom de la catégorie"
+          value={newCatName}
+          onChange={(e) => setNewCatName(e.currentTarget.value)}
+          placeholder="Ex: Vitesse, Force..."
+          data-autofocus
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setNewCatModalOpen(false)
+              setNewCatName("")
+            }}
+          >
+            Annuler
+          </Button>
+          <Button
+            onClick={handleCreateCategory}
+            disabled={creatingCategory || !newCatName.trim()}
+          >
+            {creatingCategory ? "Création..." : "Créer"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Formula input picker */}
+      <FormulaInputPickerModal
+        opened={pickInputOpen !== null}
+        available={getAvailableInputTypes(
+          pickInputOpen === "create" ? newType.formulaInputs : editForm.formulaInputs
+        )}
+        onClose={() => setPickInputOpen(null)}
+        onSelect={(tt) => {
+          const target = pickInputOpen ?? "create"
+          const defaultAlias = tt.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "_")
+            .replace(/_+/g, "_")
+            .replace(/^_|_$/g, "")
+          addFormulaInput(target, tt, defaultAlias)
+        }}
+      />
     </div>
   )
 }

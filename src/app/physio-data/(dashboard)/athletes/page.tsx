@@ -17,18 +17,12 @@ import {
   Checkbox,
 } from "@mantine/core"
 
-interface Team {
-  id: string
-  name: string
-}
-
 interface Athlete {
   id: string
   firstName: string
   lastName: string
   isActive: boolean
   isArchived?: boolean
-  teams?: { team: Team }[]
 }
 
 export default function AthletesPage() {
@@ -37,8 +31,6 @@ export default function AthletesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [teams, setTeams] = useState<Team[]>([])
-  const [filterTeam, setFilterTeam] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
 
@@ -59,17 +51,9 @@ export default function AthletesPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [teamsRes, meRes] = await Promise.all([
-          fetch("/api/teams"),
-          fetch("/api/auth/me"),
-        ])
+        const meRes = await fetch("/api/auth/me")
 
         await fetchAthletes(showArchived)
-
-        if (teamsRes.ok) {
-          const teamsData = await teamsRes.json()
-          setTeams(Array.isArray(teamsData) ? teamsData : teamsData.teams ?? [])
-        }
 
         if (meRes.ok) {
           const meData = await meRes.json()
@@ -87,10 +71,7 @@ export default function AthletesPage() {
   const filteredAthletes = athletes.filter((a) => {
     const fullName = `${a.firstName} ${a.lastName}`.toLowerCase()
     const matchesSearch = fullName.includes(search.toLowerCase())
-    const matchesTeam =
-      !filterTeam ||
-      (a.teams ?? []).some((t) => t.team?.id === filterTeam)
-    return matchesSearch && matchesTeam
+    return matchesSearch
   })
 
   async function handleDelete() {
@@ -147,18 +128,6 @@ export default function AthletesPage() {
             leftSection={<Search className="h-4 w-4 text-gray-400" />}
           />
         </div>
-        <select
-          value={filterTeam}
-          onChange={(e) => setFilterTeam(e.target.value)}
-          className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-        >
-          <option value="">Toutes les équipes</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
         <Checkbox
           label="Voir les archivés"
           checked={showArchived}
@@ -172,7 +141,6 @@ export default function AthletesPage() {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Nom</Table.Th>
-              <Table.Th>Équipe(s)</Table.Th>
               <Table.Th>Statut</Table.Th>
               <Table.Th style={{ textAlign: "right" }}>Actions</Table.Th>
             </Table.Tr>
@@ -180,7 +148,7 @@ export default function AthletesPage() {
           <Table.Tbody>
             {filteredAthletes.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={4}>
+                <Table.Td colSpan={3}>
                   <Text c="dimmed" ta="center">Aucun athlète trouvé</Text>
                 </Table.Td>
               </Table.Tr>
@@ -193,18 +161,6 @@ export default function AthletesPage() {
                         {athlete.firstName} {athlete.lastName}
                       </Link>
                     </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {(athlete.teams ?? []).length > 0
-                      ? (athlete.teams ?? []).map((t, i) => (
-                          <span key={t.team.id}>
-                            {i > 0 && ", "}
-                            <Link href={`/teams/${t.team.id}`} className="hover:text-blue-600 transition-colors">
-                              {t.team.name}
-                            </Link>
-                          </span>
-                        ))
-                      : "—"}
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs">

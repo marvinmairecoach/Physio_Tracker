@@ -20,14 +20,18 @@ model User {
   firstName     String   @map("first_name")
   lastName      String   @map("last_name")
   phone         String?
-  role          String   @default("coach") // admin | coach
+  avatarUrl     String?  @map("avatar_url")
+  role          String   @default("coach") // admin | coach | athlete
   isActive      Boolean  @default(true) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   athletes      Athlete[]   @relation("AthleteCreator")
+  athleteUsers  Athlete[]   @relation("AthleteUser")
   results       TestResult[] @relation("TestRecorder")
   planningEntries PlanningEntry[]
+  conversationsParticipant ConversationParticipant[] @relation("ConversationUser")
+  sentMessages  Message[]   @relation("MessageSender")
 
   @@map("User")
 }
@@ -47,10 +51,12 @@ model Athlete {
   isActive   Boolean   @default(true) @map("is_active")
   isArchived Boolean   @default(false) @map("is_archived")
   createdById String  @map("created_by_id")
+  userId     String?   @map("user_id")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
   creator     User        @relation("AthleteCreator", fields: [createdById], references: [id])
+  user        User?       @relation("AthleteUser", fields: [userId], references: [id])
   testResults TestResult[]
   bilans       Bilan[]
   planningEntries PlanningEntry[]
@@ -141,4 +147,42 @@ model PlanningEntry {
 
   @@index([athleteId, date])
   @@map("PlanningEntry")
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participants ConversationParticipant[]
+  messages      Message[]
+
+  @@map("Conversation")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  lastReadAt     DateTime @default(now()) @map("last_read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation("ConversationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("ConversationParticipant")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("Message")
 }

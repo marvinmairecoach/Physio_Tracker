@@ -4,19 +4,13 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 
-import { Button, Card, TextInput, Textarea, NativeSelect, Radio } from "@mantine/core"
-
-interface Team {
-  id: string
-  name: string
-}
+import { Button, Card, TextInput, Textarea, Radio } from "@mantine/core"
 
 export default function EditAthletePage() {
   const router = useRouter()
   const params = useParams()
   const athleteId = params.id as string
 
-  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
     firstName: "",
@@ -25,7 +19,6 @@ export default function EditAthletePage() {
     phone: "",
     email: "",
     gender: "",
-    teamId: "",
     heightCm: "",
     weightKg: "",
     notes: "",
@@ -36,15 +29,8 @@ export default function EditAthletePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [athleteRes, teamsRes] = await Promise.all([
-          fetch(`/api/athletes/${athleteId}`),
-          fetch("/api/teams"),
-        ])
+        const athleteRes = await fetch(`/api/athletes/${athleteId}`)
         if (!athleteRes.ok) throw new Error("Impossible de charger l'athlète")
-        if (teamsRes.ok) {
-          const data = await teamsRes.json()
-          setTeams(Array.isArray(data) ? data : data.teams ?? [])
-        }
         const athlete = await athleteRes.json()
         setFormData({
           firstName: athlete.firstName ?? "",
@@ -53,7 +39,6 @@ export default function EditAthletePage() {
           phone: athlete.phone ?? "",
           email: athlete.email ?? "",
           gender: athlete.gender ?? "",
-          teamId: athlete.teams?.[0]?.team?.id ?? "",
           heightCm: athlete.heightCm?.toString() ?? "",
           weightKg: athlete.weightKg?.toString() ?? "",
           notes: athlete.notes ?? "",

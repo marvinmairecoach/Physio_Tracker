@@ -12,7 +12,7 @@ const SESSION_COOKIE = "pp_physio_session";
 export interface SessionPayload extends JWTPayload {
   userId: string;
   email: string;
-  role: "admin" | "coach";
+  role: "admin" | "coach" | "athlete";
 }
 
 // --- JWT ---

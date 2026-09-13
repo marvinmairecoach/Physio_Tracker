@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { physioPrisma } from "@/lib/prisma-physio";
+import { requireAuth } from "@/lib/auth-physio";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +13,8 @@ export async function GET(
 
     const { id } = params;
 
-    const athlete = await prisma.athlete.findUnique({
+    const athlete = await physioPrisma.athlete.findUnique({
       where: { id },
-      include: {
-        teams: {
-          include: { team: true },
-        },
-      },
     });
 
     if (!athlete) {
@@ -69,7 +64,7 @@ export async function PATCH(
       isArchived,
     } = body;
 
-    const existing = await prisma.athlete.findUnique({ where: { id } });
+    const existing = await physioPrisma.athlete.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
         { error: "Athlete not found" },
@@ -77,7 +72,7 @@ export async function PATCH(
       );
     }
 
-    const athlete = await prisma.athlete.update({
+    const athlete = await physioPrisma.athlete.update({
       where: { id },
       data: {
         ...(firstName !== undefined && { firstName }),
@@ -92,11 +87,6 @@ export async function PATCH(
         ...(photoUrl !== undefined && { photoUrl }),
         ...(isActive !== undefined && { isActive }),
         ...(isArchived !== undefined && { isArchived }),
-      },
-      include: {
-        teams: {
-          include: { team: true },
-        },
       },
     });
 
@@ -125,7 +115,7 @@ export async function DELETE(
 
     const { id } = params;
 
-    const existing = await prisma.athlete.findUnique({ where: { id } });
+    const existing = await physioPrisma.athlete.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
         { error: "Athlete not found" },
@@ -133,7 +123,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.athlete.delete({ where: { id } });
+    await physioPrisma.athlete.delete({ where: { id } });
 
     return NextResponse.json({ message: "Athlete deleted successfully" });
   } catch (error) {

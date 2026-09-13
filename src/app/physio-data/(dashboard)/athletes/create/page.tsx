@@ -1,19 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 
-import { Button, Card, TextInput, Textarea, NativeSelect, Radio } from "@mantine/core"
-
-interface Team {
-  id: string
-  name: string
-}
+import { Button, Card, TextInput, Textarea, Radio } from "@mantine/core"
 
 export default function CreateAthletePage() {
   const router = useRouter()
-  const [teams, setTeams] = useState<Team[]>([])
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -21,28 +15,12 @@ export default function CreateAthletePage() {
     phone: "",
     email: "",
     gender: "",
-    teamId: "",
     heightCm: "",
     weightKg: "",
     notes: "",
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function fetchTeams() {
-      try {
-        const res = await fetch("/api/teams")
-        if (res.ok) {
-          const data = await res.json()
-          setTeams(Array.isArray(data) ? data : data.teams ?? [])
-        }
-      } catch {
-        // Silently fail
-      }
-    }
-    fetchTeams()
-  }, [])
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -69,7 +47,6 @@ export default function CreateAthletePage() {
         phone: formData.phone || null,
         email: formData.email || null,
         gender: formData.gender || null,
-        teamId: formData.teamId || null,
         heightCm: formData.heightCm ? parseFloat(formData.heightCm) : null,
         weightKg: formData.weightKg ? parseFloat(formData.weightKg) : null,
         notes: formData.notes || null,
@@ -181,7 +158,7 @@ export default function CreateAthletePage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextInput
               label="Taille (cm)"
               name="heightCm"
@@ -199,16 +176,6 @@ export default function CreateAthletePage() {
               value={formData.weightKg}
               onChange={handleChange}
               placeholder="70"
-            />
-            <NativeSelect
-              label="Équipe (optionnel)"
-              name="teamId"
-              value={formData.teamId}
-              onChange={handleChange}
-              data={[
-                { value: "", label: "Aucune équipe" },
-                ...teams.map((t) => ({ value: t.id, label: t.name })),
-              ]}
             />
           </div>
 
