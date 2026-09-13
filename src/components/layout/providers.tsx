@@ -42,6 +42,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
   const fetchUser = useCallback(async () => {
+    setLoading(true)
     try {
       // Determine the auth endpoint based on the current pathname
       let endpoint = "/api/auth/me"
@@ -65,7 +66,6 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [pathname])
 
   useEffect(() => {
-    setLoading(true)
     fetchUser()
   }, [fetchUser, pathname])
 
