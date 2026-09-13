@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/auth"
+import { getSession } from "@/lib/auth-physio"
 import { physioPrisma } from "@/lib/prisma-physio"
 
 const userSelect = {

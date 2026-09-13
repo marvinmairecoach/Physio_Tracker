@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { physioPrisma as prisma } from "@/lib/prisma-physio";
+import { requireAuth } from "@/lib/auth-physio";
 import { evaluateFormula, FormulaInput } from "@/lib/formula";
 
 export const dynamic = "force-dynamic";

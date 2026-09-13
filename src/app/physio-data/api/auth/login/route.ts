@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { physioPrisma } from "@/lib/prisma-physio"
 import { createToken } from "@/lib/auth-shared"
-import { createSession } from "@/lib/auth"
+import { createSession } from "@/lib/auth-physio"
 
 const PHYSIO_SESSION_COOKIE = "pp_physio_session"
 

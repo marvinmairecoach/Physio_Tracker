@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/auth"
+import { physioPrisma as prisma } from "@/lib/prisma-physio"
+import { requireAuth } from "@/lib/auth-physio"
 
 export const dynamic = "force-dynamic"
 
@@ -23,10 +23,6 @@ export async function GET(
             gender: true,
             birthDate: true,
             email: true,
-            teams: {
-              where: { isActive: true },
-              include: { team: { select: { id: true, name: true } } },
-            },
           },
         },
       },

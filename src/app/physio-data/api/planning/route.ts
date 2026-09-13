@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { physioPrisma as prisma } from "@/lib/prisma-physio";
+import { requireAuth } from "@/lib/auth-physio";
 
 export const dynamic = "force-dynamic";
 
@@ -9,20 +9,12 @@ export async function GET(request: NextRequest) {
     await requireAuth();
 
     const { searchParams } = new URL(request.url);
-    const scope = searchParams.get("scope"); // "athlete" | "team"
-    const id = searchParams.get("id");
+    const athleteId = searchParams.get("athleteId");
     const month = searchParams.get("month"); // "YYYY-MM"
 
-    if (!scope || !id || !month) {
+    if (!athleteId || !month) {
       return NextResponse.json(
-        { error: "scope, id and month query params are required" },
-        { status: 400 }
-      );
-    }
-
-    if (scope !== "athlete" && scope !== "team") {
-      return NextResponse.json(
-        { error: 'scope must be "athlete" or "team"' },
+        { error: "athleteId and month query params are required" },
         { status: 400 }
       );
     }
@@ -39,62 +31,19 @@ export async function GET(request: NextRequest) {
     const startOfMonth = new Date(year, monthIndex, 1);
     const endOfMonth = new Date(year, monthIndex + 1, 0, 23, 59, 59);
 
-    let entries;
+    const entries = await prisma.planningEntry.findMany({
+      where: {
+        athleteId,
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+      orderBy: { date: "asc" },
+    });
 
-    if (scope === "athlete") {
-      // Active teams of the athlete
-      const athleteTeams = await prisma.athleteTeam.findMany({
-        where: { athleteId: id, isActive: true },
-        select: { teamId: true },
-      });
-
-      const athleteTeamIds = athleteTeams.map((at) => at.teamId);
-
-      entries = await prisma.planningEntry.findMany({
-        where: {
-          AND: [
-            {
-              // Overlaps the requested month: starts within the month,
-              // or is a period spanning into/through the month
-              OR: [
-                { date: { gte: startOfMonth, lte: endOfMonth } },
-                { date: { lte: endOfMonth }, dateEnd: { gte: startOfMonth } },
-              ],
-            },
-            {
-              OR: [
-                { athleteId: id },
-                ...(athleteTeamIds.length > 0 ? [{ teamId: { in: athleteTeamIds } }] : []),
-              ],
-            },
-          ],
-        },
-        include: {
-          team: { select: { id: true, name: true } },
-        },
-        orderBy: { date: "asc" },
-      });
-    } else {
-      entries = await prisma.planningEntry.findMany({
-        where: {
-          teamId: id,
-          OR: [
-            { date: { gte: startOfMonth, lte: endOfMonth } },
-            { date: { lte: endOfMonth }, dateEnd: { gte: startOfMonth } },
-          ],
-        },
-        include: {
-          team: { select: { id: true, name: true } },
-        },
-        orderBy: { date: "asc" },
-      });
-    }
-
-    // Map entries with origin field
+    // Map consistent format
     const mapped = entries.map((entry) => ({
       ...entry,
-      origin: entry.athleteId ? "individuel" : "equipe",
-      teamName: entry.team?.name ?? null,
+      origin: "individuel",
+      teamName: null,
     }));
 
     return NextResponse.json(mapped);
@@ -115,19 +64,11 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
 
     const body = await request.json();
-    const { title, date, type, athleteId, teamId, isObjective, notes, dateEnd } = body;
+    const { title, date, type, athleteId, isObjective, notes, dateEnd } = body;
 
-    if (!title || !date) {
+    if (!title || !date || !athleteId) {
       return NextResponse.json(
-        { error: "title and date are required" },
-        { status: 400 }
-      );
-    }
-
-    // Exactly one of athleteId / teamId must be set
-    if (!!athleteId === !!teamId) {
-      return NextResponse.json(
-        { error: "Exactly one of athleteId or teamId must be provided" },
+        { error: "title, date and athleteId are required" },
         { status: 400 }
       );
     }
@@ -137,8 +78,7 @@ export async function POST(request: NextRequest) {
         title,
         date: new Date(date),
         type: type || "ENTRAINEMENT",
-        athleteId: athleteId ?? null,
-        teamId: teamId ?? null,
+        athleteId,
         isObjective: isObjective ?? false,
         notes: notes ?? null,
         dateEnd: dateEnd ? new Date(dateEnd) : null,

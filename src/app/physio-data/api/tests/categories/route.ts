@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { physioPrisma } from "@/lib/prisma-physio";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth-physio";
 
 export const dynamic = "force-dynamic";
 
