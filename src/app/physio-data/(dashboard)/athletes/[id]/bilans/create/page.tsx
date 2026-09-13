@@ -55,12 +55,12 @@ export default function CreateBilanPage() {
     async function load() {
       try {
         const [athleteRes, typesRes, resultsRes] = await Promise.all([
-          fetch(`/api/athletes/${athleteId}`),
-          fetch("/api/tests/types"),
-          fetch(`/api/athletes/${athleteId}/tests`),
+          fetch(`/physio-data/api/athletes/${athleteId}`),
+          fetch("/physio-data/api/tests/types"),
+          fetch(`/physio-data/api/athletes/${athleteId}/tests`),
         ])
 
-        if (!athleteRes.ok) { router.push("/athletes"); return }
+        if (!athleteRes.ok) { router.push("/physio-data/athletes"); return }
 
         const athleteData = await athleteRes.json()
         setAthleteName(`${athleteData.firstName} ${athleteData.lastName}`)
@@ -130,7 +130,7 @@ export default function CreateBilanPage() {
     if (selectedIds.size === 0) { alert("Sélectionnez au moins un test"); return }
     setSaving(true)
     try {
-      const res = await fetch(`/api/athletes/${athleteId}/bilans`, {
+      const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,7 +148,7 @@ export default function CreateBilanPage() {
       })
       if (!res.ok) throw new Error("Erreur")
       const data = await res.json()
-      router.push(`/bilans/${data.bilan.id}`)
+      router.push(`/physio-data/bilans/${data.bilan.id}`)
     } catch {
       alert("Erreur lors de la création")
     } finally {

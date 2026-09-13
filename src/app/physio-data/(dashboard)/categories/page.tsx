@@ -34,13 +34,13 @@ export default function CategoriesPage() {
 
   async function fetchCategories() {
     try {
-      const res = await fetch("/api/tests/categories")
+      const res = await fetch("/physio-data/api/tests/categories")
       if (!res.ok) throw new Error("Erreur lors du chargement")
       const data = await res.json()
       const raw: { id: string; name: string }[] = data.categories ?? []
 
       // Fetch test types to get counts
-      const typesRes = await fetch("/api/tests/types")
+      const typesRes = await fetch("/physio-data/api/tests/types")
       const typesData = await typesRes.json()
       const types: { category: string }[] = Array.isArray(typesData)
         ? typesData
@@ -75,7 +75,7 @@ export default function CategoriesPage() {
     if (!newName.trim()) return
     setCreating(true)
     try {
-      const res = await fetch("/api/tests/categories", {
+      const res = await fetch("/physio-data/api/tests/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
@@ -105,7 +105,7 @@ export default function CategoriesPage() {
     if (!editValue.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/tests/categories/${id}`, {
+      const res = await fetch(`/physio-data/api/tests/categories/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editValue.trim() }),
@@ -152,7 +152,7 @@ export default function CategoriesPage() {
           Management des catégories de test
         </h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.push("/tests/types")}>
+          <Button variant="outline" onClick={() => router.push("/physio-data/tests/types")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour aux types de données
           </Button>

@@ -36,7 +36,7 @@ export default function ProfilePage() {
     setUploadingLogo(true)
     try {
       const b64 = await fileToBase64(file)
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch("/physio-data/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: b64 }),
@@ -60,7 +60,7 @@ export default function ProfilePage() {
     setError(null)
     setSuccess(false)
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch("/physio-data/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), phone: phone.trim() || null }),

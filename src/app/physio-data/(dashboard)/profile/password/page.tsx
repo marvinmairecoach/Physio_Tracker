@@ -39,7 +39,7 @@ export default function ChangePasswordPage() {
 
     setSaving(true)
     try {
-      const res = await fetch("/api/auth/change-password", {
+      const res = await fetch("/physio-data/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),

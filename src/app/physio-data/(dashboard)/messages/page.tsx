@@ -382,7 +382,7 @@ export default function MessagesPage() {
 
   // Fetch current user
   useEffect(() => {
-    fetch("/api/auth/me")
+    fetch("/physio-data/api/auth/me")
       .then((r) => r.json())
       .then((data) => setCurrentUserId(data.user?.id ?? undefined))
       .catch(() => {})

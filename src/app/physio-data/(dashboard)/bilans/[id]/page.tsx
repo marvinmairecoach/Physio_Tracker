@@ -111,9 +111,9 @@ export default function BilanViewPage() {
   const fetchBilan = async () => {
     try {
       const [bilanRes, typesRes, resultsRes] = await Promise.all([
-        fetch(`/api/bilans/${bilanId}`),
-        fetch("/api/tests/types"),
-        fetch(`/api/athletes/${bilanId.split("/")[0]}/tests`),
+        fetch(`/physio-data/api/bilans/${bilanId}`),
+        fetch("/physio-data/api/tests/types"),
+        fetch(`/physio-data/api/athletes/${bilanId.split("/")[0]}/tests`),
       ])
       // Actually we need the athlete ID from the bilan
       if (!bilanRes.ok) throw new Error("Bilan introuvable")
@@ -137,7 +137,7 @@ export default function BilanViewPage() {
       // Fetch athlete's actual test results
       const athleteId = bilanData.athlete?.id
       if (athleteId) {
-        const rRes = await fetch(`/api/athletes/${athleteId}/tests`)
+        const rRes = await fetch(`/physio-data/api/athletes/${athleteId}/tests`)
         if (rRes.ok) {
           const rData = await rRes.json()
           setAllResults(rData.results ?? rData ?? [])
@@ -191,7 +191,7 @@ export default function BilanViewPage() {
     if (!editTitle.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/bilans/${bilanId}`, {
+      const res = await fetch(`/physio-data/api/bilans/${bilanId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,12 +220,12 @@ export default function BilanViewPage() {
   const handleDelete = async () => {
     if (!confirm("Supprimer ce bilan définitivement ?")) return
     try {
-      const res = await fetch(`/api/bilans/${bilanId}`, { method: "DELETE" })
+      const res = await fetch(`/physio-data/api/bilans/${bilanId}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Erreur")
       if (athlete) {
-        router.push(`/athletes/${athlete.id}/bilans`)
+        router.push(`/physio-data/athletes/${athlete.id}/bilans`)
       } else {
-        router.push("/athletes")
+        router.push("/physio-data/athletes")
       }
     } catch {
       alert("Erreur lors de la suppression")

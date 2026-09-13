@@ -29,7 +29,7 @@ export default function EditAthletePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const athleteRes = await fetch(`/api/athletes/${athleteId}`)
+        const athleteRes = await fetch(`/physio-data/api/athletes/${athleteId}`)
         if (!athleteRes.ok) throw new Error("Impossible de charger l'athlète")
         const athlete = await athleteRes.json()
         setFormData({
@@ -82,7 +82,7 @@ export default function EditAthletePage() {
         notes: formData.notes || null,
       }
 
-      const res = await fetch(`/api/athletes/${athleteId}`, {
+      const res = await fetch(`/physio-data/api/athletes/${athleteId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -91,7 +91,7 @@ export default function EditAthletePage() {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.error || "Erreur lors de la modification")
       }
-      router.push(`/athletes/${athleteId}`)
+      router.push(`/physio-data/athletes/${athleteId}`)
       router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue")

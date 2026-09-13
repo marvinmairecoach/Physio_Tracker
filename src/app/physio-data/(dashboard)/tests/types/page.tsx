@@ -323,7 +323,7 @@ export default function TestTypesPage() {
 
   async function fetchCategories() {
     try {
-      const res = await fetch("/api/tests/categories")
+      const res = await fetch("/physio-data/api/tests/categories")
       if (res.ok) {
         const data = await res.json()
         setExistingCategories(data.categories ?? [])
@@ -335,7 +335,7 @@ export default function TestTypesPage() {
 
   async function fetchTestTypes() {
     try {
-      const res = await fetch("/api/tests/types")
+      const res = await fetch("/physio-data/api/tests/types")
       if (!res.ok) throw new Error("Erreur lors du chargement")
       const data = await res.json()
       setTestTypes(Array.isArray(data) ? data : data.types ?? [])
@@ -350,7 +350,7 @@ export default function TestTypesPage() {
     if (!newCatName.trim()) return
     setCreatingCategory(true)
     try {
-      const res = await fetch("/api/tests/categories", {
+      const res = await fetch("/physio-data/api/tests/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCatName.trim() }),
@@ -423,7 +423,7 @@ export default function TestTypesPage() {
     if (!newType.name.trim() || !newType.unit.trim()) return
     setCreating(true)
     try {
-      const res = await fetch("/api/tests/types", {
+      const res = await fetch("/physio-data/api/tests/types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -476,7 +476,7 @@ export default function TestTypesPage() {
     if (!editTarget || !editForm.name.trim() || !editForm.unit.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/tests/types/${editTarget.id}`, {
+      const res = await fetch(`/physio-data/api/tests/types/${editTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -504,7 +504,7 @@ export default function TestTypesPage() {
 
   async function handleToggleIsUnilateral(testType: TestType) {
     try {
-      const res = await fetch(`/api/tests/types/${testType.id}`, {
+      const res = await fetch(`/physio-data/api/tests/types/${testType.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isUnilateral: !testType.isUnilateral }),
@@ -520,7 +520,7 @@ export default function TestTypesPage() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/tests/types/${deleteTarget.id}`, { method: "DELETE" })
+      const res = await fetch(`/physio-data/api/tests/types/${deleteTarget.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Erreur lors de la suppression")
       setDeleteTarget(null)
       await fetchTestTypes()
@@ -559,7 +559,7 @@ export default function TestTypesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Types de données</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.push("/categories")}>
+          <Button variant="outline" onClick={() => router.push("/physio-data/categories")}>
             <FolderKanban className="mr-2 h-4 w-4" />
             Gérer les catégories
           </Button>

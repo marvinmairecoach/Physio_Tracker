@@ -207,7 +207,7 @@ function EntryFormModal({
 
       if (isEdit) {
         // PATCH
-        await fetch(`/api/planning/${editEntry!.id}`, {
+        await fetch(`/physio-data/api/planning/${editEntry!.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -221,7 +221,7 @@ function EntryFormModal({
         if (form.notes.trim()) {
           body.notes = form.notes.trim()
         }
-        await fetch("/api/planning", {
+        await fetch("/physio-data/api/planning", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -240,7 +240,7 @@ function EntryFormModal({
     if (!editEntry) return
     if (!confirm("Supprimer cette entrée ?")) return
     try {
-      await fetch(`/api/planning/${editEntry.id}`, { method: "DELETE" })
+      await fetch(`/physio-data/api/planning/${editEntry.id}`, { method: "DELETE" })
       onSaved()
       onClose()
     } catch {
@@ -670,7 +670,7 @@ function PlanningPageContent() {
     setAthletesLoading(true)
     void (async () => {
       try {
-        const res = await fetch("/api/athletes?limit=1000&includeArchived=false")
+        const res = await fetch("/physio-data/api/athletes?limit=1000&includeArchived=false")
         if (cancelled) return
         if (!res.ok) {
           setAthletes([])
@@ -732,7 +732,7 @@ function PlanningPageContent() {
           id: targetId,
           month: monthKey,
         })
-        const res = await fetch(`/api/planning?${params.toString()}`)
+        const res = await fetch(`/physio-data/api/planning?${params.toString()}`)
         if (cancelled) return
         if (!res.ok) {
           setEntries([])

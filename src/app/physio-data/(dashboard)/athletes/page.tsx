@@ -51,7 +51,7 @@ export default function AthletesPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const meRes = await fetch("/api/auth/me")
+        const meRes = await fetch("/physio-data/api/auth/me")
 
         await fetchAthletes(showArchived)
 
@@ -78,7 +78,7 @@ export default function AthletesPage() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/athletes/${deleteTarget.id}`, {
+      const res = await fetch(`/physio-data/api/athletes/${deleteTarget.id}`, {
         method: "DELETE",
       })
       if (!res.ok) throw new Error("Erreur")
@@ -93,7 +93,7 @@ export default function AthletesPage() {
 
   async function handleUnarchive(athlete: Athlete) {
     try {
-      const res = await fetch(`/api/athletes/${athlete.id}`, {
+      const res = await fetch(`/physio-data/api/athletes/${athlete.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isArchived: false }),
@@ -113,7 +113,7 @@ export default function AthletesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Athlètes</h1>
         {userRole !== "athlete" && (
-          <Button onClick={() => router.push("/athletes/create")} leftSection={<Plus className="h-4 w-4" />}>
+          <Button onClick={() => router.push("/physio-data/athletes/create")} leftSection={<Plus className="h-4 w-4" />}>
             Créer un athlète
           </Button>
         )}
@@ -157,7 +157,7 @@ export default function AthletesPage() {
                 <Table.Tr key={athlete.id} className={athlete.isArchived ? "opacity-50" : ""}>
                   <Table.Td>
                     <Text fw={500}>
-                      <Link href={`/athletes/${athlete.id}`} className="hover:text-blue-600 transition-colors">
+                      <Link href={`/physio-data/athletes/${athlete.id}`} className="hover:text-blue-600 transition-colors">
                         {athlete.firstName} {athlete.lastName}
                       </Link>
                     </Text>
@@ -182,7 +182,7 @@ export default function AthletesPage() {
                       <Button
                         variant="outline"
                         size="compact-sm"
-                        onClick={() => router.push(`/athletes/${athlete.id}`)}
+                        onClick={() => router.push(`/physio-data/athletes/${athlete.id}`)}
                         leftSection={<Eye className="h-4 w-4" />}
                       >
                         Voir
@@ -204,7 +204,7 @@ export default function AthletesPage() {
                               variant="outline"
                               size="compact-sm"
                               color="orange"
-                              onClick={() => router.push(`/athletes/${athlete.id}/edit`)}
+                              onClick={() => router.push(`/physio-data/athletes/${athlete.id}/edit`)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>

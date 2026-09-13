@@ -31,7 +31,7 @@ export default function BilansListPage() {
 
   const fetchBilans = async () => {
     try {
-      const res = await fetch(`/api/athletes/${athleteId}/bilans`)
+      const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`)
       if (!res.ok) throw new Error("Erreur")
       const data = await res.json()
       setBilans(data.bilans ?? [])
@@ -45,7 +45,7 @@ export default function BilansListPage() {
   useEffect(() => {
     fetchBilans()
     // Also fetch athlete name
-    fetch(`/api/athletes/${athleteId}`)
+    fetch(`/physio-data/api/athletes/${athleteId}`)
       .then((r) => r.json())
       .then((d) => setAthleteName(`${d.firstName} ${d.lastName}`))
       .catch(() => {})
@@ -54,7 +54,7 @@ export default function BilansListPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce bilan ?")) return
     try {
-      const res = await fetch(`/api/bilans/${id}`, { method: "DELETE" })
+      const res = await fetch(`/physio-data/api/bilans/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Erreur")
       setBilans((prev) => prev.filter((b) => b.id !== id))
     } catch {
@@ -69,7 +69,7 @@ export default function BilansListPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="outline" onClick={() => router.push(`/athletes/${athleteId}`)}>
+        <Button variant="outline" onClick={() => router.push(`/physio-data/athletes/${athleteId}`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -78,7 +78,7 @@ export default function BilansListPage() {
         </div>
         <Button
           className="ml-auto"
-          onClick={() => router.push(`/athletes/${athleteId}/bilans/create`)}
+          onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create`)}
         >
           <Plus className="mr-1 h-4 w-4" />
           Nouveau bilan
@@ -96,7 +96,7 @@ export default function BilansListPage() {
             </p>
             <Button
               className="mt-4"
-              onClick={() => router.push(`/athletes/${athleteId}/bilans/create`)}
+              onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create`)}
             >
               <Plus className="mr-1 h-4 w-4" />
               Créer un bilan
@@ -130,7 +130,7 @@ export default function BilansListPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => router.push(`/bilans/${bilan.id}`)}
+                    onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
                   >
                     <Eye className="mr-1 h-3.5 w-3.5" />
                     Voir

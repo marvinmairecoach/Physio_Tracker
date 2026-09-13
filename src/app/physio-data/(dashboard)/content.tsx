@@ -25,7 +25,7 @@ export function DashboardContent() {
     async function fetchData() {
       setLoading(true)
       try {
-        const res = await fetch("/api/dashboard/stats")
+        const res = await fetch("/physio-data/api/dashboard/stats")
         if (res.ok) {
           const data = await res.json()
           setStats(data)

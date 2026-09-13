@@ -52,7 +52,7 @@ export default function CreateAthletePage() {
         notes: formData.notes || null,
       }
 
-      const res = await fetch("/api/athletes", {
+      const res = await fetch("/physio-data/api/athletes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -61,7 +61,7 @@ export default function CreateAthletePage() {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.message || "Erreur lors de la création")
       }
-      router.push("/athletes")
+      router.push("/physio-data/athletes")
       router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue")
