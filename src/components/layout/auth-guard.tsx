@@ -9,8 +9,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
+    if (loading) return
+    if (!user) {
+      const timer = setTimeout(() => {
+        router.push("/login")
+      }, 500)
+      return () => clearTimeout(timer)
     }
   }, [user, loading, router])
 
