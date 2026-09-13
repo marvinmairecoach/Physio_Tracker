@@ -65,6 +65,7 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [pathname])
 
   useEffect(() => {
+    setLoading(true)
     fetchUser()
   }, [fetchUser, pathname])
 
