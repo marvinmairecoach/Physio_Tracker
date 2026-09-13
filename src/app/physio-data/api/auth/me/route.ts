@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { physioPrisma } from "@/lib/prisma-physio"
 
 const userSelect = {
   id: true,
@@ -9,15 +9,6 @@ const userSelect = {
   firstName: true,
   lastName: true,
   phone: true,
-  avatarUrl: true,
-  logoUrl: true,
-  roleAssignments: {
-    include: {
-      role: {
-        select: { id: true, name: true },
-      },
-    },
-  },
 } as const
 
 export async function GET() {
@@ -27,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await physioPrisma.user.findUnique({
       where: { id: session.userId },
       select: userSelect,
     })
@@ -55,13 +46,13 @@ export async function PATCH(request: NextRequest) {
 
     // Vérifier que l'email n'est pas déjà pris par un autre utilisateur
     if (email) {
-      const existing = await prisma.user.findUnique({ where: { email } })
+      const existing = await physioPrisma.user.findUnique({ where: { email } })
       if (existing && existing.id !== session.userId) {
         return NextResponse.json({ error: "Cet email est déjà utilisé" }, { status: 409 })
       }
     }
 
-    const user = await prisma.user.update({
+    const user = await physioPrisma.user.update({
       where: { id: session.userId },
       data: {
         ...(email !== undefined && { email }),

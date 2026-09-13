@@ -42,7 +42,15 @@ export function Providers({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch("/api/auth/me")
+      // Determine the auth endpoint based on the current pathname
+      const path = typeof window !== "undefined" ? window.location.pathname : ""
+      let endpoint = "/api/auth/me"
+      if (path.startsWith("/physio-data")) {
+        endpoint = "/physio-data/api/auth/me"
+      } else if (path.startsWith("/club")) {
+        endpoint = "/club/api/auth/me"
+      }
+      const res = await fetch(endpoint)
       if (res.ok) {
         const data = await res.json()
         setUser(data.user)

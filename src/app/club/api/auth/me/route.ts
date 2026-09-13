@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { getAuthSession } from "@/lib/auth-shared"
+import { clubPrisma } from "@/lib/prisma-club"
+
+const CLUB_SESSION_COOKIE = "pp_club_session"
 
 const userSelect = {
   id: true,
@@ -22,12 +24,12 @@ const userSelect = {
 
 export async function GET() {
   try {
-    const session = await getSession()
+    const session = await getAuthSession(CLUB_SESSION_COOKIE)
     if (!session) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await clubPrisma.user.findUnique({
       where: { id: session.userId },
       select: userSelect,
     })
@@ -45,7 +47,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSession()
+    const session = await getAuthSession(CLUB_SESSION_COOKIE)
     if (!session) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
@@ -55,13 +57,13 @@ export async function PATCH(request: NextRequest) {
 
     // Vérifier que l'email n'est pas déjà pris par un autre utilisateur
     if (email) {
-      const existing = await prisma.user.findUnique({ where: { email } })
+      const existing = await clubPrisma.user.findUnique({ where: { email } })
       if (existing && existing.id !== session.userId) {
         return NextResponse.json({ error: "Cet email est déjà utilisé" }, { status: 409 })
       }
     }
 
-    const user = await prisma.user.update({
+    const user = await clubPrisma.user.update({
       where: { id: session.userId },
       data: {
         ...(email !== undefined && { email }),
