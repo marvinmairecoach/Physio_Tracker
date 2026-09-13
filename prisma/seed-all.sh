@@ -1,6 +1,5 @@
 #!/bin/bash
 # Run inside Railway deployment to seed databases
-# PHYSIO_DATABASE_URL and CLUB_DATABASE_URL must be set
 set -e
 cd /app
 
