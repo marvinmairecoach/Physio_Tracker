@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { MantineProvider } from "@mantine/core"
 import { Notifications } from "@mantine/notifications"
 
@@ -39,15 +39,15 @@ export function Providers({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       // Determine the auth endpoint based on the current pathname
-      const path = typeof window !== "undefined" ? window.location.pathname : ""
       let endpoint = "/api/auth/me"
-      if (path.startsWith("/physio-data")) {
+      if (pathname.startsWith("/physio-data")) {
         endpoint = "/physio-data/api/auth/me"
-      } else if (path.startsWith("/club")) {
+      } else if (pathname.startsWith("/club")) {
         endpoint = "/club/api/auth/me"
       }
       const res = await fetch(endpoint)
@@ -62,11 +62,11 @@ export function Providers({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pathname])
 
   useEffect(() => {
     fetchUser()
-  }, [])
+  }, [fetchUser, pathname])
 
   return (
     <MantineProvider>
