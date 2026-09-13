@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { AuthGuard } from "@/components/layout/auth-guard"
+import { ClubAuthGuard } from "@/components/layout/club-auth-guard"
 
 interface NavItem {
   href: string
@@ -51,7 +51,7 @@ export default function ClubDataDashboardLayout({
   }
 
   return (
-    <AuthGuard>
+    <ClubAuthGuard>
       <div className="flex h-screen overflow-hidden bg-amber-50/30">
         {/* Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col border-r border-amber-100 bg-white">
@@ -115,7 +115,7 @@ export default function ClubDataDashboardLayout({
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
-    </AuthGuard>
+    </ClubAuthGuard>
   )
 }
 

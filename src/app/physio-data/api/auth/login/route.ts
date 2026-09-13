@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { physioPrisma } from "@/lib/prisma-physio"
 import { createToken } from "@/lib/auth-shared"
+import { createSession } from "@/lib/auth"
 
 const PHYSIO_SESSION_COOKIE = "pp_physio_session"
 
@@ -53,6 +54,13 @@ export async function POST(request: NextRequest) {
       },
       PHYSIO_SESSION_COOKIE
     )
+
+    // Also set the old pp_session cookie for dashboard AuthGuard compatibility
+    await createSession({
+      userId: user.id,
+      email: user.email,
+      role: user.role as "admin" | "coach",
+    })
 
     return NextResponse.json({
       token,
