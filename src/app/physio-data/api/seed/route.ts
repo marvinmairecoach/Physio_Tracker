@@ -8,13 +8,19 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    const passwordHash = await bcrypt.hash("test1234", 12);
+    // Force re-seed: drop existing data and recreate
+    await prisma.testResult.deleteMany({});
+    await prisma.bilan.deleteMany({});
+    await prisma.planningEntry.deleteMany({});
+    await prisma.message.deleteMany({});
+    await prisma.conversationParticipant.deleteMany({});
+    await prisma.conversation.deleteMany({});
+    await prisma.testType.deleteMany({});
+    await prisma.category.deleteMany({});
+    await prisma.athlete.deleteMany({});
+    await prisma.user.deleteMany({});
 
-    // Check if already seeded
-    const existingUsers = await prisma.user.count();
-    if (existingUsers > 0) {
-      return NextResponse.json({ message: `Already seeded (${existingUsers} users)` });
-    }
+    const passwordHash = await bcrypt.hash("test1234", 12);
 
     // Users
     const admin = await prisma.user.create({
@@ -25,18 +31,26 @@ export async function POST() {
       data: { email: "coach@test.com", passwordHash, firstName: "Coach", lastName: "Individuel", role: "coach" },
     });
 
-    // Athletes
+    // Athletes with linked user accounts
+    const athletesData = [
+      { firstName: "Clara", lastName: "Dubois", gender: "F" as const, height: 168, weight: 60 },
+      { firstName: "Sarah", lastName: "Leroy", gender: "F" as const, height: 172, weight: 63 },
+      { firstName: "Lucas", lastName: "Moreau", gender: "M" as const, height: 182, weight: 76 },
+      { firstName: "Emma", lastName: "Petit", gender: "F" as const, height: 165, weight: 55 },
+    ];
+
     const athletes = [];
-    for (const a of [
-      { firstName: "Clara", lastName: "Dubois", gender: "F", height: 168, weight: 60 },
-      { firstName: "Sarah", lastName: "Leroy", gender: "F", height: 172, weight: 63 },
-      { firstName: "Lucas", lastName: "Moreau", gender: "M", height: 182, weight: 76 },
-      { firstName: "Emma", lastName: "Petit", gender: "F", height: 165, weight: 55 },
-    ]) {
-      // Create linked user for athlete
+    for (const a of athletesData) {
       const athleteEmail = `${a.firstName.toLowerCase()}.${a.lastName.toLowerCase()}@test.com`;
+
       const athleteUser = await prisma.user.create({
-        data: { email: athleteEmail, passwordHash, firstName: a.firstName, lastName: a.lastName, role: "athlete" },
+        data: {
+          email: athleteEmail,
+          passwordHash,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          role: "athlete",
+        },
       });
 
       const athlete = await prisma.athlete.create({
@@ -44,7 +58,7 @@ export async function POST() {
           firstName: a.firstName,
           lastName: a.lastName,
           birthDate: new Date("1998-06-15"),
-          gender: a.gender as any,
+          gender: a.gender,
           heightCm: a.height,
           weightKg: a.weight,
           createdById: coach.id,
@@ -69,7 +83,6 @@ export async function POST() {
       testTypes.push(tt);
     }
 
-    // Test results
     const now = new Date();
     for (let monthOffset = 3; monthOffset >= 0; monthOffset--) {
       for (const athlete of athletes) {
@@ -99,13 +112,14 @@ export async function POST() {
     await prisma.$disconnect();
 
     return NextResponse.json({
-      message: "PhysioData seeded!",
-      users: 2,
+      message: "PhysioData re-seeded!",
+      users: 6,
       athletes: athletes.length,
       testTypes: testTypes.length,
     });
   } catch (error) {
     console.error("Seed error:", error);
+    await prisma.$disconnect();
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
