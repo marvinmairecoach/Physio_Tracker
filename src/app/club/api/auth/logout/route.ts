@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { destroySession } from "@/lib/auth"
+import { destroySession } from "@/lib/auth-club"
 
 export async function GET() {
   await destroySession()

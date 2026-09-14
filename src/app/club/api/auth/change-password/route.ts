@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSession, hashPassword, verifyPassword } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { getSession, hashPassword, verifyPassword } from "@/lib/auth-club"
+import { clubPrisma as prisma } from "@/lib/prisma-club"
 
 export async function POST(request: NextRequest) {
   try {

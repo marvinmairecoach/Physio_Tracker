@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { clubPrisma as prisma } from "@/lib/prisma-club";
+import { requireAuth } from "@/lib/auth-club";
 
 export const dynamic = "force-dynamic";
 
