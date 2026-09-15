@@ -664,6 +664,25 @@ function PlanningPageContent() {
         const mine = list.find((a) => a.userId === user.id)
         if (mine) {
           setMyAthleteId(mine.id)
+        } else if (user.role === "admin" || user.role === "coach") {
+          // Auto-create an athlete profile for admin/coach users
+          try {
+            const createRes = await fetch("/physio-data/api/athletes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                userId: user.id,
+              }),
+            })
+            if (createRes.ok) {
+              const newAthlete = await createRes.json()
+              setMyAthleteId(newAthlete.id)
+            }
+          } catch {
+            // silencieux
+          }
         }
       } catch {
         // silencieux

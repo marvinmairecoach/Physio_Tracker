@@ -974,7 +974,9 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
           <div className="space-y-1">
             <textarea
               autoFocus
+              dir="ltr"
               className="w-full rounded border border-blue-300 bg-white p-1 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+              style={{ textAlign: 'left' }}
               value={editingContent}
               onChange={(e) => setEditingContent(e.target.value)}
               onBlur={() => saveEdit(entry.id, editingContent)}
@@ -1273,6 +1275,8 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
             onChange={(e) => setCreateContent(e.currentTarget.value)}
             minRows={3}
             autosize
+            autoFocus
+            dir="ltr"
           />
           <Group justify="flex-end" mt="xs">
             <Button variant="default" onClick={() => setCreateModalOpen(false)}>

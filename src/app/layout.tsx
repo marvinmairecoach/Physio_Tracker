@@ -10,7 +10,7 @@ import { Providers } from "@/components/layout/providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Physio Tracker",
+  title: "PP Tracker - PhysioData",
   description: "Application de gestion de préparation physique multisport",
 }
 

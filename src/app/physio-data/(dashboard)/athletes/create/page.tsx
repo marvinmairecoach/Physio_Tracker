@@ -48,20 +48,11 @@ export default function CreateAthletePage() {
   ): Promise<DuplicateAthlete[]> {
     try {
       const res = await fetch(
-        `/physio-data/api/athletes?search=${encodeURIComponent(firstName)}&includeArchived=true&limit=100`,
+        `/physio-data/api/athletes/check-duplicate?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`,
       )
       if (!res.ok) return []
       const data = await res.json()
-      const athletes: DuplicateAthlete[] = Array.isArray(data)
-        ? data
-        : Array.isArray(data.athletes)
-          ? data.athletes
-          : []
-      // The API searches firstName with 'contains'. We then filter by exact lastName (case-insensitive).
-      const ln = lastName.toLowerCase()
-      return athletes.filter(
-        (a) => a.lastName.toLowerCase() === ln,
-      )
+      return Array.isArray(data.duplicates) ? data.duplicates : []
     } catch {
       return []
     }

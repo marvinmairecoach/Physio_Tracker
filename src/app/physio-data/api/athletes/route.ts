@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       weightKg,
       notes,
       photoUrl,
+      userId,
     } = body;
 
     if (!firstName || !lastName) {
@@ -99,32 +100,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Auto-create a User account for this athlete
-    const userEmail = email || `athlete-${athlete.id.slice(0, 8)}@placeholder.pp`;
-    const existingUser = await physioPrisma.user.findUnique({ where: { email: userEmail } });
-    let userId: string;
-    if (existingUser) {
-      userId = existingUser.id;
+    // Link athlete to user
+    let targetUserId: string;
+    if (userId) {
+      // Use the provided userId directly (e.g. coach/admin linking to their own user)
+      targetUserId = userId;
     } else {
-      const passwordHash = await hashPassword("changeme123");
-      const newUser = await physioPrisma.user.create({
-        data: {
-          email: userEmail,
-          passwordHash,
-          firstName,
-          lastName,
-          phone: phone || null,
-          role: "athlete",
-          isActive: true,
-        },
-      });
-      userId = newUser.id;
+      // Auto-create a User account for this athlete
+      const userEmail = email || `athlete-${athlete.id.slice(0, 8)}@placeholder.pp`;
+      const existingUser = await physioPrisma.user.findUnique({ where: { email: userEmail } });
+      if (existingUser) {
+        targetUserId = existingUser.id;
+      } else {
+        const passwordHash = await hashPassword("changeme123");
+        const newUser = await physioPrisma.user.create({
+          data: {
+            email: userEmail,
+            passwordHash,
+            firstName,
+            lastName,
+            phone: phone || null,
+            role: "athlete",
+            isActive: true,
+          },
+        });
+        targetUserId = newUser.id;
+      }
     }
 
-    // Link athlete to user
     await physioPrisma.athlete.update({
       where: { id: athlete.id },
-      data: { userId },
+      data: { userId: targetUserId },
     });
 
     return NextResponse.json(athlete, { status: 201 });
