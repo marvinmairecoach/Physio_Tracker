@@ -111,13 +111,6 @@ export default function PhysioDataDashboardLayout({
             >
               ← Retour à l&apos;accueil
             </Link>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-xs text-red-400 hover:text-red-600 transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Déconnexion
-            </button>
           </div>
         </aside>
 
@@ -126,6 +119,16 @@ export default function PhysioDataDashboardLayout({
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Top bar with logout */}
+          <div className="flex h-12 items-center justify-end border-b border-blue-100 bg-white px-4 md:px-6">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Déconnexion
+            </button>
+          </div>
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
@@ -221,13 +224,6 @@ function MobileSidebar({
           >
             ← Retour à l&apos;accueil
           </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-600 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Déconnexion
-          </button>
         </div>
       </div>
     </>
