@@ -665,23 +665,31 @@ function PlanningPageContent() {
         if (mine) {
           setMyAthleteId(mine.id)
         } else if (user.role === "admin" || user.role === "coach") {
-          // Auto-create an athlete profile for admin/coach users
-          try {
-            const createRes = await fetch("/physio-data/api/athletes", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                firstName: user.firstName,
-                lastName: user.lastName,
-                userId: user.id,
-              }),
-            })
-            if (createRes.ok) {
-              const newAthlete = await createRes.json()
-              setMyAthleteId(newAthlete.id)
+          // Chercher d'abord un athlète existant avec le même nom (évite les doublons)
+          const sameName = list.find(
+            (a: any) => a.firstName === user.firstName && a.lastName === user.lastName
+          )
+          if (sameName) {
+            setMyAthleteId(sameName.id)
+          } else {
+            // Auto-create an athlete profile for admin/coach users
+            try {
+              const createRes = await fetch("/physio-data/api/athletes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  userId: user.id,
+                }),
+              })
+              if (createRes.ok) {
+                const newAthlete = await createRes.json()
+                setMyAthleteId(newAthlete.id)
+              }
+            } catch {
+              // silencieux
             }
-          } catch {
-            // silencieux
           }
         }
       } catch {
@@ -775,9 +783,9 @@ function PlanningPageContent() {
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mon Planning</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Mon Agenda</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Consultez et gérez votre planning personnel.
+            Consultez et gérez votre agenda personnel.
           </p>
         </div>
       </div>

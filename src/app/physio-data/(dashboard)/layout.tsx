@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   LayoutDashboard,
@@ -15,6 +15,7 @@ import {
   X,
   BarChart3,
   MessageSquare,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AuthGuard } from "@/components/layout/auth-guard"
@@ -30,7 +31,7 @@ const navItems: NavItem[] = [
   { href: "/physio-data/athletes", label: "Athlètes", icon: Users },
   { href: "/physio-data/tests", label: "Tests", icon: ClipboardCheck },
   { href: "/physio-data/bilans", label: "Bilans", icon: FileText },
-  { href: "/physio-data/planning", label: "Planning", icon: Calendar },
+  { href: "/physio-data/planning", label: "Agenda", icon: Calendar },
   { href: "/physio-data/messages", label: "Messages", icon: MessageSquare },
   { href: "/physio-data/profile", label: "Profil", icon: User },
 ]
@@ -45,6 +46,15 @@ export default function PhysioDataDashboardLayout({
   const isActive = (href: string) => {
     if (href === "/physio-data") return pathname === "/physio-data"
     return pathname.startsWith(href)
+  }
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/physio-data/api/auth/logout", { method: "POST" })
+    } finally {
+      router.push("/")
+    }
   }
 
   return (
@@ -101,6 +111,13 @@ export default function PhysioDataDashboardLayout({
             >
               ← Retour à l&apos;accueil
             </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-xs text-red-400 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Déconnexion
+            </button>
           </div>
         </aside>
 
@@ -123,6 +140,16 @@ function MobileSidebar({
   navItems: NavItem[]
   isActive: (href: string) => boolean
 }) {
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/physio-data/api/auth/logout", { method: "POST" })
+    } finally {
+      router.push("/")
+    }
+  }
+
   return (
     <>
       <label
@@ -187,6 +214,21 @@ function MobileSidebar({
             )
           })}
         </nav>
+        <div className="border-t border-blue-100 p-4 space-y-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+          >
+            ← Retour à l&apos;accueil
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-600 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Déconnexion
+          </button>
+        </div>
       </div>
     </>
   )

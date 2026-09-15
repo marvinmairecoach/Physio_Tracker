@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useCallback, useMemo, memo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft,
@@ -710,6 +710,128 @@ function BilansTab({ athleteId }: { athleteId: string }) {
 
 /* ---------- Planning Tab : Semaine / Mois / Liste ---------- */
 
+const typeColors: Record<string, string> = {
+  ENTRAINEMENT: "border-blue-400 bg-blue-50",
+  MATCH: "border-green-400 bg-green-50",
+  OBJECTIF: "border-amber-400 bg-amber-50",
+  REATHLETISATION: "border-purple-400 bg-purple-50",
+  REPOS: "border-gray-400 bg-gray-50",
+  TEST: "border-cyan-400 bg-cyan-50",
+  AUTRE: "border-slate-400 bg-slate-50",
+  INDISPONIBILITE: "border-red-400 bg-red-50",
+}
+
+const typeLabels: Record<string, string> = {
+  ENTRAINEMENT: "Entraînement",
+  MATCH: "Match",
+  OBJECTIF: "Objectif",
+  REATHLETISATION: "Réathlétisation",
+  REPOS: "Repos",
+  TEST: "Test",
+  AUTRE: "Autre",
+  INDISPONIBILITE: "Indisponibilité",
+}
+
+const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+const MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
+// ──────────────────────────────────────────────
+// Entry card component (shared across views)
+// ──────────────────────────────────────────────
+
+const EntryCard = memo(function EntryCard({
+  entry,
+  compact,
+  onDelete,
+  onStartEdit,
+  editingId,
+  editingContent,
+  onEditingContentChange,
+  onSaveEdit,
+  onCancelEdit,
+  isSaving,
+  isDeleting,
+}: {
+  entry: PlanningEntry
+  compact?: boolean
+  onDelete: (id: string) => void
+  onStartEdit: (entry: PlanningEntry) => void
+  editingId: string | null
+  editingContent: string
+  onEditingContentChange: (val: string) => void
+  onSaveEdit: (id: string, content: string) => void
+  onCancelEdit: () => void
+  isSaving: boolean
+  isDeleting: boolean
+}) {
+  const isEditing = editingId === entry.id
+  const typeLabel = typeLabels[entry.type] ?? entry.type
+  const colorClass = typeColors[entry.type] ?? typeColors.AUTRE
+
+  return (
+    <div className={`rounded border-l-4 ${colorClass} ${compact ? "p-1.5" : "p-2"}`}>
+      {/* Type badge at top */}
+      <div className="mb-1 flex items-center justify-between gap-1">
+        <span className="inline-block rounded bg-white/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+          {typeLabel}
+        </span>
+        {!isEditing && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(entry.id)
+            }}
+            className="text-red-400 hover:text-red-600 flex-shrink-0"
+            title="Supprimer"
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <Loader2 size={compact ? 10 : 12} className="animate-spin" />
+            ) : (
+              <X size={compact ? 10 : 12} />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Content: read or edit inline */}
+      {isEditing ? (
+        <div className="space-y-1">
+          <textarea
+            autoFocus
+            dir="ltr"
+            className="w-full rounded border border-blue-300 bg-white p-1 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+            style={{ textAlign: 'left' }}
+            value={editingContent}
+            onChange={(e) => onEditingContentChange(e.target.value)}
+            onBlur={() => onSaveEdit(entry.id, editingContent)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                onCancelEdit()
+              }
+            }}
+            rows={Math.max(2, (editingContent.match(/\n/g)?.length ?? 0) + 2)}
+          />
+          {isSaving && <span className="text-[9px] text-blue-500">Sauvegarde...</span>}
+        </div>
+      ) : (
+        <div
+          className="cursor-pointer"
+          onClick={() => onStartEdit(entry)}
+        >
+          {entry.notes ? (
+            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+              {entry.notes}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 italic">Cliquez pour ajouter du contenu</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+})
+
 function PlanningTab({ athleteId }: { athleteId: string }) {
   const [entries, setEntries] = useState<PlanningEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -743,6 +865,7 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState("")
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Create modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -866,39 +989,17 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Supprimer cette entrée ?")) return
+    setDeletingId(id)
     try {
-      await fetch(`/physio-data/api/planning/${id}`, { method: "DELETE" })
+      const res = await fetch(`/physio-data/api/planning/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error(`Delete failed with status ${res.status}`)
       fetchEntries()
-    } catch {
-      // silencieux
+    } catch (err) {
+      console.error("Error deleting planning entry:", err)
+    } finally {
+      setDeletingId(null)
     }
   }
-
-  const typeColors: Record<string, string> = {
-    ENTRAINEMENT: "border-blue-400 bg-blue-50",
-    MATCH: "border-green-400 bg-green-50",
-    OBJECTIF: "border-amber-400 bg-amber-50",
-    REATHLETISATION: "border-purple-400 bg-purple-50",
-    REPOS: "border-gray-400 bg-gray-50",
-    TEST: "border-cyan-400 bg-cyan-50",
-    AUTRE: "border-slate-400 bg-slate-50",
-    INDISPONIBILITE: "border-red-400 bg-red-50",
-  }
-
-  const typeLabels: Record<string, string> = {
-    ENTRAINEMENT: "Entraînement",
-    MATCH: "Match",
-    OBJECTIF: "Objectif",
-    REATHLETISATION: "Réathlétisation",
-    REPOS: "Repos",
-    TEST: "Test",
-    AUTRE: "Autre",
-    INDISPONIBILITE: "Indisponibilité",
-  }
-
-  const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-  const MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
   // ──────────────────────────────────────────────
   // Navigation helpers
@@ -939,76 +1040,6 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
   }
 
   // ──────────────────────────────────────────────
-  // Entry card component (shared across views)
-  // ──────────────────────────────────────────────
-
-  function EntryCard({ entry, compact }: { entry: PlanningEntry; compact?: boolean }) {
-    const isEditing = editingId === entry.id
-    const isSaving = savingId === entry.id
-    const typeLabel = typeLabels[entry.type] ?? entry.type
-    const colorClass = typeColors[entry.type] ?? typeColors.AUTRE
-
-    return (
-      <div className={`rounded border-l-4 ${colorClass} ${compact ? "p-1.5" : "p-2"}`}>
-        {/* Type badge at top */}
-        <div className="mb-1 flex items-center justify-between gap-1">
-          <span className="inline-block rounded bg-white/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider">
-            {typeLabel}
-          </span>
-          {!isEditing && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleDelete(entry.id)
-              }}
-              className="text-red-400 hover:text-red-600 flex-shrink-0"
-              title="Supprimer"
-            >
-              <X size={compact ? 10 : 12} />
-            </button>
-          )}
-        </div>
-
-        {/* Content: read or edit inline */}
-        {isEditing ? (
-          <div className="space-y-1">
-            <textarea
-              autoFocus
-              dir="ltr"
-              className="w-full rounded border border-blue-300 bg-white p-1 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-              style={{ textAlign: 'left' }}
-              value={editingContent}
-              onChange={(e) => setEditingContent(e.target.value)}
-              onBlur={() => saveEdit(entry.id, editingContent)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setEditingId(null)
-                  setEditingContent("")
-                }
-              }}
-              rows={Math.max(2, (editingContent.match(/\n/g)?.length ?? 0) + 2)}
-            />
-            {isSaving && <span className="text-[9px] text-blue-500">Sauvegarde...</span>}
-          </div>
-        ) : (
-          <div
-            className="cursor-pointer"
-            onClick={() => startEdit(entry)}
-          >
-            {entry.notes ? (
-              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
-                {entry.notes}
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400 italic">Cliquez pour ajouter du contenu</p>
-            )}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ──────────────────────────────────────────────
   // View: List
   // ──────────────────────────────────────────────
 
@@ -1033,7 +1064,18 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
               <p className="text-lg font-black">{new Date(entry.date).getDate()}</p>
             </div>
             <div className="flex-1">
-              <EntryCard entry={entry} />
+              <EntryCard
+                entry={entry}
+                onDelete={handleDelete}
+                onStartEdit={startEdit}
+                editingId={editingId}
+                editingContent={editingContent}
+                onEditingContentChange={setEditingContent}
+                onSaveEdit={saveEdit}
+                onCancelEdit={() => { setEditingId(null); setEditingContent("") }}
+                isSaving={savingId === entry.id}
+                isDeleting={deletingId === entry.id}
+              />
             </div>
           </div>
         ))}
@@ -1155,7 +1197,20 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
                 </div>
                 <div className="flex-1 space-y-1.5 p-1.5 overflow-auto">
                   {dayEntries.map((entry) => (
-                    <EntryCard key={entry.id} entry={entry} compact />
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      compact
+                      onDelete={handleDelete}
+                      onStartEdit={startEdit}
+                      editingId={editingId}
+                      editingContent={editingContent}
+                      onEditingContentChange={setEditingContent}
+                      onSaveEdit={saveEdit}
+                      onCancelEdit={() => { setEditingId(null); setEditingContent("") }}
+                      isSaving={savingId === entry.id}
+                      isDeleting={deletingId === entry.id}
+                    />
                   ))}
                   <button
                     onClick={() => {
