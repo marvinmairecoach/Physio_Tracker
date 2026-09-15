@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Calendar, Pencil, Trash2, Plus } from "lucide-react"
-
+import Link from "next/link"
 import { Button, Card, NativeSelect, TextInput, Textarea, Modal } from "@mantine/core"
 import { useSession } from "@/components/layout/providers"
 
@@ -782,9 +782,23 @@ function PlanningPageContent() {
             {loading ? (
               <div className="py-16 text-center text-muted-foreground">Chargement...</div>
             ) : !myAthleteId ? (
-              <div className="py-16 text-center text-muted-foreground">
-                Aucun profil athlète trouvé pour votre compte.
-              </div>
+              user?.role === "admin" || user?.role === "coach" ? (
+                <div className="py-16 text-center">
+                  <p className="text-muted-foreground">
+                    Vous n&apos;avez pas de planning personnel. Accédez au planning de vos athlètes depuis leur profil.
+                  </p>
+                  <Link
+                    href="/physio-data/athletes"
+                    className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+                  >
+                    Voir mes athlètes
+                  </Link>
+                </div>
+              ) : (
+                <div className="py-16 text-center text-muted-foreground">
+                  Aucun profil athlète trouvé pour votre compte.
+                </div>
+              )
             ) : (
               <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-muted">
                 {DAYS.map((d) => (
