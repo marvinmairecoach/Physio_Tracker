@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Calendar, Pencil, Trash2, Plus } from "lucide-react"
-import { useSearchParams } from "next/navigation"
 
 import { Button, Card, NativeSelect, TextInput, Textarea, Modal } from "@mantine/core"
 import { useSession } from "@/components/layout/providers"
@@ -24,14 +23,6 @@ interface PlanningEntry {
   origin: "individuel" | "equipe"
   team: { id: string; name: string } | null
   teamName?: string | null
-}
-
-interface SimpleAthlete {
-  id: string
-  firstName: string
-  lastName: string
-  userId: string | null
-  isArchived?: boolean
 }
 
 interface EntryFormData {
@@ -360,7 +351,6 @@ interface DaySidePanelProps {
   selectedDate: Date | null
   entriesByDate: Map<string, PlanningEntry[]>
   myAthleteId: string
-  isAtLeastCoach: boolean
   onRefetch: () => void
 }
 
@@ -368,7 +358,6 @@ function DaySidePanel({
   selectedDate,
   entriesByDate,
   myAthleteId,
-  isAtLeastCoach,
   onRefetch,
 }: DaySidePanelProps) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -648,8 +637,6 @@ function PlanningLegend() {
 
 function PlanningPageContent() {
   const { user } = useSession()
-  const searchParams = useSearchParams()
-  const isAtLeastCoach = user?.role === "admin" || user?.role === "coach"
 
   // State
   const [calDate, setCalDate] = useState(() => new Date())
@@ -657,58 +644,35 @@ function PlanningPageContent() {
   const [entries, setEntries] = useState<PlanningEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
-
-  // Athlete state
-  const [athletes, setAthletes] = useState<SimpleAthlete[]>([])
-  const [athletesLoading, setAthletesLoading] = useState(true)
   const [myAthleteId, setMyAthleteId] = useState<string>("")
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string>("")
 
-  /* ---- Load athletes ---- */
+  /* ---- Load my athlete ID ---- */
   useEffect(() => {
+    if (!user) return
     let cancelled = false
-    setAthletesLoading(true)
     void (async () => {
       try {
         const res = await fetch("/physio-data/api/athletes?limit=1000&includeArchived=false")
         if (cancelled) return
-        if (!res.ok) {
-          setAthletes([])
-          return
-        }
+        if (!res.ok) return
         const data = await res.json()
-        const list: SimpleAthlete[] = Array.isArray(data)
+        const list: { id: string; userId: string | null }[] = Array.isArray(data)
           ? data
           : Array.isArray(data.athletes)
             ? data.athletes
             : []
-        if (cancelled) return
-        setAthletes(list)
-
-        // Find athlete linked to current user
-        if (user) {
-          const mine = list.find((a) => a.userId === user.id)
-          if (mine) {
-            setMyAthleteId(mine.id)
-          }
+        const mine = list.find((a) => a.userId === user.id)
+        if (mine) {
+          setMyAthleteId(mine.id)
         }
       } catch {
-        if (!cancelled) setAthletes([])
-      } finally {
-        if (!cancelled) setAthletesLoading(false)
+        // silencieux
       }
     })()
     return () => {
       cancelled = true
     }
   }, [user])
-
-  /* ---- Athlete selector: default to myAthleteId ---- */
-  useEffect(() => {
-    if (!athletesLoading && myAthleteId && !selectedAthleteId) {
-      setSelectedAthleteId(myAthleteId)
-    }
-  }, [athletesLoading, myAthleteId, selectedAthleteId])
 
   /* ---- Month key ---- */
   const monthKey = useMemo(() => monthKeyOf(calDate), [calDate])
@@ -717,8 +681,7 @@ function PlanningPageContent() {
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), [])
 
   useEffect(() => {
-    const targetId = isAtLeastCoach && selectedAthleteId ? selectedAthleteId : myAthleteId
-    if (!targetId) {
+    if (!myAthleteId) {
       setEntries([])
       setLoading(false)
       return
@@ -728,8 +691,7 @@ function PlanningPageContent() {
     void (async () => {
       try {
         const params = new URLSearchParams({
-          scope: "athlete",
-          id: targetId,
+          athleteId: myAthleteId,
           month: monthKey,
         })
         const res = await fetch(`/physio-data/api/planning?${params.toString()}`)
@@ -750,7 +712,7 @@ function PlanningPageContent() {
     return () => {
       cancelled = true
     }
-  }, [myAthleteId, selectedAthleteId, monthKey, refreshKey, isAtLeastCoach])
+  }, [myAthleteId, monthKey, refreshKey])
 
   /* ---- Group entries by date ---- */
   const entriesByDate = useMemo(() => {
@@ -789,52 +751,16 @@ function PlanningPageContent() {
     setCalDate(new Date())
   }
 
-  /* ---- Active athlete for display ---- */
-  const activeAthleteId = isAtLeastCoach && selectedAthleteId ? selectedAthleteId : myAthleteId
-  const activeAthlete = athletes.find((a) => a.id === activeAthleteId)
-
-  /* ---- Create entry for current user (side panel)+athlete ---- */
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {activeAthlete && activeAthlete.id !== myAthleteId
-              ? `Planning — ${activeAthlete.firstName} ${activeAthlete.lastName}`
-              : "Mon Planning"}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Mon Planning</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isAtLeastCoach
-              ? "Gérez votre planning personnel et celui de vos athlètes."
-              : "Consultez et gérez votre planning personnel."}
+            Consultez et gérez votre planning personnel.
           </p>
         </div>
-
-        {/* Athlete selector for coach/admin */}
-        {isAtLeastCoach && (
-          <div className="w-full sm:w-auto">
-            <NativeSelect
-              label="Athlète"
-              value={selectedAthleteId}
-              onChange={(e) => {
-                setSelectedAthleteId(e.currentTarget.value)
-                setSelectedDate(null)
-              }}
-              data={[
-                ...(myAthleteId ? [{ value: myAthleteId, label: "Mon planning" }] : []),
-                ...athletes
-                  .filter((a) => a.id !== myAthleteId)
-                  .map((a) => ({
-                    value: a.id,
-                    label: `${a.firstName} ${a.lastName}`,
-                  })),
-              ]}
-              className="w-full sm:min-w-[260px]"
-            />
-          </div>
-        )}
       </div>
 
       {/* Main grid: calendar + side panel */}
@@ -853,9 +779,9 @@ function PlanningPageContent() {
 
           {/* Grid */}
           <div className="px-6 pb-6 pt-2">
-            {loading || athletesLoading ? (
+            {loading ? (
               <div className="py-16 text-center text-muted-foreground">Chargement...</div>
-            ) : !activeAthleteId ? (
+            ) : !myAthleteId ? (
               <div className="py-16 text-center text-muted-foreground">
                 Aucun profil athlète trouvé pour votre compte.
               </div>
@@ -888,12 +814,11 @@ function PlanningPageContent() {
         </Card>
 
         {/* Side panel */}
-        {activeAthleteId && (
+        {myAthleteId && (
           <DaySidePanel
             selectedDate={selectedDate}
             entriesByDate={entriesByDate}
-            myAthleteId={activeAthleteId}
-            isAtLeastCoach={isAtLeastCoach}
+            myAthleteId={myAthleteId}
             onRefetch={refetch}
           />
         )}

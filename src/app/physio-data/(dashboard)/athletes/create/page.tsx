@@ -2,9 +2,18 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Save } from "lucide-react"
+import { ArrowLeft, Save, AlertTriangle } from "lucide-react"
 
-import { Button, Card, TextInput, Textarea, Radio } from "@mantine/core"
+import { Button, Card, TextInput, Textarea, Radio, Modal, Text, Group } from "@mantine/core"
+
+interface DuplicateAthlete {
+  id: string
+  firstName: string
+  lastName: string
+  birthDate: string | null
+  email: string | null
+  isArchived: boolean
+}
 
 export default function CreateAthletePage() {
   const router = useRouter()
@@ -22,10 +31,41 @@ export default function CreateAthletePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Duplicate check state
+  const [duplicates, setDuplicates] = useState<DuplicateAthlete[]>([])
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false)
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  async function checkForDuplicates(
+    firstName: string,
+    lastName: string,
+  ): Promise<DuplicateAthlete[]> {
+    try {
+      const res = await fetch(
+        `/physio-data/api/athletes?search=${encodeURIComponent(firstName + " " + lastName)}&includeArchived=true&limit=20`,
+      )
+      if (!res.ok) return []
+      const data = await res.json()
+      const athletes: DuplicateAthlete[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data.athletes)
+          ? data.athletes
+          : []
+      // Filter: same first+last name (case-insensitive)
+      const fn = firstName.toLowerCase()
+      const ln = lastName.toLowerCase()
+      return athletes.filter(
+        (a) => a.firstName.toLowerCase() === fn && a.lastName.toLowerCase() === ln,
+      )
+    } catch {
+      return []
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,15 +74,34 @@ export default function CreateAthletePage() {
       setError("Le prénom et le nom sont requis")
       return
     }
-    // Normalize case for first and last name
+
+    // Normalize case
     const normalizedFirstName = formData.firstName.charAt(0).toUpperCase() + formData.firstName.slice(1).toLowerCase()
     const normalizedLastName = formData.lastName.charAt(0).toUpperCase() + formData.lastName.slice(1).toLowerCase()
+
+    // Check for duplicates
+    setCheckingDuplicates(true)
+    setError(null)
+    const found = await checkForDuplicates(normalizedFirstName, normalizedLastName)
+    setCheckingDuplicates(false)
+
+    if (found.length > 0) {
+      setDuplicates(found)
+      setDuplicateModalOpen(true)
+      return // Wait for user decision
+    }
+
+    // No duplicates — create directly
+    await createAthlete(normalizedFirstName, normalizedLastName)
+  }
+
+  async function createAthlete(firstName: string, lastName: string) {
     setSaving(true)
     setError(null)
     try {
       const body: Record<string, unknown> = {
-        firstName: normalizedFirstName,
-        lastName: normalizedLastName,
+        firstName,
+        lastName,
         birthDate: formData.birthDate || null,
         phone: formData.phone || null,
         email: formData.email || null,
@@ -68,6 +127,13 @@ export default function CreateAthletePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleForceCreate = async () => {
+    setDuplicateModalOpen(false)
+    const normalizedFirstName = formData.firstName.charAt(0).toUpperCase() + formData.firstName.slice(1).toLowerCase()
+    const normalizedLastName = formData.lastName.charAt(0).toUpperCase() + formData.lastName.slice(1).toLowerCase()
+    await createAthlete(normalizedFirstName, normalizedLastName)
   }
 
   return (
@@ -190,9 +256,13 @@ export default function CreateAthletePage() {
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex gap-2 pt-2">
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={checkingDuplicates || saving}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? "Enregistrement..." : "Créer l'athlète"}
+              {checkingDuplicates
+                ? "Vérification..."
+                : saving
+                  ? "Enregistrement..."
+                  : "Créer l'athlète"}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Annuler
@@ -200,6 +270,58 @@ export default function CreateAthletePage() {
           </div>
         </form>
       </Card>
+
+      {/* Duplicate warning modal */}
+      <Modal
+        opened={duplicateModalOpen}
+        onClose={() => setDuplicateModalOpen(false)}
+        title="Profil similaire existant"
+        trapFocus={false}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <Text size="sm" c="dimmed" mb="xs">
+                Un ou plusieurs profils avec le même nom existent déjà dans la base de données :
+              </Text>
+              {duplicates.map((dup) => (
+                <div
+                  key={dup.id}
+                  className="rounded border p-2 mb-2 text-sm"
+                >
+                  <Text fw={500}>
+                    {dup.firstName} {dup.lastName}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {dup.birthDate && `Né(e) le ${new Date(dup.birthDate).toLocaleDateString("fr-FR")}`}
+                    {dup.email && ` — ${dup.email}`}
+                  </Text>
+                  <Group mt={4} gap="xs">
+                    <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">
+                      {dup.isArchived ? "Archivé" : "Actif"}
+                    </span>
+                  </Group>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Text size="sm" ta="center">
+            Voulez-vous quand même créer ce nouveau profil ?
+          </Text>
+
+          <Group justify="center" mt="sm">
+            <Button variant="default" onClick={() => setDuplicateModalOpen(false)}>
+              Modifier les informations
+            </Button>
+            <Button color="orange" onClick={handleForceCreate}>
+              Créer quand même
+            </Button>
+          </Group>
+        </div>
+      </Modal>
     </div>
   )
 }

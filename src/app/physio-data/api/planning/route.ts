@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
     await requireAuth();
 
     const { searchParams } = new URL(request.url);
-    const athleteId = searchParams.get("athleteId");
+    // Accept both 'athleteId' and 'id' (PlanningTab uses 'id')
+    let athleteId = searchParams.get("athleteId") || searchParams.get("id");
     const month = searchParams.get("month"); // "YYYY-MM"
 
     if (!athleteId || !month) {
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // If called with scope=athlete, this is from the PlanningTab
+    // No special handling needed — athleteId is already set
 
     if (!/^\d{4}-\d{2}$/.test(month)) {
       return NextResponse.json(

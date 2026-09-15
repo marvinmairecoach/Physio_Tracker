@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft,
@@ -708,122 +708,214 @@ function BilansTab({ athleteId }: { athleteId: string }) {
   )
 }
 
-/* ---------- Planning Tab ---------- */
+/* ---------- Planning Tab (semaine) ---------- */
 
 function PlanningTab({ athleteId }: { athleteId: string }) {
   const [entries, setEntries] = useState<PlanningEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentMonth, setCurrentMonth] = useState(() => {
+
+  // Current week range (Monday → Sunday)
+  const [weekStart, setWeekStart] = useState(() => {
     const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    const day = now.getDay() // 0=Sun, 1=Mon, ...
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset)
+    monday.setHours(0, 0, 0, 0)
+    return monday
   })
 
-  // Create modal
-  const [entryTitle, setEntryTitle] = useState("")
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10))
-  const [entryType, setEntryType] = useState("ENTRAINEMENT")
-  const [entryNotes, setEntryNotes] = useState("")
-  const [creating, setCreating] = useState(false)
-  const [createModalOpened, { open: openCreate, close: closeCreate }] = useDisclosure(false)
+  const sunday = new Date(weekStart)
+  sunday.setDate(sunday.getDate() + 6)
 
-  // Delete
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Month key for API call (covers the week range)
+  const monthKey = useMemo(() => {
+    // Use a middle-of-week month that covers both weekStart and sunday
+    const mid = new Date(weekStart)
+    mid.setDate(mid.getDate() + 3)
+    return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, "0")}`
+  }, [weekStart])
+
+  // Edit/create modal
+  const [editEntry, setEditEntry] = useState<PlanningEntry | null>(null)
+  const [editDate, setEditDate] = useState("")
+  const [modalOpen, setModalOpen] = useState(false)
+  const [formTitle, setFormTitle] = useState("")
+  const [formType, setFormType] = useState("ENTRAINEMENT")
+  const [formNotes, setFormNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  const weekDates = useMemo(() => {
+    const dates: Date[] = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(d.getDate() + i)
+      dates.push(d)
+    }
+    return dates
+  }, [weekStart])
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(
-        `/physio-data/api/planning?scope=athlete&id=${athleteId}&month=${currentMonth}`,
+        `/physio-data/api/planning?athleteId=${athleteId}&month=${monthKey}`,
       )
       if (res.ok) {
         const data = await res.json()
-        setEntries(data)
+        setEntries(Array.isArray(data) ? data : data.entries ?? [])
       }
     } catch (err) {
       console.error("Error fetching planning entries:", err)
     } finally {
       setLoading(false)
     }
-  }, [athleteId, currentMonth])
+  }, [athleteId, monthKey])
 
   useEffect(() => {
     fetchEntries()
   }, [fetchEntries])
 
-  const handleCreate = async () => {
-    if (!entryTitle.trim() || !entryDate) return
-    setCreating(true)
+  // Group by date
+  const entriesByDate = useMemo(() => {
+    const map = new Map<string, PlanningEntry[]>()
+    for (const entry of entries) {
+      const keys = (() => {
+        const start = new Date(entry.date)
+        const keys: string[] = [dateKey(start)]
+        if (entry.dateEnd) {
+          const end = new Date(entry.dateEnd)
+          const cursor = new Date(start)
+          cursor.setDate(cursor.getDate() + 1)
+          while (cursor <= end) {
+            keys.push(dateKey(cursor))
+            cursor.setDate(cursor.getDate() + 1)
+          }
+        }
+        return keys
+      })()
+      for (const key of keys) {
+        const list = map.get(key) ?? []
+        list.push(entry)
+        map.set(key, list)
+      }
+    }
+    return map
+  }, [entries])
+
+  function dateKey(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  }
+
+  function openEditModal(entry: PlanningEntry, date: string) {
+    setEditEntry(entry)
+    setEditDate(date)
+    setFormTitle(entry.title)
+    setFormType(entry.type)
+    setFormNotes(entry.notes ?? "")
+    setModalOpen(true)
+  }
+
+  function openCreateModal(date: string) {
+    setEditEntry(null)
+    setEditDate(date)
+    setFormTitle("")
+    setFormType("ENTRAINEMENT")
+    setFormNotes("")
+    setModalOpen(true)
+  }
+
+  async function handleSave() {
+    if (!formTitle.trim()) return
+    setSaving(true)
     try {
-      const res = await fetch("/physio-data/api/planning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          athleteId,
-          title: entryTitle.trim(),
-          date: entryDate,
-          type: entryType,
-          notes: entryNotes.trim() || undefined,
-        }),
-      })
-      if (!res.ok) throw new Error("Failed to create planning entry")
-      closeCreate()
-      setEntryTitle("")
-      setEntryNotes("")
+      if (editEntry) {
+        await fetch(`/physio-data/api/planning/${editEntry.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: formTitle.trim(),
+            type: formType,
+            notes: formNotes.trim() || null,
+          }),
+        })
+      } else {
+        await fetch("/physio-data/api/planning", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            athleteId,
+            title: formTitle.trim(),
+            date: editDate,
+            type: formType,
+            notes: formNotes.trim() || null,
+          }),
+        })
+      }
+      setModalOpen(false)
       fetchEntries()
-    } catch (err) {
-      console.error("Error creating planning entry:", err)
+    } catch {
+      // silencieux
     } finally {
-      setCreating(false)
+      setSaving(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id)
+  async function handleDelete(id: string) {
+    if (!confirm("Supprimer cette entrée ?")) return
     try {
-      const res = await fetch(`/physio-data/api/planning/${id}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) throw new Error("Failed to delete")
+      await fetch(`/physio-data/api/planning/${id}`, { method: "DELETE" })
       fetchEntries()
-    } catch (err) {
-      console.error("Error deleting planning entry:", err)
-    } finally {
-      setDeletingId(null)
+    } catch {
+      // silencieux
     }
   }
 
-  const prevMonth = () => {
-    const [y, m] = currentMonth.split("-").map(Number)
-    const d = new Date(y, m - 2, 1)
-    setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
-  }
-
-  const nextMonth = () => {
-    const [y, m] = currentMonth.split("-").map(Number)
-    const d = new Date(y, m, 1)
-    setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
-  }
-
-  const monthLabel = new Date(currentMonth + "-01").toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  })
-
-  const typeColor: Record<string, string> = {
-    ENTRAINEMENT: "blue",
-    MATCH: "red",
-    RENDEZ_VOUS: "green",
-    OBJECTIF: "orange",
-    AUTRE: "gray",
+  const typeColors: Record<string, string> = {
+    ENTRAINEMENT: "border-blue-400 bg-blue-50",
+    MATCH: "border-green-400 bg-green-50",
+    OBJECTIF: "border-amber-400 bg-amber-50",
+    REATHLETISATION: "border-purple-400 bg-purple-50",
+    REPOS: "border-gray-400 bg-gray-50",
+    TEST: "border-cyan-400 bg-cyan-50",
+    AUTRE: "border-slate-400 bg-slate-50",
+    INDISPONIBILITE: "border-red-400 bg-red-50",
   }
 
   const typeLabels: Record<string, string> = {
     ENTRAINEMENT: "Entraînement",
     MATCH: "Match",
-    RENDEZ_VOUS: "Rendez-vous",
     OBJECTIF: "Objectif",
+    REATHLETISATION: "Réathlétisation",
+    REPOS: "Repos",
+    TEST: "Test",
     AUTRE: "Autre",
+    INDISPONIBILITE: "Indisponibilité",
   }
+
+  const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+  const goToPrevWeek = () => {
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() - 7)
+    setWeekStart(d)
+  }
+
+  const goToNextWeek = () => {
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() + 7)
+    setWeekStart(d)
+  }
+
+  const goToToday = () => {
+    const now = new Date()
+    const day = now.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset)
+    monday.setHours(0, 0, 0, 0)
+    setWeekStart(monday)
+  }
+
+  const weekLabel = `${weekStart.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
 
   if (loading) {
     return (
@@ -835,148 +927,166 @@ function PlanningTab({ athleteId }: { athleteId: string }) {
 
   return (
     <Stack gap="md">
-      {/* Month navigation */}
+      {/* Week navigation */}
       <Paper shadow="sm" p="sm" radius="md" withBorder>
         <Group justify="space-between">
-          <Button variant="subtle" size="sm" onClick={prevMonth} leftSection={<ChevronLeft size={16} />}>
-            Mois précédent
-          </Button>
+          <Group>
+            <Button variant="subtle" size="sm" onClick={goToPrevWeek} leftSection={<ChevronLeft size={16} />}>
+              Semaine préc.
+            </Button>
+            <Button variant="light" size="sm" onClick={goToToday}>
+              Aujourd'hui
+            </Button>
+            <Button variant="subtle" size="sm" onClick={goToNextWeek} rightSection={<ChevronRight size={16} />}>
+              Semaine suiv.
+            </Button>
+          </Group>
           <Text fw={600} size="md">
-            {monthLabel}
+            {weekLabel}
           </Text>
-          <Button variant="subtle" size="sm" onClick={nextMonth} rightSection={<ChevronRight size={16} />}>
-            Mois suivant
-          </Button>
         </Group>
       </Paper>
 
-      {/* Add entry */}
-      <div className="flex justify-end">
-        <Button leftSection={<Plus size={14} />} onClick={openCreate}>
-          Ajouter une entrée
-        </Button>
+      {/* Week grid */}
+      <div className="grid grid-cols-7 gap-2">
+        {weekDates.map((date, idx) => {
+          const key = dateKey(date)
+          const dayEntries = entriesByDate.get(key) ?? []
+          const isToday =
+            date.getFullYear() === new Date().getFullYear() &&
+            date.getMonth() === new Date().getMonth() &&
+            date.getDate() === new Date().getDate()
+
+          return (
+            <div
+              key={key}
+              className={`flex flex-col rounded-lg border min-h-[200px] ${
+                isToday ? "border-blue-400 ring-1 ring-blue-200" : "border-gray-200"
+              }`}
+            >
+              {/* Day header */}
+              <div className={`px-2 py-1.5 text-center text-xs font-bold ${isToday ? "bg-blue-100 text-blue-800" : "bg-gray-50 text-gray-600"}`}>
+                {DAY_NAMES[idx]}
+                <span className="block text-lg">{date.getDate()}</span>
+              </div>
+
+              {/* Entries */}
+              <div className="flex-1 space-y-1 p-1">
+                {dayEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className={`cursor-pointer rounded border-l-4 p-1.5 text-xs transition-colors hover:opacity-80 ${
+                      typeColors[entry.type] ?? typeColors.AUTRE
+                    }`}
+                    onClick={() => openEditModal(entry, key)}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-semibold truncate">
+                        {entry.type === "OBJECTIF" ? "🎯 " : ""}
+                        {entry.title}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(entry.id)
+                        }}
+                        className="text-red-400 hover:text-red-600 flex-shrink-0"
+                        title="Supprimer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    {entry.type === "ENTRAINEMENT" && entry.notes && (
+                      <p className="mt-0.5 text-[10px] text-gray-500 line-clamp-2 whitespace-pre-wrap">
+                        {entry.notes}
+                      </p>
+                    )}
+                    <span className={`mt-0.5 inline-block rounded px-1 text-[9px] font-medium uppercase ${
+                      typeColors[entry.type]?.replace("bg-", "bg-opacity-50 bg-") ?? ""
+                    }`}>
+                      {typeLabels[entry.type] ?? entry.type}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Add button */}
+                <button
+                  onClick={() => openCreateModal(key)}
+                  className="flex w-full items-center justify-center gap-1 rounded border border-dashed border-gray-300 p-1 text-[10px] text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                >
+                  <Plus size={12} />
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Create Modal */}
+      {/* Edit/Create Modal */}
       <Modal
-        opened={createModalOpened}
-        onClose={closeCreate}
-        title="Ajouter une entrée au planning"
+        opened={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editEntry ? "Modifier l'entrée" : "Nouvelle entrée"}
+        size="sm"
         trapFocus={false}
-        size="md"
       >
         <Stack gap="sm">
-          <TextInput
-            label="Titre"
-            placeholder="Ex: Séance de musculation"
-            value={entryTitle}
-            onChange={(e) => setEntryTitle(e.currentTarget.value)}
-            required
-          />
-          <TextInput
-            label="Date"
-            type="date"
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.currentTarget.value)}
-            required
-          />
           <NativeSelect
             label="Type"
             data={[
               { value: "ENTRAINEMENT", label: "Entraînement" },
               { value: "MATCH", label: "Match" },
-              { value: "RENDEZ_VOUS", label: "Rendez-vous" },
               { value: "OBJECTIF", label: "Objectif" },
+              { value: "REATHLETISATION", label: "Réathlétisation" },
+              { value: "REPOS", label: "Repos" },
+              { value: "TEST", label: "Test" },
               { value: "AUTRE", label: "Autre" },
+              { value: "INDISPONIBILITE", label: "Indisponibilité" },
             ]}
-            value={entryType}
-            onChange={(e) => setEntryType(e.currentTarget.value)}
+            value={formType}
+            onChange={(e) => setFormType(e.currentTarget.value)}
           />
+          <TextInput
+            label="Titre"
+            placeholder="Description..."
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.currentTarget.value)}
+            required
+          />
+          {!editEntry && (
+            <TextInput label="Date" type="date" value={editDate} disabled />
+          )}
           <Textarea
-            label="Notes (optionnel)"
-            placeholder="Notes..."
-            value={entryNotes}
-            onChange={(e) => setEntryNotes(e.currentTarget.value)}
-            minRows={2}
+            label="Notes"
+            placeholder="Détails de l'entraînement..."
+            value={formNotes}
+            onChange={(e) => setFormNotes(e.currentTarget.value)}
+            minRows={3}
+            autosize
           />
-          <Group justify="flex-end" mt="xs">
-            <Button variant="default" onClick={closeCreate}>
-              Annuler
-            </Button>
-            <Button onClick={handleCreate} loading={creating} disabled={!entryTitle.trim() || !entryDate}>
-              Ajouter
-            </Button>
+          <Group justify="space-between" mt="xs">
+            {editEntry && (
+              <Button
+                color="red"
+                variant="subtle"
+                size="compact-sm"
+                onClick={() => handleDelete(editEntry.id)}
+              >
+                Supprimer
+              </Button>
+            )}
+            <Group>
+              <Button variant="default" onClick={() => setModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSave} loading={saving} disabled={!formTitle.trim()}>
+                {editEntry ? "Enregistrer" : "Ajouter"}
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Modal>
-
-      {/* Entries list */}
-      {entries.length === 0 ? (
-        <Card shadow="sm" p="lg" radius="md" withBorder>
-          <Text c="dimmed" ta="center">
-            Aucune entrée de planning pour ce mois.
-          </Text>
-        </Card>
-      ) : (
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Date</Table.Th>
-              <Table.Th>Titre</Table.Th>
-              <Table.Th>Type</Table.Th>
-              <Table.Th>Notes</Table.Th>
-              <Table.Th style={{ width: 60 }}></Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {entries.map((entry) => (
-              <Table.Tr key={entry.id}>
-                <Table.Td>
-                  <Text size="sm">{formatDate(entry.date)}</Text>
-                  {entry.dateEnd && (
-                    <Text size="xs" c="dimmed">
-                      → {formatDate(entry.dateEnd)}
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text fw={500} size="sm">
-                    {entry.title}
-                  </Text>
-                  {entry.origin === "equipe" && entry.teamName && (
-                    <Text size="xs" c="dimmed">
-                      ({entry.teamName})
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Badge variant="light" color={typeColor[entry.type] || "gray"} size="sm">
-                    {typeLabels[entry.type] || entry.type}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed" lineClamp={1}>
-                    {entry.notes || "-"}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {entry.origin !== "equipe" && (
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      size="sm"
-                      loading={deletingId === entry.id}
-                      onClick={() => handleDelete(entry.id)}
-                    >
-                      <TrashIcon size={14} />
-                    </ActionIcon>
-                  )}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
     </Stack>
   )
 }
@@ -1224,12 +1334,43 @@ export default function AthleteDetailPage() {
         size="sm"
       >
         <Stack gap="sm">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Fichier</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.currentTarget.files?.[0]
+                if (!file) return
+                // Convert to base64 data URL
+                const reader = new FileReader()
+                reader.onload = () => {
+                  setPhotoUrl(reader.result as string)
+                }
+                reader.readAsDataURL(file)
+              }}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+          </div>
+          <div className="text-center text-xs text-gray-400">— ou —</div>
           <TextInput
-            label="URL de la photo"
+            label="URL distante"
             placeholder="https://..."
             value={photoUrl}
             onChange={(e) => setPhotoUrl(e.currentTarget.value)}
           />
+          {photoUrl && (
+            <div className="flex justify-center mt-1">
+              <img
+                src={photoUrl}
+                alt="Aperçu"
+                className="h-24 w-24 rounded-md object-cover border"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none"
+                }}
+              />
+            </div>
+          )}
           <Group justify="flex-end" mt="xs">
             <Button variant="default" onClick={() => setPhotoModalOpen(false)}>
               Annuler
