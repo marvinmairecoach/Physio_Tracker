@@ -60,8 +60,27 @@ export default function PhysioDataDashboardLayout({
   return (
     <AuthGuard>
       <div className="flex h-screen overflow-hidden bg-blue-50/30">
+        {/* Top bar — spans full width, same height as logo */}
+        <div className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center justify-end border-b border-blue-100 bg-white px-4 md:px-6 lg:pl-[280px]">
+          {/* Mobile menu toggle */}
+          <label
+            htmlFor="mobile-sidebar-drawer"
+            className="md:hidden inline-flex items-center justify-center rounded-md p-1 text-gray-500 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer mr-auto"
+            aria-label="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </label>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-600 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Déconnexion
+          </button>
+        </div>
+
         {/* Sidebar */}
-        <aside className="hidden md:flex md:w-64 md:flex-col border-r border-blue-100 bg-white">
+        <aside className="hidden md:flex md:w-64 md:flex-col border-r border-blue-100 bg-white pt-14">
           {/* Logo */}
           <div className="flex h-14 items-center border-b border-blue-100 px-6">
             <Link
@@ -118,17 +137,7 @@ export default function PhysioDataDashboardLayout({
         <MobileSidebar navItems={navItems} isActive={isActive} />
 
         {/* Main content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Top bar with logout */}
-          <div className="flex h-12 items-center justify-end border-b border-blue-100 bg-white px-4 md:px-6">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-600 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Déconnexion
-            </button>
-          </div>
+        <div className="flex flex-1 flex-col overflow-hidden pt-14">
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
@@ -155,13 +164,6 @@ function MobileSidebar({
 
   return (
     <>
-      <label
-        htmlFor="mobile-sidebar-drawer"
-        className="fixed top-3 left-3 z-50 md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
-        aria-label="Menu"
-      >
-        <Menu className="h-5 w-5" />
-      </label>
       <input
         id="mobile-sidebar-drawer"
         type="checkbox"
@@ -173,7 +175,7 @@ function MobileSidebar({
         className="fixed inset-0 z-30 bg-black/50 md:hidden hidden peer-checked:block cursor-pointer"
       />
       {/* Drawer */}
-      <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-blue-100 transition-transform duration-200 -translate-x-full peer-checked:translate-x-0 md:hidden flex flex-col">
+      <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-blue-100 transition-transform duration-200 -translate-x-full peer-checked:translate-x-0 md:hidden flex flex-col pt-14">
         <div className="flex h-14 items-center justify-between border-b border-blue-100 px-6">
           <Link
             href="/physio-data"

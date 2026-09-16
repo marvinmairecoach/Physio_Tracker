@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, memo } from "react"
-import { Loader2, ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Plus, X, Copy } from "lucide-react"
 import {
   Button,
   Modal,
@@ -91,6 +91,7 @@ const EntryCard = memo(function EntryCard({
   entry,
   compact,
   onDelete,
+  onCopy,
   onStartEdit,
   editingId,
   editingContent,
@@ -103,6 +104,7 @@ const EntryCard = memo(function EntryCard({
   entry: PlanningEntry
   compact?: boolean
   onDelete: (id: string) => void
+  onCopy?: (entry: PlanningEntry) => void
   onStartEdit: (entry: PlanningEntry) => void
   editingId: string | null
   editingContent: string
@@ -126,21 +128,35 @@ const EntryCard = memo(function EntryCard({
           {typeLabel}
         </span>
         {!isEditing && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(entry.id)
-            }}
-            className="text-red-400 hover:text-red-600 flex-shrink-0"
-            title="Supprimer"
-            disabled={isDeleting}
-          >
+          <div className="flex items-center gap-0.5">
+            {onCopy && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCopy(entry)
+                }}
+                className="text-gray-400 hover:text-blue-500 flex-shrink-0"
+                title="Copier"
+              >
+                <Copy size={compact ? 10 : 12} />
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(entry.id)
+              }}
+              className="text-red-400 hover:text-red-600 flex-shrink-0"
+              title="Supprimer"
+              disabled={isDeleting}
+            >
             {isDeleting ? (
               <Loader2 size={compact ? 10 : 12} className="animate-spin" />
             ) : (
               <X size={compact ? 10 : 12} />
             )}
           </button>
+          </div>
         )}
       </div>
 
@@ -233,6 +249,8 @@ export default function PlanningTab({
   // Create modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [createDate, setCreateDate] = useState("")
+  const [createDateEnd, setCreateDateEnd] = useState("")
+  const [createHasDateEnd, setCreateHasDateEnd] = useState(false)
   const [createType, setCreateType] = useState("ENTRAINEMENT")
   const [createContent, setCreateContent] = useState("")
   const [creating, setCreating] = useState(false)
@@ -332,25 +350,41 @@ export default function PlanningTab({
     setCreating(true)
     try {
       const typeLabel = typeLabels[createType] ?? createType
+      const body: Record<string, unknown> = {
+        athleteId,
+        title: typeLabel,
+        date: createDate,
+        type: createType,
+        notes: createContent.trim(),
+      }
+      if (createHasDateEnd && createDateEnd) {
+        body.dateEnd = createDateEnd
+      }
       await fetch("/physio-data/api/planning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          athleteId,
-          title: typeLabel, // Use type label as fallback title
-          date: createDate,
-          type: createType,
-          notes: createContent.trim(),
-        }),
+        body: JSON.stringify(body),
       })
       setCreateModalOpen(false)
       setCreateContent("")
+      setCreateDateEnd("")
+      setCreateHasDateEnd(false)
       fetchEntries()
     } catch {
       // silencieux
     } finally {
       setCreating(false)
     }
+  }
+
+  // Copy an entry to a specific date
+  function handleCopy(entry: PlanningEntry) {
+    setCreateType(entry.type)
+    setCreateContent(entry.notes ?? "")
+    setCreateDate(new Date().toISOString().slice(0, 10))
+    setCreateDateEnd("")
+    setCreateHasDateEnd(false)
+    setCreateModalOpen(true)
   }
 
   async function handleDelete(id: string) {
@@ -448,6 +482,7 @@ export default function PlanningTab({
               <EntryCard
                 entry={entry}
                 onDelete={handleDelete}
+                onCopy={handleCopy}
                 onStartEdit={startEdit}
                 editingId={editingId}
                 editingContent={editingContent}
@@ -594,6 +629,8 @@ export default function PlanningTab({
                 setCreateDate(new Date().toISOString().slice(0, 10))
                 setCreateType("ENTRAINEMENT")
                 setCreateContent("")
+                setCreateDateEnd("")
+                setCreateHasDateEnd(false)
                 setCreateModalOpen(true)
               }}
             >
@@ -640,6 +677,7 @@ export default function PlanningTab({
                       entry={entry}
                       compact
                       onDelete={handleDelete}
+                      onCopy={handleCopy}
                       onStartEdit={startEdit}
                       editingId={editingId}
                       editingContent={editingContent}
@@ -658,6 +696,8 @@ export default function PlanningTab({
                       setCreateDate(key)
                       setCreateType("ENTRAINEMENT")
                       setCreateContent("")
+                      setCreateDateEnd("")
+                      setCreateHasDateEnd(false)
                       setCreateModalOpen(true)
                     }}
                     className="flex w-full items-center justify-center gap-1 rounded border border-dashed border-gray-300 p-1 text-[10px] text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
@@ -789,12 +829,29 @@ export default function PlanningTab({
             onChange={(e) => setCreateType(e.currentTarget.value)}
           />
           <TextInput
-            label="Date"
+            label="Date de début"
             type="date"
             value={createDate}
             onChange={(e) => setCreateDate(e.currentTarget.value)}
             required
           />
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={createHasDateEnd}
+              onChange={(e) => setCreateHasDateEnd(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label className="text-sm">Sur plusieurs jours</label>
+          </div>
+          {createHasDateEnd && (
+            <TextInput
+              label="Date de fin"
+              type="date"
+              value={createDateEnd}
+              onChange={(e) => setCreateDateEnd(e.currentTarget.value)}
+            />
+          )}
           <Textarea
             label="Contenu"
             placeholder="Détails de l'événement..."
