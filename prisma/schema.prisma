@@ -418,6 +418,7 @@ model PlanningEntry {
   type        String   @default("ENTRAINEMENT") // ENTRAINEMENT | MATCH | OBJECTIF | REATHLETISATION | REPOS | TEST | AUTRE
   isObjective Boolean  @default(false) @map("is_objective")
   notes       String?  @db.Text
+  sessionData String?  @db.Text @map("session_data")
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

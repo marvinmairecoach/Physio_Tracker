@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
 
     const body = await request.json();
-    const { title, date, type, athleteId, isObjective, notes, dateEnd } = body;
+    const { title, date, type, athleteId, isObjective, notes, dateEnd, sessionData } = body;
 
     if (!title || !date || !athleteId) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         isObjective: isObjective ?? false,
         notes: notes ?? null,
         dateEnd: dateEnd ? new Date(dateEnd) : null,
+        sessionData: sessionData ? JSON.stringify(sessionData) : null,
         createdById: session.userId,
       },
     });

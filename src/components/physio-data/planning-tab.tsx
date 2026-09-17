@@ -12,6 +12,7 @@ import {
   Group,
   Paper,
   Text,
+  ScrollArea,
 } from "@mantine/core"
 
 /* ------------------------------------------------------------------ */
@@ -28,6 +29,7 @@ interface PlanningEntry {
   type: string
   isObjective: boolean
   notes: string | null
+  sessionData: string | null
   origin?: string
   teamName?: string | null
 }
@@ -98,6 +100,7 @@ const EntryCard = memo(function EntryCard({
   onCancelEdit,
   isSaving,
   isDeleting,
+  onOpenWellness,
 }: {
   entry: PlanningEntry
   compact?: boolean
@@ -111,6 +114,7 @@ const EntryCard = memo(function EntryCard({
   onCancelEdit: () => void
   isSaving: boolean
   isDeleting: boolean
+  onOpenWellness?: (entry: PlanningEntry) => void
 }) {
   const isEditing = editingId === entry.id
   const typeLabel = typeLabels[entry.type] ?? entry.type
@@ -193,9 +197,265 @@ const EntryCard = memo(function EntryCard({
           )}
         </div>
       )}
+
+      {/* Session data summary + questionnaire button */}
+      {!isEditing &&
+        (entry.type === "ENTRAINEMENT" || entry.type === "MATCH") &&
+        onOpenWellness && (
+          <div className={`${compact ? "mt-1" : "mt-2"} space-y-1`}>
+            {entry.sessionData ? (
+              (() => {
+                try {
+                  const sd: SessionDataPayload = JSON.parse(entry.sessionData)
+                  const w = sd.wellness
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] text-gray-500">
+                      {w && (
+                        <span>
+                          😴{w.sleep} 💪{w.mood} 🔥{w.physical}
+                        </span>
+                      )}
+                      {sd.rpe !== undefined && (
+                        <span>RPE: {sd.rpe}</span>
+                      )}
+                      {sd.duration !== undefined && (
+                        <span>{sd.duration}min</span>
+                      )}
+                    </div>
+                  )
+                } catch {
+                  return null
+                }
+              })()
+            ) : (
+              <div className="text-[9px] text-gray-400 italic">
+                Pas encore de données
+              </div>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenWellness(entry)
+              }}
+              className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+            >
+              Questionnaire
+            </button>
+          </div>
+        )}
     </div>
   )
 })
+
+/* ------------------------------------------------------------------ */
+/* WellnessModal                                                     */
+/* ------------------------------------------------------------------ */
+
+interface SessionDataPayload {
+  wellness?: { sleep: number; mood: number; physical: number }
+  rpe?: number
+  duration?: number
+}
+
+function WellnessModal({
+  opened,
+  onClose,
+  entry,
+  onSave,
+}: {
+  opened: boolean
+  onClose: () => void
+  entry: PlanningEntry | null
+  onSave: (id: string, data: SessionDataPayload) => void
+}) {
+  const [sleep, setSleep] = useState(7)
+  const [mood, setMood] = useState(7)
+  const [physical, setPhysical] = useState(7)
+  const [rpe, setRpe] = useState(5)
+  const [duration, setDuration] = useState(45)
+
+  // Load existing data when modal opens
+  useEffect(() => {
+    if (entry?.sessionData) {
+      try {
+        const parsed = JSON.parse(entry.sessionData) as SessionDataPayload
+        setSleep(parsed.wellness?.sleep ?? 7)
+        setMood(parsed.wellness?.mood ?? 7)
+        setPhysical(parsed.wellness?.physical ?? 7)
+        setRpe(parsed.rpe ?? 5)
+        setDuration(parsed.duration ?? 45)
+      } catch {
+        // reset to defaults
+        setSleep(7)
+        setMood(7)
+        setPhysical(7)
+        setRpe(5)
+        setDuration(45)
+      }
+    } else {
+      setSleep(7)
+      setMood(7)
+      setPhysical(7)
+      setRpe(5)
+      setDuration(45)
+    }
+  }, [entry?.sessionData, opened])
+
+  if (!entry) return null
+
+  const sliderStyle: React.CSSProperties = {
+    width: "100%",
+    accentColor: "#3b82f6",
+  }
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={`Questionnaire — ${entry.title}`}
+      size="sm"
+      trapFocus={false}
+    >
+      <Stack gap="md">
+        {/* Wellness sliders */}
+        <Text fw={600} size="sm">
+          Bien-être pré-effort
+        </Text>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Text size="xs">Sommeil</Text>
+            <Text size="xs" fw={700}>
+              😴 {sleep}
+            </Text>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={sleep}
+            onChange={(e) => setSleep(Number(e.target.value))}
+            style={sliderStyle}
+          />
+          <div className="flex justify-between text-[9px] text-gray-400">
+            <span>0</span>
+            <span>10</span>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Text size="xs">Moral</Text>
+            <Text size="xs" fw={700}>
+              💪 {mood}
+            </Text>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={mood}
+            onChange={(e) => setMood(Number(e.target.value))}
+            style={sliderStyle}
+          />
+          <div className="flex justify-between text-[9px] text-gray-400">
+            <span>0</span>
+            <span>10</span>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Text size="xs">Physique</Text>
+            <Text size="xs" fw={700}>
+              🔥 {physical}
+            </Text>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={physical}
+            onChange={(e) => setPhysical(Number(e.target.value))}
+            style={sliderStyle}
+          />
+          <div className="flex justify-between text-[9px] text-gray-400">
+            <span>0</span>
+            <span>10</span>
+          </div>
+        </div>
+
+        {/* RPE slider */}
+        <div className="border-t border-gray-100 pt-3">
+          <Text fw={600} size="sm" mb={4}>
+            RPE (charge perçue)
+          </Text>
+          <div className="flex items-center justify-between mb-1">
+            <Text size="xs">RPE</Text>
+            <Text size="xs" fw={700}>
+              {rpe}
+            </Text>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={rpe}
+            onChange={(e) => setRpe(Number(e.target.value))}
+            style={sliderStyle}
+          />
+          <div className="flex justify-between text-[9px] text-gray-400">
+            <span>0 (très facile)</span>
+            <span>10 (maximal)</span>
+          </div>
+        </div>
+
+        {/* Duration */}
+        <div className="border-t border-gray-100 pt-3">
+          <Text fw={600} size="sm" mb={4}>
+            Durée
+          </Text>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={600}
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-20 rounded border border-gray-300 px-2 py-1 text-sm text-center"
+            />
+            <Text size="sm" c="dimmed">
+              minutes
+            </Text>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <Group justify="flex-end" mt="xs">
+          <Button variant="default" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button
+            onClick={() => {
+              onSave(entry.id, {
+                wellness: { sleep, mood, physical },
+                rpe,
+                duration,
+              })
+              onClose()
+            }}
+          >
+            Enregistrer
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  )
+}
 
 /* ------------------------------------------------------------------ */
 /* PlanningTab                                                       */
@@ -228,6 +488,21 @@ export default function PlanningTab({
   const sunday = new Date(weekStart)
   sunday.setDate(sunday.getDate() + 6)
 
+  // Sort mode: affects all views
+  const [sortMode, setSortMode] = useState<"date-asc" | "date-desc" | "type">("date-asc")
+
+  // List view: past events toggle & pagination
+  const [showPastEvents, setShowPastEvents] = useState(false)
+  const [pastPage, setPastPage] = useState(0)
+  const PAST_PAGE_SIZE = 10
+
+  // Day modal (month view)
+  const [dayModalOpen, setDayModalOpen] = useState(false)
+  const [dayModalDateKey, setDayModalDateKey] = useState("")
+
+  // Date picker for navigation
+  const [datePickerValue, setDatePickerValue] = useState("")
+
   // Use current month or week month as the API fetch month
   const monthKey = useMemo(() => {
     if (viewMode === "week") {
@@ -247,6 +522,10 @@ export default function PlanningTab({
     entry: PlanningEntry
     content: string
   } | null>(null)
+
+  // Wellness modal state
+  const [wellnessModalOpen, setWellnessModalOpen] = useState(false)
+  const [wellnessEntry, setWellnessEntry] = useState<PlanningEntry | null>(null)
 
   // Create modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -316,7 +595,31 @@ export default function PlanningTab({
     return map
   }, [entries])
 
-  // Inline edit: open edit mode
+  // Sort entries according to current sortMode
+  function sortEntries(list: PlanningEntry[]): PlanningEntry[] {
+    const sorted = [...list]
+    switch (sortMode) {
+      case "date-desc":
+        sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        break
+      case "type":
+        sorted.sort((a, b) => {
+          const ta = typeLabels[a.type] ?? a.type
+          const tb = typeLabels[b.type] ?? b.type
+          const cmp = ta.localeCompare(tb)
+          if (cmp !== 0) return cmp
+          return new Date(a.date).getTime() - new Date(b.date).getTime()
+        })
+        break
+      case "date-asc":
+      default:
+        sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        break
+    }
+    return sorted
+  }
+
+  // Start inline edit mode
   function startEdit(entry: PlanningEntry) {
     setEditingId(entry.id)
     setEditingContent(entry.notes ?? "")
@@ -441,6 +744,32 @@ export default function PlanningTab({
     }
   }
 
+  // ─── Wellness modal handlers ───
+  function handleOpenWellness(entry: PlanningEntry) {
+    setWellnessEntry(entry)
+    setWellnessModalOpen(true)
+  }
+
+  async function handleSaveWellness(id: string, data: SessionDataPayload) {
+    try {
+      await fetch(`/physio-data/api/planning/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionData: data }),
+      })
+      // Update local state
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? { ...e, sessionData: JSON.stringify(data) }
+            : e,
+        ),
+      )
+    } catch (err) {
+      console.error("Error saving wellness data:", err)
+    }
+  }
+
   // ──────────────────────────────────────────────
   // Navigation helpers
   // ──────────────────────────────────────────────
@@ -490,12 +819,50 @@ export default function PlanningTab({
   // ──────────────────────────────────────────────
 
   function ListView() {
-    // Sort entries by date ascending
-    const sorted = [...entries].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayKey = dateKey(today)
+
+    // Separate upcoming and past entries
+    const allSorted = useMemo(() => sortEntries(entries), [entries, sortMode])
+
+    const upcomingEntries = useMemo(
+      () => allSorted.filter((e) => e.date >= todayKey),
+      [allSorted, todayKey],
     )
 
-    if (sorted.length === 0) {
+    const pastEntries = useMemo(
+      () => allSorted.filter((e) => e.date < todayKey).reverse(),
+      [allSorted, todayKey],
+    )
+
+    // Pagination for past events
+    const totalPastPages = Math.max(1, Math.ceil(pastEntries.length / PAST_PAGE_SIZE))
+    const safePastPage = Math.min(pastPage, totalPastPages - 1)
+    const paginatedPast = pastEntries.slice(
+      safePastPage * PAST_PAGE_SIZE,
+      (safePastPage + 1) * PAST_PAGE_SIZE,
+    )
+
+    // Group a list by date for display
+    function groupByDate(list: PlanningEntry[]) {
+      const groups: { dateKey: string; entries: PlanningEntry[] }[] = []
+      for (const entry of list) {
+        const last = groups[groups.length - 1]
+        if (last && last.dateKey === entry.date) {
+          last.entries.push(entry)
+        } else {
+          groups.push({ dateKey: entry.date, entries: [entry] })
+        }
+      }
+      return groups
+    }
+
+    const upcomingGroups = groupByDate(upcomingEntries)
+    const pastGroups = groupByDate(paginatedPast)
+    const displayList = showPastEvents ? pastGroups : upcomingGroups
+
+    if (entries.length === 0) {
       return (
         <div className="py-12 text-center text-sm text-gray-400">
           Aucune entrée pour ce mois.
@@ -504,39 +871,108 @@ export default function PlanningTab({
     }
 
     return (
-      <div className="space-y-2">
-        {sorted.map((entry) => (
-          <div key={entry.id} className="flex items-start gap-3 rounded-lg border p-3">
-            <div className="min-w-[80px] text-center">
-              <p className="text-xs font-bold">
-                {new Date(entry.date).toLocaleDateString("fr-FR", {
-                  weekday: "short",
-                })}
-              </p>
-              <p className="text-lg font-black">
-                {new Date(entry.date).getDate()}
-              </p>
-            </div>
-            <div className="flex-1">
-              <EntryCard
-                entry={entry}
-                onDelete={handleDelete}
-                onCopy={handleCopy}
-                onStartEdit={startEdit}
-                editingId={editingId}
-                editingContent={editingContent}
-                onEditingContentChange={setEditingContent}
-                onSaveEdit={saveEdit}
-                onCancelEdit={() => {
-                  setEditingId(null)
-                  setEditingContent("")
-                }}
-                isSaving={savingId === entry.id}
-                isDeleting={deletingId === entry.id}
-              />
-            </div>
+      <div className="space-y-3">
+        {/* Toggle upcoming / past */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={!showPastEvents ? "filled" : "subtle"}
+            size="compact-xs"
+            onClick={() => { setShowPastEvents(false); setPastPage(0) }}
+          >
+            À venir
+          </Button>
+          <Button
+            variant={showPastEvents ? "filled" : "subtle"}
+            size="compact-xs"
+            onClick={() => { setShowPastEvents(true); setPastPage(0) }}
+          >
+            Événements passés ({pastEntries.length})
+          </Button>
+        </div>
+
+        {/* Entries grouped by date */}
+        {displayList.length === 0 && (
+          <div className="py-8 text-center text-sm text-gray-400">
+            {showPastEvents ? "Aucun événement passé." : "Aucun événement à venir."}
           </div>
-        ))}
+        )}
+        <div className="space-y-4">
+          {displayList.map((group) => (
+            <div key={group.dateKey}>
+              {/* Date header */}
+              <div className="mb-2 flex items-center gap-2">
+                <div className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                  {new Date(group.dateKey + "T00:00:00").toLocaleDateString("fr-FR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </div>
+              </div>
+              <div className="space-y-2">
+                {group.entries.map((entry) => (
+                  <div key={entry.id} className="flex items-start gap-3 rounded-lg border p-3">
+                    <div className="min-w-[80px] text-center flex-shrink-0">
+                      <p className="text-xs font-bold text-gray-500">
+                        {new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                          weekday: "short",
+                        })}
+                      </p>
+                      <p className="text-lg font-black text-gray-700">
+                        {new Date(entry.date + "T00:00:00").getDate()}
+                      </p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <EntryCard
+                        entry={entry}
+                        onDelete={handleDelete}
+                        onCopy={handleCopy}
+                        onStartEdit={startEdit}
+                        editingId={editingId}
+                        editingContent={editingContent}
+                        onEditingContentChange={setEditingContent}
+                        onSaveEdit={saveEdit}
+                        onCancelEdit={() => {
+                          setEditingId(null)
+                          setEditingContent("")
+                        }}
+                        isSaving={savingId === entry.id}
+                        isDeleting={deletingId === entry.id}
+                        onOpenWellness={handleOpenWellness}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination for past events */}
+        {showPastEvents && pastEntries.length > PAST_PAGE_SIZE && (
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={safePastPage <= 0}
+              onClick={() => setPastPage((p) => Math.max(0, p - 1))}
+            >
+              Précédent
+            </Button>
+            <span className="text-xs text-gray-500">
+              Page {safePastPage + 1} / {totalPastPages}
+            </span>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={safePastPage >= totalPastPages - 1}
+              onClick={() => setPastPage((p) => Math.min(totalPastPages - 1, p + 1))}
+            >
+              Suivant
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -553,128 +989,179 @@ export default function PlanningTab({
     <Stack gap="md">
       {/* Navigation + View toggle */}
       <Paper shadow="sm" p="sm" radius="md" withBorder>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Nav buttons */}
-          <div className="flex items-center gap-1">
-            {viewMode === "week" && (
-              <>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToPrevWeek}
-                  leftSection={<ChevronLeft size={14} />}
-                >
-                  Sem.
-                </Button>
-                <Button
-                  variant="light"
-                  size="compact-sm"
-                  onClick={goToToday}
-                >
-                  Auj.
-                </Button>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToNextWeek}
-                  rightSection={<ChevronRight size={14} />}
-                >
-                  Sem.
-                </Button>
-              </>
-            )}
-            {viewMode === "month" && (
-              <>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToPrevMonth}
-                  leftSection={<ChevronLeft size={14} />}
-                >
-                  Mois
-                </Button>
-                <Button
-                  variant="light"
-                  size="compact-sm"
-                  onClick={goToToday}
-                >
-                  Auj.
-                </Button>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToNextMonth}
-                  rightSection={<ChevronRight size={14} />}
-                >
-                  Mois
-                </Button>
-              </>
-            )}
-            {viewMode === "list" && (
-              <>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToPrevMonth}
-                  leftSection={<ChevronLeft size={14} />}
-                >
-                  Mois
-                </Button>
-                <Button
-                  variant="light"
-                  size="compact-sm"
-                  onClick={goToToday}
-                >
-                  Auj.
-                </Button>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={goToNextMonth}
-                  rightSection={<ChevronRight size={14} />}
-                >
-                  Mois
-                </Button>
-              </>
-            )}
-            <Text fw={600} size="sm" className="ml-2 min-w-[140px]">
-              {viewMode === "week" ? weekLabel : monthLabel}
-            </Text>
-          </div>
+        <div className="flex flex-col gap-3">
+          {/* First row: navigation + view toggle + add */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Nav buttons */}
+            <div className="flex items-center gap-1">
+              {viewMode === "week" && (
+                <>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToPrevWeek}
+                    leftSection={<ChevronLeft size={14} />}
+                  >
+                    Sem.
+                  </Button>
+                  <Button
+                    variant="light"
+                    size="compact-sm"
+                    onClick={goToToday}
+                  >
+                    Auj.
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToNextWeek}
+                    rightSection={<ChevronRight size={14} />}
+                  >
+                    Sem.
+                  </Button>
+                </>
+              )}
+              {viewMode === "month" && (
+                <>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToPrevMonth}
+                    leftSection={<ChevronLeft size={14} />}
+                  >
+                    Mois
+                  </Button>
+                  <Button
+                    variant="light"
+                    size="compact-sm"
+                    onClick={goToToday}
+                  >
+                    Auj.
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToNextMonth}
+                    rightSection={<ChevronRight size={14} />}
+                  >
+                    Mois
+                  </Button>
+                </>
+              )}
+              {viewMode === "list" && (
+                <>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToPrevMonth}
+                    leftSection={<ChevronLeft size={14} />}
+                  >
+                    Mois
+                  </Button>
+                  <Button
+                    variant="light"
+                    size="compact-sm"
+                    onClick={goToToday}
+                  >
+                    Auj.
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    onClick={goToNextMonth}
+                    rightSection={<ChevronRight size={14} />}
+                  >
+                    Mois
+                  </Button>
+                </>
+              )}
+              <Text fw={600} size="sm" className="ml-2 min-w-[140px]">
+                {viewMode === "week" ? weekLabel : monthLabel}
+              </Text>
+            </div>
 
-          {/* View toggle + Add */}
-          <div className="flex items-center gap-2">
-            <Group gap={4}>
-              {(["week", "month", "list"] as const).map((mode) => (
-                <Button
-                  key={mode}
-                  variant={viewMode === mode ? "filled" : "subtle"}
-                  size="compact-xs"
-                  onClick={() => setViewMode(mode)}
-                >
-                  {mode === "week"
-                    ? "Semaine"
-                    : mode === "month"
-                      ? "Mois"
-                      : "Liste"}
-                </Button>
-              ))}
-            </Group>
-            <Button
-              size="compact-sm"
-              variant="light"
-              leftSection={<Plus size={14} />}
-              onClick={() => {
-                setCreateDate(new Date().toISOString().slice(0, 10))
-                setCreateType("ENTRAINEMENT")
-                setCreateContent("")
-                setCreateDateEnd("")
-                setCreateHasDateEnd(false)
-                setCreateModalOpen(true)
-              }}
-            >
-              Ajouter
-            </Button>
+            {/* View toggle + Add */}
+            <div className="flex items-center gap-2">
+              <Group gap={4}>
+                {(["week", "month", "list"] as const).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant={viewMode === mode ? "filled" : "subtle"}
+                    size="compact-xs"
+                    onClick={() => setViewMode(mode)}
+                  >
+                    {mode === "week"
+                      ? "Semaine"
+                      : mode === "month"
+                        ? "Mois"
+                        : "Liste"}
+                  </Button>
+                ))}
+              </Group>
+              <Button
+                size="compact-sm"
+                variant="light"
+                leftSection={<Plus size={14} />}
+                onClick={() => {
+                  setCreateDate(new Date().toISOString().slice(0, 10))
+                  setCreateType("ENTRAINEMENT")
+                  setCreateContent("")
+                  setCreateDateEnd("")
+                  setCreateHasDateEnd(false)
+                  setCreateModalOpen(true)
+                }}
+              >
+                Ajouter
+              </Button>
+            </div>
+          </div>
+          {/* Second row: sort + date picker */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-2">
+            <div className="flex items-center gap-2">
+              <Text size="xs" c="dimmed">Trier:</Text>
+              <NativeSelect
+                size="xs"
+                data={[
+                  { value: "date-asc", label: "Date ↑" },
+                  { value: "date-desc", label: "Date ↓" },
+                  { value: "type", label: "Type" },
+                ]}
+                value={sortMode}
+                onChange={(e) => setSortMode(e.currentTarget.value as "date-asc" | "date-desc" | "type")}
+                style={{ minWidth: 110 }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Text size="xs" c="dimmed">Aller à:</Text>
+              <input
+                type="date"
+                value={datePickerValue}
+                onChange={(e) => {
+                  const val = e.currentTarget.value
+                  setDatePickerValue(val)
+                  if (val) {
+                    const targetDate = new Date(val + "T00:00:00")
+                    if (viewMode === "week") {
+                      // Go to the week containing this date
+                      const day = targetDate.getDay()
+                      const mondayOffset = day === 0 ? -6 : 1 - day
+                      const monday = new Date(
+                        targetDate.getFullYear(),
+                        targetDate.getMonth(),
+                        targetDate.getDate() + mondayOffset,
+                      )
+                      monday.setHours(0, 0, 0, 0)
+                      setWeekStart(monday)
+                    } else {
+                      // Go to the month containing this date
+                      setCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1))
+                    }
+                  }
+                }}
+                className="rounded border border-gray-300 px-2 py-1 text-xs"
+                style={{ width: 150 }}
+              />
+            </div>
           </div>
         </div>
       </Paper>
@@ -684,7 +1171,7 @@ export default function PlanningTab({
         <div className="grid grid-cols-7 gap-2">
           {weekDates.map((date, idx) => {
             const key = dateKey(date)
-            const dayEntries = entriesByDate.get(key) ?? []
+            const dayEntries = sortEntries(entriesByDate.get(key) ?? [])
             const isToday =
               date.getFullYear() === new Date().getFullYear() &&
               date.getMonth() === new Date().getMonth() &&
@@ -728,6 +1215,7 @@ export default function PlanningTab({
                       }}
                       isSaving={savingId === entry.id}
                       isDeleting={deletingId === entry.id}
+                      onOpenWellness={handleOpenWellness}
                     />
                   ))}
                   <button
@@ -785,7 +1273,7 @@ export default function PlanningTab({
                 i + 1,
               )
               const key = dateKey(d)
-              const dayEntries = entriesByDate.get(key) ?? []
+              const dayEntries = sortEntries(entriesByDate.get(key) ?? [])
               const isToday =
                 d.getFullYear() === new Date().getFullYear() &&
                 d.getMonth() === new Date().getMonth() &&
@@ -794,7 +1282,11 @@ export default function PlanningTab({
               return (
                 <div
                   key={key}
-                  className={`min-h-[90px] p-1 border ${isToday ? "bg-blue-50" : ""}`}
+                  className={`min-h-[90px] p-1 border cursor-pointer ${isToday ? "bg-blue-50" : ""}`}
+                  onClick={() => {
+                    setDayModalDateKey(key)
+                    setDayModalOpen(true)
+                  }}
                 >
                   <div
                     className={`text-xs font-semibold mb-1 px-1 ${isToday ? "text-blue-700" : "text-gray-500"}`}
@@ -828,7 +1320,14 @@ export default function PlanningTab({
                       )
                     })}
                     {dayEntries.length > 2 && (
-                      <div className="text-[9px] text-gray-400 px-1">
+                      <div
+                        className="text-[9px] text-gray-400 px-1 cursor-pointer hover:text-blue-500"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDayModalDateKey(key)
+                          setDayModalOpen(true)
+                        }}
+                      >
                         +{dayEntries.length - 2} autres
                       </div>
                     )}
@@ -933,6 +1432,58 @@ export default function PlanningTab({
           </Group>
         </Stack>
       </Modal>
+
+      {/* ─── Day Modal (Month View) ─── */}
+      <Modal
+        opened={dayModalOpen}
+        onClose={() => setDayModalOpen(false)}
+        title={`Événements du ${dayModalDateKey ? new Date(dayModalDateKey + "T00:00:00").toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }) : ""}`}
+        size="lg"
+      >
+        <ScrollArea.Autosize mah="70vh" type="auto">
+          <Stack gap="sm">
+            {(dayModalDateKey ? sortEntries(entriesByDate.get(dayModalDateKey) ?? []) : []).map((entry) => (
+              <div key={entry.id} className="rounded-lg border p-3">
+                <EntryCard
+                  entry={entry}
+                  onDelete={handleDelete}
+                  onCopy={handleCopy}
+                  onStartEdit={startEdit}
+                  editingId={editingId}
+                  editingContent={editingContent}
+                  onEditingContentChange={setEditingContent}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={() => {
+                    setEditingId(null)
+                    setEditingContent("")
+                  }}
+                  isSaving={savingId === entry.id}
+                  isDeleting={deletingId === entry.id}
+                  onOpenWellness={handleOpenWellness}
+                />
+              </div>
+            ))}
+            {dayModalDateKey && (entriesByDate.get(dayModalDateKey) ?? []).length === 0 && (
+              <div className="py-8 text-center text-sm text-gray-400">
+                Aucun événement ce jour.
+              </div>
+            )}
+          </Stack>
+        </ScrollArea.Autosize>
+      </Modal>
+
+      {/* ─── Wellness Modal ─── */}
+      <WellnessModal
+        opened={wellnessModalOpen}
+        onClose={() => { setWellnessModalOpen(false); setWellnessEntry(null) }}
+        entry={wellnessEntry}
+        onSave={handleSaveWellness}
+      />
     </Stack>
   )
 }

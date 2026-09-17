@@ -16,6 +16,7 @@ import {
   BarChart3,
   MessageSquare,
   LogOut,
+  Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AuthGuard } from "@/components/layout/auth-guard"
@@ -62,14 +63,23 @@ export default function PhysioDataDashboardLayout({
       <div className="flex h-screen overflow-hidden bg-blue-50/30">
         {/* Top bar — spans full width, same height as logo */}
         <div className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center justify-end border-b border-blue-100 bg-white px-4 md:px-6 lg:pl-[280px]">
-          {/* Mobile menu toggle */}
-          <label
-            htmlFor="mobile-sidebar-drawer"
-            className="md:hidden inline-flex items-center justify-center rounded-md p-1 text-gray-500 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer mr-auto"
-            aria-label="Menu"
-          >
-            <Menu className="h-5 w-5" />
-          </label>
+          {/* Mobile menu toggle + Logo */}
+          <div className="flex items-center gap-3 mr-auto">
+            <label
+              htmlFor="mobile-sidebar-drawer"
+              className="md:hidden inline-flex items-center justify-center rounded-md p-1 text-gray-500 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </label>
+            <Link
+              href="/physio-data"
+              className="flex items-center gap-1.5 text-sm font-semibold text-gray-900"
+            >
+              <Search className="h-4 w-4 text-blue-600" />
+              <span>PhysioData</span>
+            </Link>
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-600 transition-colors"
@@ -81,19 +91,6 @@ export default function PhysioDataDashboardLayout({
 
         {/* Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col border-r border-blue-100 bg-white pt-14">
-          {/* Logo */}
-          <div className="flex h-14 items-center border-b border-blue-100 px-6">
-            <Link
-              href="/physio-data"
-              className="flex items-center gap-2 font-semibold text-gray-900"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-                <Dumbbell className="h-4 w-4" />
-              </div>
-              <span>PhysioData</span>
-            </Link>
-          </div>
-
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
             {navItems.map((item) => {
@@ -176,16 +173,7 @@ function MobileSidebar({
       />
       {/* Drawer */}
       <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-blue-100 transition-transform duration-200 -translate-x-full peer-checked:translate-x-0 md:hidden flex flex-col pt-14">
-        <div className="flex h-14 items-center justify-between border-b border-blue-100 px-6">
-          <Link
-            href="/physio-data"
-            className="flex items-center gap-2 font-semibold text-gray-900"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-              <Dumbbell className="h-4 w-4" />
-            </div>
-            <span>PhysioData</span>
-          </Link>
+        <div className="flex h-14 items-center justify-end border-b border-blue-100 px-6">
           <label
             htmlFor="mobile-sidebar-drawer"
             className="cursor-pointer text-gray-400 hover:text-gray-600"
