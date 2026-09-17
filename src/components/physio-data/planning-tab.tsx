@@ -212,7 +212,7 @@ const EntryCard = memo(function EntryCard({
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] text-gray-500">
                       {w && (
                         <span>
-                          😴{w.sleep} 💪{w.mood} 🔥{w.physical}
+                          😴{w.sleep} 🔥{w.mood} 💪{w.physical}
                         </span>
                       )}
                       {sd.rpe !== undefined && (
@@ -348,7 +348,7 @@ function WellnessModal({
           <div className="flex items-center justify-between mb-1">
             <Text size="xs">Moral</Text>
             <Text size="xs" fw={700}>
-              💪 {mood}
+              🔥 {mood}
             </Text>
           </div>
           <input
@@ -370,7 +370,7 @@ function WellnessModal({
           <div className="flex items-center justify-between mb-1">
             <Text size="xs">Physique</Text>
             <Text size="xs" fw={700}>
-              🔥 {physical}
+              💪 {physical}
             </Text>
           </div>
           <input
@@ -1210,6 +1210,16 @@ export default function PlanningTab({
                 <Text size="xs" c="dimmed">
                   Charge semaine: <span className="font-semibold text-blue-700">{weekLoad}</span>
                 </Text>
+                {prevWeekLoad > 0 && weekLoad > 0 && (() => {
+                  const pct = Math.round(((weekLoad - prevWeekLoad) / prevWeekLoad) * 100)
+                  const isUp = pct > 0
+                  const color = isUp ? "text-green-600" : "text-red-500"
+                  return (
+                    <Text size="xs" className={color}>
+                      {isUp ? "↑" : "↓"} {Math.abs(pct)}%
+                    </Text>
+                  )
+                })()}
               </div>
             )}
           </div>
