@@ -43,6 +43,15 @@ import {
   ScrollArea,
 } from "@mantine/core"
 import { useDisclosure } from "@mantine/hooks"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts"
 import PlanningTab from "@/components/physio-data/planning-tab"
 
 /* ============================================================
@@ -310,7 +319,7 @@ function TestsTab({
   userRole: string | null
 }) {
   const [testTypes, setTestTypes] = useState<TestType[]>([])
-  const [recentResults, setRecentResults] = useState<TestResult[]>([])
+  const [allResults, setAllResults] = useState<TestResult[]>([])
   const [loading, setLoading] = useState(true)
 
   // Record form
@@ -320,6 +329,11 @@ function TestsTab({
   const [testNotes, setTestNotes] = useState("")
   const [saving, setSaving] = useState(false)
   const [recordModalOpened, { open: openRecord, close: closeRecord }] = useDisclosure(false)
+
+  // Chart modal
+  const [chartTestType, setChartTestType] = useState<TestType | null>(null)
+  const [chartResults, setChartResults] = useState<TestResult[]>([])
+  const [chartModalOpened, { open: openChart, close: closeChart }] = useDisclosure(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -334,7 +348,7 @@ function TestsTab({
       }
       if (resultsRes.ok) {
         const results = await resultsRes.json()
-        setRecentResults(results)
+        setAllResults(results)
       }
     } catch (err) {
       console.error("Error fetching test data:", err)
@@ -375,8 +389,27 @@ function TestsTab({
     }
   }
 
-  // Group results by test type, showing latest 5 per type
-  const groupedResults = recentResults.reduce(
+  const openChartModal = (testType: TestType) => {
+    const sorted = (allResults
+      .filter((r) => r.testTypeId === testType.id)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()))
+    setChartTestType(testType)
+    setChartResults(sorted)
+    openChart()
+  }
+
+  const chartData = useMemo(
+    () =>
+      chartResults.map((r) => ({
+        date: formatDateShort(r.date),
+        fullDate: formatDate(r.date),
+        value: r.value,
+      })),
+    [chartResults],
+  )
+
+  // Group results by test type
+  const groupedResults = allResults.reduce(
     (acc, r) => {
       const typeId = r.testTypeId
       if (!acc[typeId]) acc[typeId] = []
@@ -482,7 +515,74 @@ function TestsTab({
         </Stack>
       </Modal>
 
-      {/* Recent results grouped by test type */}
+      {/* Chart Modal */}
+      <Modal
+        opened={chartModalOpened}
+        onClose={closeChart}
+        title={chartTestType ? `${chartTestType.name} — Évolution` : ""}
+        trapFocus={false}
+        size="lg"
+      >
+        {chartTestType && (
+          <Stack gap="md">
+            {chartData.length > 1 ? (
+              <Paper p="md" withBorder>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Line type="monotone" dataKey="value" stroke="#228be6" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Paper>
+            ) : (
+              <Text c="dimmed" ta="center" py="xl">
+                Un seul résultat — ajoutez-en d'autres pour voir un graphique d'évolution.
+              </Text>
+            )}
+
+            <Divider />
+
+            <Text fw={600} size="sm">
+              Tous les résultats
+            </Text>
+            <ScrollArea>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Date</Table.Th>
+                    <Table.Th>Valeur ({chartTestType.unit})</Table.Th>
+                    <Table.Th>Notes</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {chartResults.map((r) => (
+                    <Table.Tr key={r.id}>
+                      <Table.Td>
+                        <Text size="sm">{formatDate(r.date)}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge size="lg" variant="light" color="blue">
+                          {r.value} {chartTestType.unit}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" c="dimmed">
+                          {r.notes || "-"}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Stack>
+        )}
+      </Modal>
+
+      {/* Test type cards */}
       {Object.keys(groupedResults).length === 0 ? (
         <Card shadow="sm" p="lg" radius="md" withBorder>
           <Text c="dimmed" ta="center">
@@ -490,55 +590,45 @@ function TestsTab({
           </Text>
         </Card>
       ) : (
-        Object.entries(groupedResults).map(([typeId, results]) => {
-          const testType = testTypes.find((t) => t.id === typeId)
-          if (!testType) return null
-          const sorted = [...results].sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-          )
-          const latest = sorted.slice(0, 10)
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+          {Object.entries(groupedResults).map(([typeId, results]) => {
+            const testType = testTypes.find((t) => t.id === typeId)
+            if (!testType) return null
+            const sorted = [...results].sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+            )
+            const latest = sorted[0]
 
-          return (
-            <Card key={typeId} shadow="sm" p="md" radius="md" withBorder>
-              <Text fw={600} size="md" mb="xs">
-                {testType.name}{" "}
-                <Text component="span" c="dimmed" size="sm">
-                  ({testType.unit})
-                </Text>
-              </Text>
-              <ScrollArea>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Date</Table.Th>
-                      <Table.Th>Valeur</Table.Th>
-                      <Table.Th>Notes</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {latest.map((r) => (
-                      <Table.Tr key={r.id}>
-                        <Table.Td>
-                          <Text size="sm">{formatDate(r.date)}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge size="lg" variant="light" color="blue">
-                            {r.value} {testType.unit}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">
-                            {r.notes || "-"}
-                          </Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            </Card>
-          )
-        })
+            return (
+              <Card
+                key={typeId}
+                shadow="sm"
+                p="md"
+                radius="md"
+                withBorder
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => openChartModal(testType)}
+              >
+                <Stack gap="xs">
+                  <Text fw={600} size="md">
+                    {testType.name}
+                  </Text>
+                  <Group gap="xs" align="baseline">
+                    <Text size="xl" fw={700} c="blue">
+                      {latest.value}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      {testType.unit}
+                    </Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Dernier test : {formatDate(latest.date)}
+                  </Text>
+                </Stack>
+              </Card>
+            )
+          })}
+        </SimpleGrid>
       )}
     </Stack>
   )

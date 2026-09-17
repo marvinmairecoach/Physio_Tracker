@@ -40,7 +40,6 @@ const typeColors: Record<string, string> = {
   ENTRAINEMENT: "border-blue-400 bg-blue-50",
   MATCH: "border-green-400 bg-green-50",
   OBJECTIF: "border-amber-400 bg-amber-50",
-  REATHLETISATION: "border-purple-400 bg-purple-50",
   REPOS: "border-gray-400 bg-gray-50",
   TEST: "border-cyan-400 bg-cyan-50",
   AUTRE: "border-slate-400 bg-slate-50",
@@ -48,10 +47,9 @@ const typeColors: Record<string, string> = {
 }
 
 const typeLabels: Record<string, string> = {
-  ENTRAINEMENT: "Entraînement",
-  MATCH: "Match",
+  ENTRAINEMENT: "Séance",
+  MATCH: "Compétition",
   OBJECTIF: "Objectif",
-  REATHLETISATION: "Réathlétisation",
   REPOS: "Repos",
   TEST: "Test",
   AUTRE: "Autre",
@@ -128,14 +126,14 @@ const EntryCard = memo(function EntryCard({
           {typeLabel}
         </span>
         {!isEditing && (
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2">
             {onCopy && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onCopy(entry)
                 }}
-                className="text-gray-400 hover:text-blue-500 flex-shrink-0"
+                className="ml-1 text-gray-400 hover:text-blue-500 flex-shrink-0"
                 title="Copier"
               >
                 <Copy size={compact ? 10 : 12} />
@@ -245,6 +243,10 @@ export default function PlanningTab({
   const [editingContent, setEditingContent] = useState("")
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [lastDeleted, setLastDeleted] = useState<{
+    entry: PlanningEntry
+    content: string
+  } | null>(null)
 
   // Create modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -346,7 +348,6 @@ export default function PlanningTab({
 
   // Create entry
   async function handleCreate() {
-    if (!createContent.trim()) return
     setCreating(true)
     try {
       const typeLabel = typeLabels[createType] ?? createType
@@ -355,7 +356,7 @@ export default function PlanningTab({
         title: typeLabel,
         date: createDate,
         type: createType,
-        notes: createContent.trim(),
+        notes: createContent.trim() || typeLabel,
       }
       if (createHasDateEnd && createDateEnd) {
         body.dateEnd = createDateEnd
@@ -388,6 +389,18 @@ export default function PlanningTab({
   }
 
   async function handleDelete(id: string) {
+    // Save entry info for undo before deleting
+    const entryToDelete = entries.find((e) => e.id === id)
+    if (entryToDelete) {
+      const content = entryToDelete.notes ?? ""
+      setLastDeleted({ entry: { ...entryToDelete }, content })
+      // Auto-clear undo after 10 seconds
+      setTimeout(() => {
+        setLastDeleted((prev) =>
+          prev?.entry.id === id ? null : prev,
+        )
+      }, 10000)
+    }
     setDeletingId(id)
     try {
       const res = await fetch(`/physio-data/api/planning/${id}`, {
@@ -399,6 +412,32 @@ export default function PlanningTab({
       console.error("Error deleting planning entry:", err)
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleUndoDelete() {
+    if (!lastDeleted) return
+    const { entry, content } = lastDeleted
+    setLastDeleted(null)
+    try {
+      await fetch("/physio-data/api/planning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          athleteId: entry.athleteId,
+          teamId: entry.teamId,
+          title: entry.title,
+          date: entry.date,
+          dateEnd: entry.dateEnd,
+          type: entry.type,
+          isObjective: entry.isObjective,
+          notes: content,
+          origin: entry.origin,
+        }),
+      })
+      fetchEntries()
+    } catch (err) {
+      console.error("Error undoing delete:", err)
     }
   }
 
@@ -804,6 +843,23 @@ export default function PlanningTab({
       {/* ─── LIST VIEW ─── */}
       {viewMode === "list" && <ListView />}
 
+      {/* ─── Undo Delete ─── */}
+      {lastDeleted && (
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <span className="text-sm text-gray-600">
+            Entrée supprimée
+          </span>
+          <Button
+            size="compact-sm"
+            variant="light"
+            color="blue"
+            onClick={handleUndoDelete}
+          >
+            Annuler suppression
+          </Button>
+        </div>
+      )}
+
       {/* ─── Create Modal ─── */}
       <Modal
         opened={createModalOpen}
@@ -816,10 +872,9 @@ export default function PlanningTab({
           <NativeSelect
             label="Type"
             data={[
-              { value: "ENTRAINEMENT", label: "Entraînement" },
-              { value: "MATCH", label: "Match" },
+              { value: "ENTRAINEMENT", label: "Séance" },
+              { value: "MATCH", label: "Compétition" },
               { value: "OBJECTIF", label: "Objectif" },
-              { value: "REATHLETISATION", label: "Réathlétisation" },
               { value: "REPOS", label: "Repos" },
               { value: "TEST", label: "Test" },
               { value: "AUTRE", label: "Autre" },
@@ -872,7 +927,6 @@ export default function PlanningTab({
             <Button
               onClick={handleCreate}
               loading={creating}
-              disabled={!createContent.trim()}
             >
               Ajouter
             </Button>
