@@ -571,6 +571,33 @@ export default function PlanningTab({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
   }
 
+  // Format an API date string for display
+  function parseDate(dateStr: string): Date {
+    return new Date(dateStr.slice(0, 10) + "T12:00:00")
+  }
+
+  // Calculate training load for an entry (RPE × duration)
+  function calcSessionLoad(entry: PlanningEntry): number {
+    if (!entry.sessionData) return 0
+    try {
+      const data = JSON.parse(entry.sessionData)
+      return (data.rpe ?? 0) * (data.duration ?? 0)
+    } catch { return 0 }
+  }
+
+  // Sum training load for a set of entries
+  function sumLoad(entryList: PlanningEntry[]): number {
+    return entryList.reduce((sum, e) => sum + calcSessionLoad(e), 0)
+  }
+
+  // Get entries within a date range
+  function entriesInRange(start: Date, end: Date): PlanningEntry[] {
+    return entries.filter((e) => {
+      const d = new Date(e.date)
+      return d >= start && d <= end
+    })
+  }
+
   // Group by date
   const entriesByDate = useMemo(() => {
     const map = new Map<string, PlanningEntry[]>()
@@ -806,6 +833,16 @@ export default function PlanningTab({
   const weekLabel = `${weekStart.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
   const monthLabel = `${MONTHS[calDate.getMonth()]} ${calDate.getFullYear()}`
 
+  // Calculate training loads
+  const weekLoad = useMemo(() => {
+    return sumLoad(entriesInRange(weekStart, sunday))
+  }, [entries, weekStart])
+  const prevWeekStart = useMemo(() => new Date(weekStart.getTime() - 7 * 86400000), [weekStart])
+  const prevWeekEnd = useMemo(() => new Date(sunday.getTime() - 7 * 86400000), [sunday])
+  const prevWeekLoad = useMemo(() => {
+    return sumLoad(entriesInRange(prevWeekStart, prevWeekEnd))
+  }, [entries, prevWeekStart, prevWeekEnd])
+
   // Month calendar helpers
   function getDaysInMonth(year: number, month: number) {
     return new Date(year, month + 1, 0).getDate()
@@ -848,11 +885,12 @@ export default function PlanningTab({
     function groupByDate(list: PlanningEntry[]) {
       const groups: { dateKey: string; entries: PlanningEntry[] }[] = []
       for (const entry of list) {
+        const datePart = entry.date.slice(0, 10)
         const last = groups[groups.length - 1]
-        if (last && last.dateKey === entry.date) {
+        if (last && last.dateKey === datePart) {
           last.entries.push(entry)
         } else {
-          groups.push({ dateKey: entry.date, entries: [entry] })
+          groups.push({ dateKey: datePart, entries: [entry] })
         }
       }
       return groups
@@ -902,7 +940,7 @@ export default function PlanningTab({
               {/* Date header */}
               <div className="mb-2 flex items-center gap-2">
                 <div className="rounded bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
-                  {new Date(group.dateKey + "T00:00:00").toLocaleDateString("fr-FR", {
+                  {parseDate(group.dateKey).toLocaleDateString("fr-FR", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -915,12 +953,12 @@ export default function PlanningTab({
                   <div key={entry.id} className="flex items-start gap-3 rounded-lg border p-3">
                     <div className="min-w-[80px] text-center flex-shrink-0">
                       <p className="text-xs font-bold text-gray-500">
-                        {new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                        {parseDate(entry.date).toLocaleDateString("fr-FR", {
                           weekday: "short",
                         })}
                       </p>
                       <p className="text-lg font-black text-gray-700">
-                        {new Date(entry.date + "T00:00:00").getDate()}
+                        {parseDate(entry.date).getDate()}
                       </p>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1162,6 +1200,18 @@ export default function PlanningTab({
                 style={{ width: 150 }}
               />
             </div>
+            {viewMode === "week" && (weekLoad > 0 || prevWeekLoad > 0) && (
+              <div className="flex items-center gap-4 ml-auto">
+                {prevWeekLoad > 0 && (
+                  <Text size="xs" c="dimmed">
+                    S. précédente: <span className="font-semibold text-gray-700">{prevWeekLoad}</span>
+                  </Text>
+                )}
+                <Text size="xs" c="dimmed">
+                  Charge semaine: <span className="font-semibold text-blue-700">{weekLoad}</span>
+                </Text>
+              </div>
+            )}
           </div>
         </div>
       </Paper>
@@ -1437,7 +1487,7 @@ export default function PlanningTab({
       <Modal
         opened={dayModalOpen}
         onClose={() => setDayModalOpen(false)}
-        title={`Événements du ${dayModalDateKey ? new Date(dayModalDateKey + "T00:00:00").toLocaleDateString("fr-FR", {
+        title={`Événements du ${dayModalDateKey ? parseDate(dayModalDateKey).toLocaleDateString("fr-FR", {
           weekday: "long",
           day: "numeric",
           month: "long",
