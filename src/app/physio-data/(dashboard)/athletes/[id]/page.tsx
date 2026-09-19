@@ -52,6 +52,8 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   CartesianGrid,
+  ReferenceLine,
+  Label,
 } from "recharts"
 import PlanningTab from "@/components/physio-data/planning-tab"
 
@@ -118,6 +120,15 @@ function calculateAge(birthDate: string): number {
   const m = today.getMonth() - birth.getMonth()
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
   return age
+}
+
+function calculateMonths(birthDate: string): number {
+  const today = new Date()
+  const birth = new Date(birthDate)
+  let months = (today.getFullYear() - birth.getFullYear()) * 12
+  months += today.getMonth() - birth.getMonth()
+  if (today.getDate() < birth.getDate()) months--
+  return months % 12
 }
 
 function formatDate(dateStr: string): string {
@@ -204,8 +215,8 @@ function AthleteInfoCard({
                   <Calendar size={14} />
                   <span>{formatDate(athlete.birthDate)}</span>
                 </div>
-                <div className="text-xs text-gray-400 pl-[22px]">
-                  {calculateAge(athlete.birthDate)} ans
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  {calculateAge(athlete.birthDate)} ans {calculateMonths(athlete.birthDate)} mois
                 </div>
               </>
             )}
@@ -281,14 +292,14 @@ function AthleteInfoCard({
 
 /* ---------- Tab bar ---------- */
 
-type TabKey = "tests" | "bilans" | "planning" | "suivi"
+type TabKey = "planning" | "suivi" | "tests" | "bilans"
 
 function TabBar({ active, onChange }: { active: TabKey; onChange: (t: TabKey) => void }) {
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: "tests", label: "Tests", icon: <ClipboardList size={16} /> },
-    { key: "bilans", label: "Bilans", icon: <FileText size={16} /> },
     { key: "planning", label: "Planning", icon: <CalendarDays size={16} /> },
     { key: "suivi", label: "Suivi", icon: <Activity size={16} /> },
+    { key: "tests", label: "Tests", icon: <ClipboardList size={16} /> },
+    { key: "bilans", label: "Bilans", icon: <FileText size={16} /> },
   ]
 
   return (
@@ -898,6 +909,9 @@ function SuiviTab({ athleteId }: { athleteId: string }) {
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <ReferenceLine y={3} stroke="#ccc" strokeDasharray="5 5" />
+            <ReferenceLine y={5} stroke="#ccc" strokeDasharray="5 5" />
+            <ReferenceLine y={7} stroke="#ccc" strokeDasharray="5 5" />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11 }}
@@ -957,7 +971,7 @@ export default function AthleteDetailPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<TabKey>("tests")
+  const [activeTab, setActiveTab] = useState<TabKey>("planning")
 
   // Delete modal
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -1122,10 +1136,10 @@ export default function AthleteDetailPage() {
       <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
-      {activeTab === "tests" && <TestsTab athleteId={athleteId} userRole={userRole} />}
-      {activeTab === "bilans" && <BilansTab athleteId={athleteId} />}
       {activeTab === "planning" && <PlanningTab athleteId={athleteId} />}
       {activeTab === "suivi" && <SuiviTab athleteId={athleteId} />}
+      {activeTab === "tests" && <TestsTab athleteId={athleteId} userRole={userRole} />}
+      {activeTab === "bilans" && <BilansTab athleteId={athleteId} />}
 
       {/* ── Modals ── */}
 
