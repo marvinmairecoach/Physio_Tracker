@@ -59,7 +59,6 @@ export async function PATCH(
     const data: Record<string, unknown> = {}
     if (body.title !== undefined) data.title = body.title.trim()
     if (body.description !== undefined) data.description = body.description?.trim() || null
-    if (body.date !== undefined) data.date = body.date ? new Date(body.date) : null
     if (body.config !== undefined) data.config = body.config
 
     const bilan = await prisma.bilan.update({

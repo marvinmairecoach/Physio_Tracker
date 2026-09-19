@@ -86,10 +86,8 @@ export default function CreateBilanPage() {
   const [bilanDate, setBilanDate] = useState(toLocalDateString(new Date()))
 
   // Selected items in the right panel
-  const [selectedModuleIds, setSelectedModuleIds] = useState<Set<string>>(new Set())
   const [orderedModuleIds, setOrderedModuleIds] = useState<string[]>([])
   const [orderedTestIds, setOrderedTestIds] = useState<string[]>([])
-  const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set())
   const [radarDataConfig, setRadarDataConfig] = useState<{ testIds: string[]; radarCount: number; showNorms: boolean }>({
     testIds: [],
     radarCount: 6,
@@ -195,31 +193,17 @@ export default function CreateBilanPage() {
 
   // Toggle module selection
   const toggleModule = (id: string) => {
-    setSelectedModuleIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        setOrderedModuleIds((o) => o.filter((x) => x !== id))
-      } else {
-        next.add(id)
-        setOrderedModuleIds((o) => [...o, id])
-      }
-      return next
+    setOrderedModuleIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      return [...prev, id]
     })
   }
 
   // Toggle test/metric selection
   const toggleTest = (id: string) => {
-    setSelectedTestIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        setOrderedTestIds((o) => o.filter((x) => x !== id))
-      } else {
-        next.add(id)
-        setOrderedTestIds((o) => [...o, id])
-      }
-      return next
+    setOrderedTestIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      return [...prev, id]
     })
   }
 
@@ -244,12 +228,19 @@ export default function CreateBilanPage() {
         items.splice(destIndex, 0, moved)
         return items
       })
+    } else if (droppableId === "radars") {
+      setRadarDataConfig((prev) => {
+        const items = Array.from(prev.testIds)
+        const [moved] = items.splice(sourceIndex, 1)
+        items.splice(destIndex, 0, moved)
+        return { ...prev, testIds: items }
+      })
     }
   }
 
   // Open radar creation modal
   const openRadarModal = () => {
-    setRadarTempIds(new Set(selectedTestIds))
+    setRadarTempIds(new Set(orderedTestIds))
     setRadarModalOpen(true)
   }
 
@@ -273,7 +264,7 @@ export default function CreateBilanPage() {
   // Save everything
   const handleSave = async () => {
     if (!title.trim()) { alert("Le titre est obligatoire"); return }
-    if (selectedModuleIds.size === 0 && selectedTestIds.size === 0 && radarDataConfig.testIds.length === 0) {
+    if (orderedModuleIds.length === 0 && orderedTestIds.length === 0 && radarDataConfig.testIds.length === 0) {
       alert("Ajoutez au moins un module, une métrique ou un radar au bilan"); return
     }
     setSaving(true)
@@ -415,7 +406,7 @@ export default function CreateBilanPage() {
             ) : (
               <div className="space-y-1">
                 {filteredModules.map((m) => {
-                  const isSelected = selectedModuleIds.has(m.id)
+                  const isSelected = orderedModuleIds.includes(m.id)
                   return (
                     <div
                       key={m.id}
@@ -462,7 +453,7 @@ export default function CreateBilanPage() {
             ) : (
               <div className="space-y-1 max-h-60 overflow-y-auto">
                 {testTypesWithData.map((tt) => {
-                  const isSelected = selectedTestIds.has(tt.id)
+                  const isSelected = orderedTestIds.includes(tt.id)
                   return (
                     <div
                       key={tt.id}
@@ -495,7 +486,7 @@ export default function CreateBilanPage() {
         {/* ====== Right Panel ====== */}
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Add radar button */}
-                  {selectedTestIds.size >= 3 && (
+                  {orderedTestIds.length >= 3 && (
                     <div className="flex justify-end">
                       <Button variant="light" size="sm" onClick={openRadarModal}>
                         <RadarIcon className="h-4 w-4 mr-1" />
@@ -505,7 +496,7 @@ export default function CreateBilanPage() {
                   )}
 
                   {/* No content yet */}
-                  {selectedModuleIds.size === 0 && selectedTestIds.size === 0 && radarDataConfig.testIds.length === 0 && (
+                  {orderedModuleIds.length === 0 && orderedTestIds.length === 0 && radarDataConfig.testIds.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-24 text-center">
                       <FileText className="h-16 w-16 text-gray-200 mb-4" />
                       <h3 className="text-lg font-medium text-gray-400 mb-1">
@@ -671,52 +662,68 @@ export default function CreateBilanPage() {
                     )}
                   </DragDropContext>
 
-          {/* Radar chart */}
+          {/* Radar chart — draggable between modules and metrics */}
           {radarDataConfig.testIds.length >= 3 && (
-            <Card shadow="sm" radius="md" withBorder>
-              <Card.Section withBorder inheritPadding py="sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <RadarIcon className="h-4 w-4 text-purple-500" />
-                    Radar des performances
-                  </h3>
-                  <Button variant="subtle" size="xs" color="red" onClick={() => setRadarDataConfig((prev) => ({ ...prev, testIds: [] }))}>
-                    <X className="h-3 w-3" />
-                  </Button>
+            <Draggable draggableId="radar-chart" index={0}>
+              {(prov, snap) => (
+                <div
+                  ref={prov.innerRef}
+                  {...prov.draggableProps}
+                  style={{
+                    ...prov.draggableProps.style,
+                    opacity: snap.isDragging ? 0.85 : 1,
+                  }}
+                >
+                  <Card shadow="sm" radius="md" withBorder>
+                    <Card.Section withBorder inheritPadding py="sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                            <GripVertical className="h-5 w-5" />
+                          </div>
+                          <RadarIcon className="h-4 w-4 text-purple-500" />
+                          <h3 className="font-semibold">Radar des performances</h3>
+                        </div>
+                        <Button variant="subtle" size="xs" color="red" onClick={() => setRadarDataConfig((prev) => ({ ...prev, testIds: [] }))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </Card.Section>
+                    <div className="p-4">
+                      <div style={{ width: '100%', height: 400 }}>
+                        <ResponsiveContainer>
+                          <RadarChart data={
+                            radarDataConfig.testIds.map((id) => {
+                              const tt = testTypes.find((t) => t.id === id)
+                              const result = latestResults.get(id)
+                              if (!tt || !result) return null
+                              const val = Number(result.value)
+                              const norm = athleteGender === "M" ? tt.normMale : athleteGender === "F" ? tt.normFemale : null
+                              const maxVal = Math.max(val, norm ?? 0, 1)
+                              return {
+                                name: tt.name,
+                                Valeur: Math.round((val / maxVal) * 100),
+                                ...(radarDataConfig.showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
+                              }
+                            }).filter(Boolean) as any[]
+                          }>
+                            <PolarGrid />
+                            <PolarAngleAxis dataKey="name" fontSize={11} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                            <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
+                            {radarDataConfig.showNorms && (
+                              <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
+                            )}
+                            <Tooltip />
+                            <Legend />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </Card.Section>
-              <div className="p-4">
-                <div style={{ width: '100%', height: 400 }}>
-                  <ResponsiveContainer>
-                    <RadarChart data={
-                      radarDataConfig.testIds.map((id) => {
-                        const tt = testTypes.find((t) => t.id === id)
-                        const result = latestResults.get(id)
-                        if (!tt || !result) return null
-                        const val = Number(result.value)
-                        const norm = athleteGender === "M" ? tt.normMale : athleteGender === "F" ? tt.normFemale : null
-                        const maxVal = Math.max(val, norm ?? 0, 1)
-                        return {
-                          name: tt.name,
-                          Valeur: Math.round((val / maxVal) * 100),
-                          ...(radarDataConfig.showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
-                        }
-                      }).filter(Boolean) as any[]
-                    }>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="name" fontSize={11} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
-                      {radarDataConfig.showNorms && (
-                        <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
-                      )}
-                      <Tooltip />
-                      <Legend />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </Card>
+              )}
+            </Draggable>
           )}
         </main>
       </div>
@@ -734,7 +741,7 @@ export default function CreateBilanPage() {
             {radarDataConfig.radarCount}):
           </Text>
           <div className="space-y-1 max-h-60 overflow-y-auto">
-            {Array.from(selectedTestIds).map((id) => {
+            {orderedTestIds.map((id) => {
               const tt = testTypes.find((t) => t.id === id)
               if (!tt) return null
               const isIn = radarTempIds.has(id)
@@ -768,7 +775,7 @@ export default function CreateBilanPage() {
             <input
               type="range"
               min="3"
-              max={selectedTestIds.size}
+              max={orderedTestIds.length}
               value={radarDataConfig.radarCount}
               onChange={(e) => setRadarDataConfig((prev) => ({ ...prev, radarCount: Number(e.target.value) }))}
               className="flex-1"
