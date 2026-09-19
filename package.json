@@ -17,7 +17,7 @@
     "db:migrate-athletes": "tsx scripts/migrate-athletes-to-users.ts",
     "setup": "npm run db:generate",
     "railway-build": "prisma generate --schema=prisma/physio-data/schema.prisma && prisma generate --schema=prisma/club-data/schema.prisma && next build",
-    "railway-start": "prisma db push --schema=prisma/physio-data/schema.prisma && bash prisma/seed-all.sh && next start"
+    "railway-start": "prisma db push --schema=prisma/physio-data/schema.prisma --accept-data-loss && prisma db push --schema=prisma/club-data/schema.prisma --accept-data-loss && bash prisma/seed-all.sh && next start"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
