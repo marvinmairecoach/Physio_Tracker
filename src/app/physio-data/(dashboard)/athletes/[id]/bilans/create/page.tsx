@@ -4,13 +4,14 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, Save, Plus, X, Search, FileText, Activity,
-  RadarIcon, LayoutList, Check, Trash2,
+  RadarIcon, LayoutList, Check, Trash2, GripVertical,
 } from "lucide-react"
 import {
   Button, Card, TextInput, Textarea, Badge, Switch, Select,
   Modal, Group, Text,
 } from "@mantine/core"
 import { useDisclosure } from "@mantine/hooks"
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, Legend,
@@ -86,6 +87,8 @@ export default function CreateBilanPage() {
 
   // Selected items in the right panel
   const [selectedModuleIds, setSelectedModuleIds] = useState<Set<string>>(new Set())
+  const [orderedModuleIds, setOrderedModuleIds] = useState<string[]>([])
+  const [orderedTestIds, setOrderedTestIds] = useState<string[]>([])
   const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set())
   const [radarDataConfig, setRadarDataConfig] = useState<{ testIds: string[]; radarCount: number; showNorms: boolean }>({
     testIds: [],
@@ -194,8 +197,13 @@ export default function CreateBilanPage() {
   const toggleModule = (id: string) => {
     setSelectedModuleIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+        setOrderedModuleIds((o) => o.filter((x) => x !== id))
+      } else {
+        next.add(id)
+        setOrderedModuleIds((o) => [...o, id])
+      }
       return next
     })
   }
@@ -204,10 +212,39 @@ export default function CreateBilanPage() {
   const toggleTest = (id: string) => {
     setSelectedTestIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+        setOrderedTestIds((o) => o.filter((x) => x !== id))
+      } else {
+        next.add(id)
+        setOrderedTestIds((o) => [...o, id])
+      }
       return next
     })
+  }
+
+  // Drag & drop reorder
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return
+    const sourceIndex = result.source.index
+    const destIndex = result.destination.index
+    const droppableId = result.droppableId
+
+    if (droppableId === "modules") {
+      setOrderedModuleIds((prev) => {
+        const items = Array.from(prev)
+        const [moved] = items.splice(sourceIndex, 1)
+        items.splice(destIndex, 0, moved)
+        return items
+      })
+    } else if (droppableId === "metrics") {
+      setOrderedTestIds((prev) => {
+        const items = Array.from(prev)
+        const [moved] = items.splice(sourceIndex, 1)
+        items.splice(destIndex, 0, moved)
+        return items
+      })
+    }
   }
 
   // Open radar creation modal
@@ -247,10 +284,9 @@ export default function CreateBilanPage() {
         body: JSON.stringify({
           title: title.trim(),
           description: null,
-          date: bilanDate,
           config: {
-            selectedModuleIds: Array.from(selectedModuleIds),
-            selectedTestIds: Array.from(selectedTestIds),
+            selectedModuleIds: orderedModuleIds,
+            selectedTestIds: orderedTestIds,
             testComments,
             radarTestCount: radarDataConfig.radarCount,
             radarTestIds: radarDataConfig.testIds,
@@ -262,9 +298,9 @@ export default function CreateBilanPage() {
       if (!res.ok) throw new Error("Erreur")
       const data = await res.json()
       // Link modules to the bilan
-      if (selectedModuleIds.size > 0) {
+      if (orderedModuleIds.length > 0) {
         await Promise.all(
-          Array.from(selectedModuleIds).map((modId, idx) =>
+          orderedModuleIds.map((modId, idx) =>
             fetch(`/physio-data/api/bilans/modules/${modId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
@@ -459,130 +495,181 @@ export default function CreateBilanPage() {
         {/* ====== Right Panel ====== */}
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Add radar button */}
-          {selectedTestIds.size >= 3 && (
-            <div className="flex justify-end">
-              <Button variant="light" size="sm" onClick={openRadarModal}>
-                <RadarIcon className="h-4 w-4 mr-1" />
-                Créer un radar
-              </Button>
-            </div>
-          )}
+                  {selectedTestIds.size >= 3 && (
+                    <div className="flex justify-end">
+                      <Button variant="light" size="sm" onClick={openRadarModal}>
+                        <RadarIcon className="h-4 w-4 mr-1" />
+                        Créer un radar
+                      </Button>
+                    </div>
+                  )}
 
-          {/* No content yet */}
-          {selectedModuleIds.size === 0 && selectedTestIds.size === 0 && radarDataConfig.testIds.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <FileText className="h-16 w-16 text-gray-200 mb-4" />
-              <h3 className="text-lg font-medium text-gray-400 mb-1">
-                Bilan vierge
-              </h3>
-              <p className="text-sm text-gray-400 max-w-md">
-                Sélectionnez des modules et des métriques dans le panneau de gauche
-                pour commencer à construire votre bilan. Vous pouvez aussi créer
-                un radar avec les métriques sélectionnées.
-              </p>
-            </div>
-          )}
+                  {/* No content yet */}
+                  {selectedModuleIds.size === 0 && selectedTestIds.size === 0 && radarDataConfig.testIds.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                      <FileText className="h-16 w-16 text-gray-200 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-400 mb-1">
+                        Bilan vierge
+                      </h3>
+                      <p className="text-sm text-gray-400 max-w-md">
+                        Sélectionnez des modules et des métriques dans le panneau de gauche
+                        pour commencer à construire votre bilan. Vous pouvez aussi créer
+                        un radar avec les métriques sélectionnées.
+                      </p>
+                    </div>
+                  )}
 
-          {/* Selected modules */}
-          {Array.from(selectedModuleIds).map((modId) => {
-            const m = modules.find((x) => x.id === modId)
-            if (!m) return null
-            return (
-              <Card key={modId} shadow="sm" radius="md" withBorder className="relative">
-                <div className="absolute top-3 right-3">
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    color="red"
-                    onClick={() => toggleModule(modId)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <Card.Section withBorder inheritPadding py="sm">
-                  <div className="flex items-center gap-2">
-                    <LayoutList className="h-4 w-4 text-blue-500" />
-                    <h3 className="font-semibold">{m.title}</h3>
-                  </div>
-                </Card.Section>
-                <div className="p-4">
-                  <BilanModuleRenderer
-                    module={{
-                      id: m.id,
-                      instanceId: m.id,
-                      title: m.title,
-                      questions: (m.questions ?? []) as any,
-                      answers: moduleAnswers[modId] || {},
-                    }}
-                    onAnswerChange={(questionId, value) => handleModuleAnswer(modId, questionId, value)}
-                  />
-                </div>
-              </Card>
-            )
-          })}
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    {/* Selected modules */}
+                    {orderedModuleIds.length > 0 && (
+                      <Droppable droppableId="modules">
+                        {(provided) => (
+                          <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
+                            {orderedModuleIds.map((modId, idx) => {
+                              const m = modules.find((x) => x.id === modId)
+                              if (!m) return null
+                              return (
+                                <Draggable key={modId} draggableId={`mod-${modId}`} index={idx}>
+                                  {(prov, snap) => (
+                                    <div
+                                      ref={prov.innerRef}
+                                      {...prov.draggableProps}
+                                      style={{
+                                        ...prov.draggableProps.style,
+                                        opacity: snap.isDragging ? 0.85 : 1,
+                                      }}
+                                    >
+                                      <Card shadow="sm" radius="md" withBorder className="relative">
+                                        <div className="absolute top-3 right-3 flex items-center gap-1">
+                                          <Button
+                                            variant="subtle"
+                                            size="sm"
+                                            color="red"
+                                            onClick={() => toggleModule(modId)}
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                        <Card.Section withBorder inheritPadding py="sm">
+                                          <div className="flex items-center gap-2">
+                                            <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                                              <GripVertical className="h-5 w-5" />
+                                            </div>
+                                            <LayoutList className="h-4 w-4 text-blue-500" />
+                                            <h3 className="font-semibold">{m.title}</h3>
+                                          </div>
+                                        </Card.Section>
+                                        <div className="p-4">
+                                          <BilanModuleRenderer
+                                            module={{
+                                              id: m.id,
+                                              instanceId: m.id,
+                                              title: m.title,
+                                              questions: (m.questions ?? []) as any,
+                                              answers: moduleAnswers[modId] || {},
+                                            }}
+                                            onAnswerChange={(questionId, value) => handleModuleAnswer(modId, questionId, value)}
+                                          />
+                                        </div>
+                                      </Card>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              )
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    )}
 
-          {/* Selected metrics table */}
-          {Array.from(selectedTestIds).length > 0 && (
-            <Card shadow="sm" radius="md" withBorder>
-              <Card.Section withBorder inheritPadding py="sm">
-                <h3 className="font-semibold">Métriques sélectionnées</h3>
-              </Card.Section>
-              <div className="p-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-gray-500">
-                      <th className="pb-2 font-medium">Test</th>
-                      <th className="pb-2 font-medium">Valeur</th>
-                      <th className="pb-2 font-medium">Unité</th>
-                      <th className="pb-2 font-medium">Norme</th>
-                      <th className = "pb-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from(selectedTestIds).map((id) => {
-                      const tt = testTypes.find((t) => t.id === id)
-                      const result = latestResults.get(id)
-                      if (!tt || !result) return null
-                      const val = Number(result.value)
-                      const norm = athleteGender === "M"
-                        ? (tt.normMale != null ? Number(tt.normMale) : null)
-                        : athleteGender === "F"
-                          ? (tt.normFemale != null ? Number(tt.normFemale) : null)
-                          : null
-                      const beatsNorm = norm !== null
-                        ? tt.higherIsBetter ? val >= norm : val <= norm
-                        : null
-                      return (
-                        <tr key={id} className="border-b last:border-0">
-                          <td className="py-2 font-medium">{tt.name}</td>
-                          <td className="py-2">
-                            {tt.isUnilateral && result.valueLeft != null && result.valueRight != null
-                              ? `G: ${Number(result.valueLeft).toFixed(1)} | D: ${Number(result.valueRight).toFixed(1)}`
-                              : `${val.toFixed(1)}`
-                            }
-                          </td>
-                          <td className="py-2 text-gray-500">{tt.unit}</td>
-                          <td className="py-2">
-                            <span className={beatsNorm === true ? 'text-green-600' : beatsNorm === false ? 'text-red-600' : 'text-gray-400'}>
-                              {norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}
-                            </span>
-                          </td>
-                          <td className="py-2">
-                            <TextInput
-                              placeholder="Commentaire..."
-                              size="xs"
-                              value={testComments[id] || ''}
-                              onChange={(e) => setTestComments((prev) => ({...prev, [id]: e.target.value}))}
-                            />
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
+                    {/* Selected metrics table */}
+                    {orderedTestIds.length > 0 && (
+                      <Droppable droppableId="metrics">
+                        {(provided) => (
+                          <div {...provided.droppableProps} ref={provided.innerRef}>
+                            <Card shadow="sm" radius="md" withBorder>
+                              <Card.Section withBorder inheritPadding py="sm">
+                                <h3 className="font-semibold">Métriques sélectionnées</h3>
+                              </Card.Section>
+                              <div className="p-4">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b text-left text-gray-500">
+                                      <th className="pb-2 w-6"></th>
+                                      <th className="pb-2 font-medium">Test</th>
+                                      <th className="pb-2 font-medium">Valeur</th>
+                                      <th className="pb-2 font-medium">Unité</th>
+                                      <th className="pb-2 font-medium">Norme</th>
+                                      <th className="pb-2"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {orderedTestIds.map((id, idx) => {
+                                      const tt = testTypes.find((t) => t.id === id)
+                                      const result = latestResults.get(id)
+                                      if (!tt || !result) return null
+                                      const val = Number(result.value)
+                                      const norm = athleteGender === "M"
+                                        ? (tt.normMale != null ? Number(tt.normMale) : null)
+                                        : athleteGender === "F"
+                                          ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                                          : null
+                                      const beatsNorm = norm !== null
+                                        ? tt.higherIsBetter ? val >= norm : val <= norm
+                                        : null
+                                      return (
+                                        <Draggable key={id} draggableId={`met-${id}`} index={idx}>
+                                          {(prov, snap) => (
+                                            <tr
+                                              ref={prov.innerRef}
+                                              {...prov.draggableProps}
+                                              className="border-b last:border-0"
+                                              style={{
+                                                ...prov.draggableProps.style,
+                                                opacity: snap.isDragging ? 0.85 : 1,
+                                                background: snap.isDragging ? "#f0f9ff" : undefined,
+                                              }}
+                                            >
+                                              <td className="py-2" {...prov.dragHandleProps}>
+                                                <GripVertical className="h-4 w-4 text-gray-400 cursor-grab" />
+                                              </td>
+                                              <td className="py-2 font-medium">{tt.name}</td>
+                                              <td className="py-2">
+                                                {tt.isUnilateral && result.valueLeft != null && result.valueRight != null
+                                                  ? `G: ${Number(result.valueLeft).toFixed(1)} | D: ${Number(result.valueRight).toFixed(1)}`
+                                                  : `${val.toFixed(1)}`
+                                                }
+                                              </td>
+                                              <td className="py-2 text-gray-500">{tt.unit}</td>
+                                              <td className="py-2">
+                                                <span className={beatsNorm === true ? 'text-green-600' : beatsNorm === false ? 'text-red-600' : 'text-gray-400'}>
+                                                  {norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}
+                                                </span>
+                                              </td>
+                                              <td className="py-2">
+                                                <TextInput
+                                                  placeholder="Commentaire..."
+                                                  size="xs"
+                                                  value={testComments[id] || ''}
+                                                  onChange={(e) => setTestComments((prev) => ({...prev, [id]: e.target.value}))}
+                                                />
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </Draggable>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </Card>
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    )}
+                  </DragDropContext>
 
           {/* Radar chart */}
           {radarDataConfig.testIds.length >= 3 && (
