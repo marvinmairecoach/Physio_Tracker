@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, memo } from "react"
-import { useRouter, useParams, usePathname } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft,
   User,
@@ -21,6 +21,7 @@ import {
   Eye,
   Trash2 as TrashIcon,
   Activity,
+  Edit,
 } from "lucide-react"
 import {
   Button,
@@ -656,13 +657,19 @@ function BilansTab({ athleteId }: { athleteId: string }) {
   const [bilans, setBilans] = useState<Bilan[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const pathname = usePathname()
 
-  // Create modal
-  const [createTitle, setCreateTitle] = useState("")
-  const [createDescription, setCreateDescription] = useState("")
-  const [creating, setCreating] = useState(false)
-  const [createModalOpened, { open: openCreate, close: closeCreate }] = useDisclosure(false)
+  // Edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editBilanId, setEditBilanId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editing, setEditing] = useState(false)
+
+  // Delete confirmation
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteBilanId, setDeleteBilanId] = useState<string | null>(null)
+  const [deleteBilanTitle, setDeleteBilanTitle] = useState("")
+  const [deleting, setDeleting] = useState(false)
 
   const fetchBilans = useCallback(async () => {
     setLoading(true)
@@ -683,27 +690,66 @@ function BilansTab({ athleteId }: { athleteId: string }) {
     fetchBilans()
   }, [fetchBilans])
 
-  const handleCreate = async () => {
-    if (!createTitle.trim()) return
-    setCreating(true)
+  // Open edit modal
+  const openEditModal = (bilan: Bilan) => {
+    setEditBilanId(bilan.id)
+    setEditTitle(bilan.title)
+    setEditDescription(bilan.description || "")
+    setEditModalOpen(true)
+  }
+
+  // Handle edit
+  const handleEdit = async () => {
+    if (!editBilanId || !editTitle.trim()) return
+    setEditing(true)
     try {
-      const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`, {
-        method: "POST",
+      const res = await fetch(`/physio-data/api/bilans/${editBilanId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: createTitle.trim(),
-          description: createDescription.trim() || undefined,
+          title: editTitle.trim(),
+          description: editDescription.trim() || undefined,
         }),
       })
-      if (!res.ok) throw new Error("Failed to create bilan")
-      closeCreate()
-      setCreateTitle("")
-      setCreateDescription("")
+      if (!res.ok) throw new Error("Failed to update bilan")
+      setEditModalOpen(false)
+      setEditBilanId(null)
+      setEditTitle("")
+      setEditDescription("")
       fetchBilans()
     } catch (err) {
-      console.error("Error creating bilan:", err)
+      console.error("Error updating bilan:", err)
+      alert("Erreur lors de la modification du bilan")
     } finally {
-      setCreating(false)
+      setEditing(false)
+    }
+  }
+
+  // Open delete confirmation
+  const confirmDelete = (bilan: Bilan) => {
+    setDeleteBilanId(bilan.id)
+    setDeleteBilanTitle(bilan.title)
+    setDeleteModalOpen(true)
+  }
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (!deleteBilanId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/physio-data/api/bilans/${deleteBilanId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Failed to delete bilan")
+      setDeleteModalOpen(false)
+      setDeleteBilanId(null)
+      setDeleteBilanTitle("")
+      fetchBilans()
+    } catch (err) {
+      console.error("Error deleting bilan:", err)
+      alert("Erreur lors de la suppression du bilan")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -730,37 +776,134 @@ function BilansTab({ athleteId }: { athleteId: string }) {
           </Text>
         </Card>
       ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          {bilans.map((bilan) => (
-            <Card
-              key={bilan.id}
-              shadow="sm"
-              p="md"
-              radius="md"
-              withBorder
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
-            >
-              <Group justify="space-between" mb="xs">
-                <Text fw={600} lineClamp={1}>
-                  {bilan.title}
-                </Text>
-                <Badge variant="light" color="violet" size="sm">
-                  Bilan
-                </Badge>
-              </Group>
-              {bilan.description && (
-                <Text size="sm" c="dimmed" lineClamp={2} mb="xs">
-                  {bilan.description}
-                </Text>
-              )}
-              <Text size="xs" c="dimmed">
-                Mis à jour le {formatDate(bilan.updatedAt)}
-              </Text>
-            </Card>
-          ))}
-        </SimpleGrid>
+        <Paper shadow="sm" radius="md" withBorder>
+          <ScrollArea>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Titre</Table.Th>
+                  <Table.Th>Description</Table.Th>
+                  <Table.Th>Créé le</Table.Th>
+                  <Table.Th>Mis à jour</Table.Th>
+                  <Table.Th className="text-right">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {bilans.map((bilan) => (
+                  <Table.Tr key={bilan.id}>
+                    <Table.Td>
+                      <Text
+                        fw={600}
+                        size="sm"
+                        className="cursor-pointer hover:text-blue-600"
+                        onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
+                      >
+                        {bilan.title}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" c="dimmed" lineClamp={1}>
+                        {bilan.description || "—"}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs" c="dimmed">
+                        {formatDate(bilan.createdAt)}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs" c="dimmed">
+                        {formatDate(bilan.updatedAt)}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group justify="flex-end" gap="xs">
+                        <Button
+                          variant="light"
+                          size="xs"
+                          onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          color="yellow"
+                          onClick={() => openEditModal(bilan)}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          color="red"
+                          onClick={() => confirmDelete(bilan)}
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        </Paper>
       )}
+
+      {/* ── Edit Modal ── */}
+      <Modal
+        opened={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title="Modifier le bilan"
+        trapFocus={false}
+        size="md"
+      >
+        <Stack gap="sm">
+          <TextInput
+            label="Titre"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.currentTarget.value)}
+            required
+          />
+          <Textarea
+            label="Description"
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.currentTarget.value)}
+            minRows={3}
+          />
+          <Group justify="flex-end" mt="xs">
+            <Button variant="default" onClick={() => setEditModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleEdit} loading={editing} disabled={!editTitle.trim()}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* ── Delete confirmation ── */}
+      <Modal
+        opened={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Supprimer le bilan"
+        trapFocus={false}
+        size="sm"
+      >
+        <Text mb="md">
+          Êtes-vous sûr de vouloir supprimer <strong>{deleteBilanTitle}</strong> ?
+          Cette action est irréversible.
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={handleDelete} loading={deleting}>
+            Supprimer
+          </Button>
+        </Group>
+      </Modal>
     </Stack>
   )
 }

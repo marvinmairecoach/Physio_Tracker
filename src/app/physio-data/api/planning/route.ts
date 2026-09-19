@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
 
     if (createdById) {
       where.createdById = createdById
+      // Also restrict to athletes the user created/owns
+      where.athlete = {
+        createdById,
+      }
     } else if (athleteId && month) {
       where.athleteId = athleteId
     } else {
