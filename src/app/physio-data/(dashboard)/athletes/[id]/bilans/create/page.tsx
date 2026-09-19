@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, Save, Plus, X, Search, FileText, Activity,
   RadarIcon, LayoutList, Check, Trash2, GripVertical,
+  Settings, BarChart3,
 } from "lucide-react"
 import {
   Button, Card, TextInput, Textarea, Badge, Switch, Select,
-  Modal, Group, Text,
+  Modal, Group, Text, NumberInput, ActionIcon,
 } from "@mantine/core"
 import { useDisclosure } from "@mantine/hooks"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
@@ -56,6 +57,20 @@ interface AthleteResult {
   date: string
 }
 
+/** A generic item on the right panel — can be a module, a metric group, or a radar */
+interface RightPanelItem {
+  id: string
+  type: "module" | "metric" | "radar"
+  /** for modules: module id; for metrics: single test type id; for radars: empty initially */
+  refId?: string
+  /** Metric/radar-specific config */
+  config?: {
+    metricIds?: string[]     // which test types to show
+    testCount?: number       // how many tests for radar
+    showNorms?: boolean
+  }
+}
+
 /* ---------- Helpers ---------- */
 
 function toLocalDateString(d: Date): string {
@@ -63,6 +78,11 @@ function toLocalDateString(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
+}
+
+let _itemCounter = 0
+function nextItemId(prefix: string): string {
+  return `${prefix}-${++_itemCounter}-${Date.now()}`
 }
 
 /* ---------- Component ---------- */
@@ -85,26 +105,20 @@ export default function CreateBilanPage() {
   const [title, setTitle] = useState("")
   const [bilanDate, setBilanDate] = useState(toLocalDateString(new Date()))
 
-  // Selected items in the right panel
-  const [orderedModuleIds, setOrderedModuleIds] = useState<string[]>([])
-  const [orderedTestIds, setOrderedTestIds] = useState<string[]>([])
-  const [radarDataConfig, setRadarDataConfig] = useState<{ testIds: string[]; radarCount: number; showNorms: boolean }>({
-    testIds: [],
-    radarCount: 6,
-    showNorms: true,
-  })
+  // Right panel items — unified list that supports all types
+  const [items, setItems] = useState<RightPanelItem[]>([])
 
   // Left filter state
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
 
-  // Radar modal
-  const [radarModalOpen, setRadarModalOpen] = useState(false)
-  const [radarTempIds, setRadarTempIds] = useState<Set<string>>(new Set())
+  // Radar metric picker modal (shared across all radar items)
+  const [radarPickerOpen, setRadarPickerOpen] = useState(false)
+  const [radarPickerItemId, setRadarPickerItemId] = useState<string | null>(null)
+  const [radarPickerTempIds, setRadarPickerTempIds] = useState<Set<string>>(new Set())
 
   // Module answers
   const [moduleAnswers, setModuleAnswers] = useState<Record<string, Record<string, string>>>({})
-
   // Test comments
   const [testComments, setTestComments] = useState<Record<string, string>>({})
 
@@ -191,70 +205,114 @@ export default function CreateBilanPage() {
     testTypes.filter((tt) => latestResults.has(tt.id)),
   [testTypes, latestResults])
 
-  // Toggle module selection
-  const toggleModule = (id: string) => {
-    setOrderedModuleIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id)
-      return [...prev, id]
-    })
+  // Helper: is a given module/test already selected?
+  const isModuleSelected = useCallback(
+    (moduleId: string) => items.some((it) => it.type === "module" && it.refId === moduleId),
+    [items]
+  )
+  const isTestSelected = useCallback(
+    (testId: string) => items.some((it) => it.type === "metric" && it.refId === testId),
+    [items]
+  )
+
+  // --- Item management (add / remove) ---
+
+  const addModuleItem = (moduleId: string) => {
+    setItems((prev) => [...prev, { id: nextItemId("mod"), type: "module", refId: moduleId }])
   }
 
-  // Toggle test/metric selection
-  const toggleTest = (id: string) => {
-    setOrderedTestIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id)
-      return [...prev, id]
-    })
+  const removeModuleItem = (refId: string) => {
+    setItems((prev) => prev.filter((it) => !(it.type === "module" && it.refId === refId)))
   }
 
-  // Drag & drop reorder
+  const addMetricItem = (testId: string) => {
+    setItems((prev) => [...prev, { id: nextItemId("met"), type: "metric", refId: testId }])
+  }
+
+  const removeMetricItem = (refId: string) => {
+    setItems((prev) => prev.filter((it) => !(it.type === "metric" && it.refId === refId)))
+  }
+
+  const addRadarItem = () => {
+    const id = nextItemId("rad")
+    setItems((prev) => [
+      ...prev,
+      {
+        id,
+        type: "radar",
+        config: { metricIds: [], testCount: 6, showNorms: true },
+      },
+    ])
+    // Immediately open the metric picker
+    setRadarPickerItemId(id)
+    setRadarPickerTempIds(new Set())
+    setRadarPickerOpen(true)
+  }
+
+  const removeRadarItem = (itemId: string) => {
+    setItems((prev) => prev.filter((it) => it.id !== itemId))
+  }
+
+  const updateRadarConfig = (itemId: string, patch: Partial<RightPanelItem["config"]>) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === itemId ? { ...it, config: { ...it.config, ...patch } } : it))
+    )
+  }
+
+  // --- Drag & drop ---
+
   const handleDragEnd = (result: any) => {
     if (!result.destination) return
-    const sourceIndex = result.source.index
-    const destIndex = result.destination.index
     const droppableId = result.droppableId
+    // Only one droppable: "items"
+    if (droppableId !== "items") return
+    setItems((prev) => {
+      const arr = Array.from(prev)
+      const [moved] = arr.splice(result.source.index, 1)
+      arr.splice(result.destination.index, 0, moved)
+      return arr
+    })
+  }
 
-    if (droppableId === "modules") {
-      setOrderedModuleIds((prev) => {
-        const items = Array.from(prev)
-        const [moved] = items.splice(sourceIndex, 1)
-        items.splice(destIndex, 0, moved)
-        return items
-      })
-    } else if (droppableId === "metrics") {
-      setOrderedTestIds((prev) => {
-        const items = Array.from(prev)
-        const [moved] = items.splice(sourceIndex, 1)
-        items.splice(destIndex, 0, moved)
-        return items
-      })
-    } else if (droppableId === "radars") {
-      // For now there's only one radar chart, but the Droppable is here
-      // for future multiple radar support
+  // --- Radar metric picker ---
+
+  const openRadarPicker = (itemId: string) => {
+    const item = items.find((it) => it.id === itemId)
+    if (!item) return
+    setRadarPickerItemId(itemId)
+    setRadarPickerTempIds(new Set(item.config?.metricIds ?? []))
+    setRadarPickerOpen(true)
+  }
+
+  const saveRadarPicker = () => {
+    if (!radarPickerItemId) return
+    const testCount = items.find((it) => it.id === radarPickerItemId)?.config?.testCount ?? 6
+    updateRadarConfig(radarPickerItemId, {
+      metricIds: Array.from(radarPickerTempIds).slice(0, testCount),
+    })
+    setRadarPickerOpen(false)
+    setRadarPickerItemId(null)
+  }
+
+  // --- Toggle helpers for left panel ---
+
+  const handleModuleToggle = (moduleId: string) => {
+    if (isModuleSelected(moduleId)) {
+      removeModuleItem(moduleId)
+    } else {
+      addModuleItem(moduleId)
     }
   }
 
-  // Open radar creation modal
-  const openRadarModal = () => {
-    setRadarTempIds(new Set(orderedTestIds))
-    setRadarModalOpen(true)
+  const handleMetricToggle = (testId: string) => {
+    if (isTestSelected(testId)) {
+      removeMetricItem(testId)
+    } else {
+      addMetricItem(testId)
+    }
   }
 
-  // Save radar
-  const saveRadar = () => {
-    setRadarDataConfig((prev) => ({
-      ...prev,
-      testIds: Array.from(radarTempIds).slice(0, radarDataConfig.radarCount),
-    }))
-    setRadarModalOpen(false)
-  }
-
-  // Delete radar
-  const deleteRadar = () => {
-    setRadarDataConfig((prev) => ({ ...prev, testIds: [] }))
-  }
-
-  // Module answer callback
+  // --- Module answers ---
   const handleModuleAnswer = (moduleId: string, questionId: string, value: string) => {
     setModuleAnswers((prev) => ({
       ...prev,
@@ -262,12 +320,20 @@ export default function CreateBilanPage() {
     }))
   }
 
-  // Save everything
+  // --- Save ---
   const handleSave = async () => {
     if (!title.trim()) { alert("Le titre est obligatoire"); return }
-    if (orderedModuleIds.length === 0 && orderedTestIds.length === 0 && radarDataConfig.testIds.length === 0) {
-      alert("Ajoutez au moins un module, une métrique ou un radar au bilan"); return
-    }
+    if (items.length === 0) { alert("Ajoutez au moins un élément au bilan"); return }
+
+    const orderedModuleIds = items.filter((it) => it.type === "module").map((it) => it.refId!).filter(Boolean)
+    const orderedTestIds = items.filter((it) => it.type === "metric").map((it) => it.refId!).filter(Boolean)
+    const radars = items.filter((it) => it.type === "radar").map((it) => ({
+      itemId: it.id,
+      metricIds: it.config?.metricIds ?? [],
+      testCount: it.config?.testCount ?? 6,
+      showNorms: it.config?.showNorms ?? true,
+    }))
+
     setSaving(true)
     try {
       const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`, {
@@ -280,9 +346,8 @@ export default function CreateBilanPage() {
             selectedModuleIds: orderedModuleIds,
             selectedTestIds: orderedTestIds,
             testComments,
-            radarTestCount: radarDataConfig.radarCount,
-            radarTestIds: radarDataConfig.testIds,
-            showNorms: radarDataConfig.showNorms,
+            radars,
+            showNorms: true,
             modulesData: moduleAnswers,
           },
         }),
@@ -309,6 +374,30 @@ export default function CreateBilanPage() {
       setSaving(false)
     }
   }
+
+  // --- Get data for rendering right-panel cards ---
+  const selectedModules = useMemo(
+    () => items.filter((it) => it.type === "module").map((it) => ({
+      item: it,
+      module: modules.find((m) => m.id === it.refId),
+    })).filter((x) => x.module),
+    [items, modules]
+  )
+
+  const selectedMetrics = useMemo(
+    () => items.filter((it) => it.type === "metric").map((it) => ({
+      item: it,
+      testType: testTypes.find((t) => t.id === it.refId),
+    })).filter((x) => x.testType),
+    [items, testTypes]
+  )
+
+  const radarItems = useMemo(
+    () => items.filter((it) => it.type === "radar"),
+    [items]
+  )
+
+  const hasContent = items.length > 0
 
   if (loading) {
     return (
@@ -359,12 +448,16 @@ export default function CreateBilanPage() {
         <aside className="w-80 border-r bg-gray-50/50 overflow-y-auto shrink-0 p-4 space-y-6">
           {/* Modules section */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
-              <LayoutList className="h-4 w-4 text-blue-500" />
-              Modules disponibles
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <LayoutList className="h-4 w-4 text-blue-500" />
+                Modules
+              </h2>
+              <Badge size="sm" variant="light" color="blue">
+                {items.filter((it) => it.type === "module").length}
+              </Badge>
+            </div>
 
-            {/* Search */}
             <TextInput
               placeholder="Rechercher un module..."
               value={searchQuery}
@@ -374,7 +467,6 @@ export default function CreateBilanPage() {
               size="sm"
             />
 
-            {/* Tag filters */}
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-3">
                 {allTags.map((tag) => (
@@ -399,30 +491,29 @@ export default function CreateBilanPage() {
               </div>
             )}
 
-            {/* Module list */}
             {filteredModules.length === 0 ? (
               <Text size="sm" c="dimmed" className="text-center py-4">
                 Aucun module trouvé
               </Text>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
                 {filteredModules.map((m) => {
-                  const isSelected = orderedModuleIds.includes(m.id)
+                  const selected = isModuleSelected(m.id)
                   return (
                     <div
                       key={m.id}
                       className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                        isSelected
+                        selected
                           ? 'bg-blue-50 border border-blue-200'
                           : 'hover:bg-gray-50 border border-transparent'
                       }`}
-                      onClick={() => toggleModule(m.id)}
+                      onClick={() => handleModuleToggle(m.id)}
                     >
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                        isSelected
+                        selected
                           ? 'bg-blue-600 border-blue-600'
                           : 'border-gray-300'}`}>
-                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                        {selected && <Check className="h-3 w-3 text-white" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{m.title}</p>
@@ -443,34 +534,39 @@ export default function CreateBilanPage() {
 
           {/* Metrics section */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
-              <Activity className="h-4 w-4 text-green-500" />
-              Métriques disponibles
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Activity className="h-4 w-4 text-green-500" />
+                Métriques
+              </h2>
+              <Badge size="sm" variant="light" color="green">
+                {items.filter((it) => it.type === "metric").length}
+              </Badge>
+            </div>
             {testTypesWithData.length === 0 ? (
               <Text size="sm" c="dimmed" className="text-center py-4">
                 Aucune métrique enregistrée
               </Text>
             ) : (
-              <div className="space-y-1 max-h-60 overflow-y-auto">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
                 {testTypesWithData.map((tt) => {
-                  const isSelected = orderedTestIds.includes(tt.id)
+                  const selected = isTestSelected(tt.id)
                   return (
                     <div
                       key={tt.id}
                       className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                        isSelected
+                        selected
                           ? 'bg-green-50 border border-green-200'
                           : 'hover:bg-gray-50 border border-transparent'
                       }`}
-                      onClick={() => toggleTest(tt.id)}
+                      onClick={() => handleMetricToggle(tt.id)}
                     >
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                        isSelected
+                        selected
                           ? 'bg-green-600 border-green-600'
                           : 'border-gray-300'
                       }`}>
-                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                        {selected && <Check className="h-3 w-3 text-white" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{tt.name}</p>
@@ -482,226 +578,278 @@ export default function CreateBilanPage() {
               </div>
             )}
           </div>
+
+          {/* Radars section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <RadarIcon className="h-4 w-4 text-purple-500" />
+                Radars
+              </h2>
+              <Badge size="sm" variant="light" color="purple">
+                {items.filter((it) => it.type === "radar").length}
+              </Badge>
+            </div>
+            <div className="text-xs text-gray-500 mb-2">
+              Créez un ou plusieurs radars avec les métriques de votre choix.
+            </div>
+            <Button
+              variant="light"
+              size="sm"
+              fullWidth
+              leftSection={<Plus className="h-3.5 w-3.5" />}
+              onClick={addRadarItem}
+            >
+              Ajouter un radar
+            </Button>
+          </div>
         </aside>
 
         {/* ====== Right Panel ====== */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* No content yet */}
-          {orderedModuleIds.length === 0 && orderedTestIds.length === 0 && radarDataConfig.testIds.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <FileText className="h-16 w-16 text-gray-200 mb-4" />
-              <h3 className="text-lg font-medium text-gray-400 mb-1">
-                Bilan vierge
-              </h3>
-              <p className="text-sm text-gray-400 max-w-md">
-                Sélectionnez des modules et des métriques dans le panneau de gauche
-                pour commencer à construire votre bilan. Vous pouvez aussi créer
-                un radar avec les métriques sélectionnées.
-              </p>
-            </div>
-          )}
+        <main className="flex-1 overflow-y-auto p-6">
+          {/* Always render DragDropContext — never conditionally */}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="items">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-4 min-h-[200px]"
+                >
+                  {!hasContent && (
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                      <FileText className="h-16 w-16 text-gray-200 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-400 mb-1">
+                        Bilan vierge
+                      </h3>
+                      <p className="text-sm text-gray-400 max-w-md">
+                        Cliquez sur les éléments dans le panneau de gauche
+                        pour les ajouter à ce bilan. Vous pouvez réordonner
+                        chaque élément par drag & drop et les supprimer
+                        individuellement.
+                      </p>
+                    </div>
+                  )}
 
-          {(orderedModuleIds.length > 0 || orderedTestIds.length > 0 || radarDataConfig.testIds.length >= 3) && (
-            <>
-              {/* Radar creation button */}
-              {orderedTestIds.length >= 3 && radarDataConfig.testIds.length === 0 && (
-                <div className="flex justify-end">
-                  <Button variant="light" size="sm" onClick={openRadarModal}>
-                    <RadarIcon className="h-4 w-4 mr-1" />
-                    Créer un radar
-                  </Button>
-                </div>
-              )}
-
-              {/* ALL DnD items wrapped in ONE DragDropContext */}
-              <DragDropContext onDragEnd={handleDragEnd}>
-                {/* Selected modules */}
-                {orderedModuleIds.length > 0 && (
-                  <Droppable droppableId="modules">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                        {orderedModuleIds.map((modId, idx) => {
-                          const m = modules.find((x) => x.id === modId)
-                          if (!m) return null
-                          return (
-                            <Draggable key={modId} draggableId={`mod-${modId}`} index={idx}>
-                              {(prov, snap) => (
-                                <div
-                                  ref={prov.innerRef}
-                                  {...prov.draggableProps}
-                                  style={{
-                                    ...prov.draggableProps.style,
-                                    opacity: snap.isDragging ? 0.85 : 1,
-                                  }}
-                                >
-                                  <Card shadow="sm" radius="md" withBorder className="relative">
-                                    <div className="absolute top-3 right-3 flex items-center gap-1">
-                                      <Button
-                                        variant="subtle"
-                                        size="sm"
-                                        color="red"
-                                        onClick={() => toggleModule(modId)}
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                    <Card.Section withBorder inheritPadding py="sm">
-                                      <div className="flex items-center gap-2">
-                                        <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
-                                          <GripVertical className="h-5 w-5" />
-                                        </div>
-                                        <LayoutList className="h-4 w-4 text-blue-500" />
-                                        <h3 className="font-semibold">{m.title}</h3>
-                                      </div>
-                                    </Card.Section>
-                                    <div className="p-4">
-                                      <BilanModuleRenderer
-                                        module={{
-                                          id: m.id,
-                                          instanceId: m.id,
-                                          title: m.title,
-                                          questions: (m.questions ?? []) as any,
-                                          answers: moduleAnswers[modId] || {},
-                                        }}
-                                        onAnswerChange={(questionId, value) => handleModuleAnswer(modId, questionId, value)}
-                                      />
-                                    </div>
-                                  </Card>
+                  {/* RENDER MODULES */}
+                  {selectedModules.map(({ item, module }, idx) => (
+                    <Draggable key={item.id} draggableId={item.id} index={idx}>
+                      {(prov, snap) => (
+                        <div
+                          ref={prov.innerRef}
+                          {...prov.draggableProps}
+                          style={{
+                            ...prov.draggableProps.style,
+                            opacity: snap.isDragging ? 0.85 : 1,
+                          }}
+                        >
+                          <Card shadow="sm" radius="md" withBorder className="relative">
+                            <Card.Section withBorder inheritPadding py="sm">
+                              <div className="flex items-center justify-between pr-12">
+                                <div className="flex items-center gap-2">
+                                  <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                                    <GripVertical className="h-5 w-5" />
+                                  </div>
+                                  <LayoutList className="h-4 w-4 text-blue-500" />
+                                  <h3 className="font-semibold">{module!.title}</h3>
                                 </div>
-                              )}
-                            </Draggable>
-                          )
-                        })}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                )}
-
-                {/* Selected metrics — div-based layout for DnD compatibility */}
-                {orderedTestIds.length > 0 && (
-                  <Droppable droppableId="metrics">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef}>
-                        <Card shadow="sm" radius="md" withBorder>
-                          <Card.Section withBorder inheritPadding py="sm">
-                            <h3 className="font-semibold">Métriques sélectionnées</h3>
-                          </Card.Section>
-                          <div className="p-4">
-                            {/* Header row */}
-                            <div className="flex items-center text-xs text-gray-500 font-medium border-b pb-2 mb-2">
-                              <div className="w-6 shrink-0"></div>
-                              <div className="flex-1">Test</div>
-                              <div className="w-24 text-right">Valeur</div>
-                              <div className="w-16 text-right">Unité</div>
-                              <div className="w-20 text-right">Norme</div>
-                              <div className="w-40">Commentaire</div>
+                              </div>
+                            </Card.Section>
+                            {/* X button — properly aligned, outside the section padding */}
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              size="sm"
+                              onClick={() => removeModuleItem(item.refId!)}
+                              className="absolute top-3 right-3"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </ActionIcon>
+                            <div className="p-4">
+                              <BilanModuleRenderer
+                                module={{
+                                  id: module!.id,
+                                  instanceId: module!.id,
+                                  title: module!.title,
+                                  questions: (module!.questions ?? []) as any,
+                                  answers: moduleAnswers[module!.id] || {},
+                                }}
+                                onAnswerChange={(questionId, value) => handleModuleAnswer(module!.id, questionId, value)}
+                              />
                             </div>
-                            {/* Data rows */}
-                            {orderedTestIds.map((id, idx) => {
-                              const tt = testTypes.find((t) => t.id === id)
-                              const result = latestResults.get(id)
-                              if (!tt || !result) return null
-                              const val = Number(result.value)
-                              const norm = athleteGender === "M"
-                                ? (tt.normMale != null ? Number(tt.normMale) : null)
-                                : athleteGender === "F"
-                                  ? (tt.normFemale != null ? Number(tt.normFemale) : null)
-                                  : null
-                              const beatsNorm = norm !== null
-                                ? tt.higherIsBetter ? val >= norm : val <= norm
-                                : null
-                              return (
-                                <Draggable key={id} draggableId={`met-${id}`} index={idx}>
-                                  {(prov, snap) => (
-                                    <div
-                                      ref={prov.innerRef}
-                                      {...prov.draggableProps}
-                                      className={`flex items-center gap-2 py-2 border-b last:border-0 text-sm ${
-                                        snap.isDragging ? 'bg-blue-50 rounded' : ''
-                                      }`}
-                                      style={{
-                                        ...prov.draggableProps.style,
-                                        opacity: snap.isDragging ? 0.85 : 1,
-                                      }}
-                                    >
-                                      <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700 w-6 shrink-0">
-                                        <GripVertical className="h-4 w-4" />
-                                      </div>
-                                      <div className="flex-1 font-medium">{tt.name}</div>
-                                      <div className="w-24 text-right">
-                                        {tt.isUnilateral && result.valueLeft != null && result.valueRight != null
-                                          ? `G: ${Number(result.valueLeft).toFixed(1)} | D: ${Number(result.valueRight).toFixed(1)}`
-                                          : `${val.toFixed(1)}`
-                                        }
-                                      </div>
-                                      <div className="w-16 text-right text-gray-500">{tt.unit}</div>
-                                      <div className="w-20 text-right">
-                                        <span className={beatsNorm === true ? 'text-green-600' : beatsNorm === false ? 'text-red-600' : 'text-gray-400'}>
-                                          {norm !== null ? `${norm.toFixed(1)}` : "—"}
-                                        </span>
-                                      </div>
-                                      <div className="w-40">
-                                        <TextInput
-                                          placeholder="Commentaire..."
-                                          size="xs"
-                                          value={testComments[id] || ''}
-                                          onChange={(e) => setTestComments((prev) => ({...prev, [id]: e.target.value}))}
-                                        />
-                                      </div>
+                          </Card>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+
+                  {/* RENDER METRICS */}
+                  {selectedMetrics.map(({ item, testType }, idx) => {
+                    const actualIdx = selectedModules.length + idx
+                    const result = latestResults.get(testType!.id)
+                    const val = result ? Number(result.value) : 0
+                    const norm = athleteGender === "M"
+                      ? (testType!.normMale != null ? Number(testType!.normMale) : null)
+                      : athleteGender === "F"
+                        ? (testType!.normFemale != null ? Number(testType!.normFemale) : null)
+                        : null
+                    const beatsNorm = norm !== null
+                      ? testType!.higherIsBetter ? val >= norm : val <= norm
+                      : null
+                    return (
+                      <Draggable key={item.id} draggableId={item.id} index={actualIdx}>
+                        {(prov, snap) => (
+                          <div
+                            ref={prov.innerRef}
+                            {...prov.draggableProps}
+                            style={{
+                              ...prov.draggableProps.style,
+                              opacity: snap.isDragging ? 0.85 : 1,
+                            }}
+                          >
+                            <Card shadow="sm" radius="md" withBorder className="relative">
+                              <Card.Section withBorder inheritPadding py="sm">
+                                <div className="flex items-center justify-between pr-12">
+                                  <div className="flex items-center gap-2">
+                                    <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                                      <GripVertical className="h-5 w-5" />
+                                    </div>
+                                    <Activity className="h-4 w-4 text-green-500" />
+                                    <h3 className="font-semibold">{testType!.name}</h3>
+                                  </div>
+                                </div>
+                              </Card.Section>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => removeMetricItem(item.refId!)}
+                                className="absolute top-3 right-3"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </ActionIcon>
+                              <div className="p-4 space-y-3">
+                                {/* Value display */}
+                                <div className="flex items-center gap-4">
+                                  <div>
+                                    <Text size="xs" c="dimmed">Valeur</Text>
+                                    <Text fw={700} size="xl" c={beatsNorm === false ? "red" : "green"}>
+                                      {val.toFixed(1)}
+                                      <Text span size="sm" c="dimmed" className="ml-1">
+                                        {testType!.unit}
+                                      </Text>
+                                    </Text>
+                                    {testType!.isUnilateral && result?.valueLeft != null && result?.valueRight != null && (
+                                      <Text size="xs" c="dimmed">
+                                        G: {Number(result.valueLeft).toFixed(1)} | D: {Number(result.valueRight).toFixed(1)}
+                                      </Text>
+                                    )}
+                                  </div>
+                                  {norm !== null && (
+                                    <div>
+                                      <Text size="xs" c="dimmed">Norme</Text>
+                                      <Text fw={600} size="md" c={beatsNorm === true ? "green" : beatsNorm === false ? "red" : "dimmed"}>
+                                        {norm.toFixed(1)} {testType!.unit}
+                                      </Text>
                                     </div>
                                   )}
-                                </Draggable>
-                              )
-                            })}
+                                </div>
+                                {/* Comment */}
+                                <TextInput
+                                  placeholder="Commentaire..."
+                                  size="sm"
+                                  value={testComments[testType!.id] || ''}
+                                  onChange={(e) => setTestComments((prev) => ({...prev, [testType!.id]: e.target.value}))}
+                                />
+                              </div>
+                            </Card>
                           </div>
-                        </Card>
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                )}
+                        )}
+                      </Draggable>
+                    )
+                  })}
 
-                {/* Radar chart — NOW INSIDE DragDropContext inside its own Droppable */}
-                {radarDataConfig.testIds.length >= 3 && (
-                  <Droppable droppableId="radars">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef}>
-                        <Draggable draggableId="radar-chart" index={0}>
-                          {(prov, snap) => (
-                            <div
-                              ref={prov.innerRef}
-                              {...prov.draggableProps}
-                              style={{
-                                ...prov.draggableProps.style,
-                                opacity: snap.isDragging ? 0.85 : 1,
-                              }}
-                            >
-                              <Card shadow="sm" radius="md" withBorder>
-                                <Card.Section withBorder inheritPadding py="sm">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
-                                        <GripVertical className="h-5 w-5" />
-                                      </div>
-                                      <RadarIcon className="h-4 w-4 text-purple-500" />
-                                      <h3 className="font-semibold">Radar des performances</h3>
+                  {/* RENDER RADARS */}
+                  {radarItems.map((item, idx) => {
+                    const actualIdx = selectedModules.length + selectedMetrics.length + idx
+                    const metricIds = item.config?.metricIds ?? []
+                    const hasEnoughMetrics = metricIds.length >= 3
+                    return (
+                      <Draggable key={item.id} draggableId={item.id} index={actualIdx}>
+                        {(prov, snap) => (
+                          <div
+                            ref={prov.innerRef}
+                            {...prov.draggableProps}
+                            style={{
+                              ...prov.draggableProps.style,
+                              opacity: snap.isDragging ? 0.85 : 1,
+                            }}
+                          >
+                            <Card shadow="sm" radius="md" withBorder className="relative">
+                              <Card.Section withBorder inheritPadding py="sm">
+                                <div className="flex items-center justify-between pr-12">
+                                  <div className="flex items-center gap-2">
+                                    <div {...prov.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                                      <GripVertical className="h-5 w-5" />
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button variant="subtle" size="xs" onClick={openRadarModal}>
-                                        Modifier
-                                      </Button>
-                                      <Button variant="subtle" size="xs" color="red" onClick={deleteRadar}>
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
+                                    <RadarIcon className="h-4 w-4 text-purple-500" />
+                                    <h3 className="font-semibold">Radar</h3>
+                                    {hasEnoughMetrics && (
+                                      <Badge size="sm" variant="light" color="purple">
+                                        {metricIds.length} métriques
+                                      </Badge>
+                                    )}
                                   </div>
-                                </Card.Section>
-                                <div className="p-4">
-                                  <div style={{ width: '100%', height: 400 }}>
+                                </div>
+                              </Card.Section>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => removeRadarItem(item.id)}
+                                className="absolute top-3 right-3"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </ActionIcon>
+                              <div className="p-4 space-y-4">
+                                {/* Config bar */}
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <Button
+                                    variant="light"
+                                    size="xs"
+                                    leftSection={<Settings className="h-3 w-3" />}
+                                    onClick={() => openRadarPicker(item.id)}
+                                  >
+                                    {hasEnoughMetrics
+                                      ? `Modifier les métriques (${metricIds.length})`
+                                      : "Choisir les métriques"}
+                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <Text size="xs" c="dimmed">Tests:</Text>
+                                    <input
+                                      type="range"
+                                      min={3}
+                                      max={Math.max(metricIds.length, 6)}
+                                      value={item.config?.testCount ?? 6}
+                                      onChange={(e) => updateRadarConfig(item.id, { testCount: Number(e.target.value) })}
+                                      className="w-20"
+                                    />
+                                    <Text size="xs" fw={600}>{item.config?.testCount ?? 6}</Text>
+                                  </div>
+                                  <Switch
+                                    label="Normes"
+                                    size="xs"
+                                    checked={item.config?.showNorms ?? true}
+                                    onChange={(e) => updateRadarConfig(item.id, { showNorms: e.currentTarget.checked })}
+                                  />
+                                </div>
+
+                                {/* Radar chart */}
+                                {hasEnoughMetrics ? (
+                                  <div style={{ width: '100%', height: 350 }}>
                                     <ResponsiveContainer>
-                                      <RadarChart data={
-                                        radarDataConfig.testIds.map((id) => {
+                                      <RadarChart
+                                        data={metricIds.slice(0, item.config?.testCount ?? 6).map((id) => {
                                           const tt = testTypes.find((t) => t.id === id)
                                           const result = latestResults.get(id)
                                           if (!tt || !result) return null
@@ -711,15 +859,17 @@ export default function CreateBilanPage() {
                                           return {
                                             name: tt.name,
                                             Valeur: Math.round((val / maxVal) * 100),
-                                            ...(radarDataConfig.showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
+                                            ...(item.config?.showNorms && norm
+                                              ? { Norme: Math.round((Number(norm) / maxVal) * 100) }
+                                              : {}),
                                           }
-                                        }).filter(Boolean) as any[]
-                                      }>
+                                        }).filter(Boolean) as any[]}
+                                      >
                                         <PolarGrid />
                                         <PolarAngleAxis dataKey="name" fontSize={11} />
                                         <PolarRadiusAxis angle={30} domain={[0, 100]} />
                                         <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
-                                        {radarDataConfig.showNorms && (
+                                        {item.config?.showNorms && (
                                           <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
                                         )}
                                         <Tooltip />
@@ -727,50 +877,56 @@ export default function CreateBilanPage() {
                                       </RadarChart>
                                     </ResponsiveContainer>
                                   </div>
-                                </div>
-                              </Card>
-                            </div>
-                          )}
-                        </Draggable>
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                )}
-              </DragDropContext>
-            </>
-          )}
+                                ) : (
+                                  <div className="text-center py-8 text-gray-400">
+                                    <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                    <Text size="sm">
+                                      Cliquez sur &ldquo;Choisir les métriques&rdquo; pour configurer ce radar
+                                      (minimum 3 métriques requises)
+                                    </Text>
+                                  </div>
+                                )}
+                              </div>
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    )
+                  })}
+
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </main>
       </div>
 
-      {/* Radar creation modal */}
+      {/* Radar metric picker modal */}
       <Modal
-        opened={radarModalOpen}
-        onClose={() => setRadarModalOpen(false)}
-        title="Créer un radar"
+        opened={radarPickerOpen}
+        onClose={() => setRadarPickerOpen(false)}
+        title="Choisir les métriques du radar"
         size="md"
       >
         <div className="space-y-4 py-2">
           <Text size="sm" c="dimmed">
-            Sélectionnez les métriques à inclure dans le radar (minimum 3, max{" "}
-            {radarDataConfig.radarCount}):
+            Sélectionnez les métriques à inclure dans ce radar :
           </Text>
           <div className="space-y-1 max-h-60 overflow-y-auto">
-            {orderedTestIds.map((id) => {
-              const tt = testTypes.find((t) => t.id === id)
-              if (!tt) return null
-              const isIn = radarTempIds.has(id)
+            {testTypesWithData.map((tt) => {
+              const isIn = radarPickerTempIds.has(tt.id)
               return (
                 <div
-                  key={id}
+                  key={tt.id}
                   className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer ${
                     isIn ? 'bg-purple-50' : 'hover:bg-gray-50'
                   }`}
                   onClick={() => {
-                    setRadarTempIds((prev) => {
+                    setRadarPickerTempIds((prev) => {
                       const next = new Set(prev)
-                      if (next.has(id)) next.delete(id)
-                      else next.add(id)
+                      if (next.has(tt.id)) next.delete(tt.id)
+                      else next.add(tt.id)
                       return next
                     })
                   }}
@@ -781,31 +937,17 @@ export default function CreateBilanPage() {
                     {isIn && <Check className="h-3 w-3 text-white" />}
                   </div>
                   <span className="text-sm">{tt.name}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{tt.category}</span>
                 </div>
               )
             })}
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">Nombre de métriques :</span>
-            <input
-              type="range"
-              min="3"
-              max={orderedTestIds.length}
-              value={radarDataConfig.radarCount}
-              onChange={(e) => setRadarDataConfig((prev) => ({ ...prev, radarCount: Number(e.target.value) }))}
-              className="flex-1"
-            />
-            <span className="text-sm">{radarDataConfig.radarCount}</span>
-          </div>
-          <Switch
-            label="Afficher les normes"
-            checked={radarDataConfig.showNorms}
-            onChange={(e) => setRadarDataConfig((prev) => ({ ...prev, showNorms: e.currentTarget.checked }))}
-          />
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => setRadarModalOpen(false)}>Annuler</Button>
-            <Button onClick={saveRadar} disabled={radarTempIds.size < 3}>
-              Ajouter le radar
+            <Button variant="default" onClick={() => setRadarPickerOpen(false)}>Annuler</Button>
+            <Button onClick={saveRadarPicker} disabled={radarPickerTempIds.size < 3}>
+              {radarPickerTempIds.size < 3
+                ? `Minimum 3 métriques (${radarPickerTempIds.size}/3)`
+                : `Valider (${radarPickerTempIds.size} métriques)`}
             </Button>
           </Group>
         </div>

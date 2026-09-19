@@ -10,8 +10,9 @@ import {
   LayoutList,
   FileText,
   Loader2,
+  Tags,
 } from "lucide-react"
-import { Button, Card, TextInput, Textarea, Select, Badge, Modal } from "@mantine/core"
+import { Button, Card, TextInput, Textarea, Select, Badge, Modal, Group, Text, ActionIcon } from "@mantine/core"
 import { DragDropContext, Droppable } from "@hello-pangea/dnd"
 import { ModuleListItem } from "@/components/physio-data/module-list-item"
 
@@ -50,6 +51,11 @@ const emptyQuestion = (): Question => ({
   options: "",
 })
 
+interface TagInfo {
+  name: string
+  count: number
+}
+
 export default function ModulesPage() {
   const router = useRouter()
   const [modules, setModules] = useState<Module[]>([])
@@ -62,6 +68,14 @@ export default function ModulesPage() {
     questions: Question[]
   }>({ title: "", tags: [], questions: [] })
   const [saving, setSaving] = useState(false)
+
+  // Tags management modal
+  const [tagsModalOpen, setTagsModalOpen] = useState(false)
+  const [allTags, setAllTags] = useState<TagInfo[]>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [renamingTag, setRenamingTag] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [deletingTag, setDeletingTag] = useState<string | null>(null)
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -80,6 +94,62 @@ export default function ModulesPage() {
   useEffect(() => {
     fetchModules()
   }, [fetchModules])
+
+  // Tags management
+  const fetchTags = async () => {
+    setTagsLoading(true)
+    try {
+      const res = await fetch("/physio-data/api/bilans/tags")
+      if (res.ok) {
+        const data = await res.json()
+        setAllTags(data.tags ?? [])
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setTagsLoading(false)
+    }
+  }
+
+  const openTagsModal = () => {
+    fetchTags()
+    setTagsModalOpen(true)
+  }
+
+  const handleRenameTag = async (oldName: string) => {
+    if (!renameValue.trim() || renameValue === oldName) {
+      setRenamingTag(null)
+      setRenameValue("")
+      return
+    }
+    try {
+      const res = await fetch(
+        `/physio-data/api/bilans/tags?old=${encodeURIComponent(oldName)}&new=${encodeURIComponent(renameValue.trim())}`,
+        { method: "PATCH" }
+      )
+      if (!res.ok) throw new Error("Erreur")
+      setRenamingTag(null)
+      setRenameValue("")
+      fetchTags()
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors du renommage du tag")
+    }
+  }
+
+  const handleDeleteTag = async (name: string) => {
+    try {
+      const res = await fetch(`/physio-data/api/bilans/tags?name=${encodeURIComponent(name)}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Erreur")
+      setDeletingTag(null)
+      fetchTags()
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors de la suppression du tag")
+    }
+  }
 
   const openCreate = () => {
     setEditingModule({ title: "", tags: [], questions: [] })
@@ -206,10 +276,15 @@ export default function ModulesPage() {
             Créez, modifiez et réorganisez les modèles de bilans
           </p>
         </div>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="mr-1 h-4 w-4" />
-          Nouveau module
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={openTagsModal}>
+            Gérer les tags
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-1 h-4 w-4" />
+            Nouveau module
+          </Button>
+        </div>
       </div>
 
       {/* Liste */}
@@ -414,6 +489,116 @@ export default function ModulesPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ── Tags management modal ── */}
+      <Modal
+        opened={tagsModalOpen}
+        onClose={() => setTagsModalOpen(false)}
+        title={
+          <span className="text-lg font-semibold flex items-center gap-2">
+            <Tags className="h-5 w-5 text-blue-500" />
+            Gestion des tags
+          </span>
+        }
+        size="lg"
+      >
+        <div className="py-2">
+          {tagsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : allTags.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Tags className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <Text size="sm">Aucun tag défini. Créez des tags dans les modules.</Text>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {allTags.map((tag) => (
+                <div
+                  key={tag.name}
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                >
+                  {/* Tag name */}
+                  <div className="flex-1 min-w-0">
+                    {renamingTag === tag.name ? (
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          size="xs"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameTag(tag.name)
+                            if (e.key === "Escape") { setRenamingTag(null); setRenameValue("") }
+                          }}
+                          autoFocus
+                          className="w-48"
+                        />
+                        <Button size="xs" onClick={() => handleRenameTag(tag.name)}>OK</Button>
+                        <Button size="xs" variant="default" onClick={() => { setRenamingTag(null); setRenameValue("") }}>Annuler</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="filled" color="blue" size="lg">
+                          {tag.name}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {tag.count} module{tag.count > 1 ? "s" : ""}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  {renamingTag !== tag.name && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => {
+                          setRenamingTag(tag.name)
+                          setRenameValue(tag.name)
+                        }}
+                      >
+                        Renommer
+                      </Button>
+                      <ActionIcon
+                        variant="light"
+                        color="red"
+                        size="sm"
+                        onClick={() => setDeletingTag(tag.name)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </ActionIcon>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Delete tag confirmation ── */}
+      <Modal
+        opened={!!deletingTag}
+        onClose={() => setDeletingTag(null)}
+        title="Supprimer un tag"
+        size="sm"
+      >
+        <Text mb="md">
+          Êtes-vous sûr de vouloir supprimer le tag <strong>{deletingTag}</strong> de tous les modules ?
+          Cette action est irréversible.
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setDeletingTag(null)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={() => deletingTag && handleDeleteTag(deletingTag)}>
+            Supprimer
+          </Button>
+        </Group>
       </Modal>
     </div>
   )
