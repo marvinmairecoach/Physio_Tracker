@@ -376,6 +376,7 @@ model Bilan {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  modules  BilanModule[]
 
   @@index([athleteId])
   @@map("Bilan")
@@ -504,4 +505,18 @@ model TeamTestType {
 
   @@unique([teamId, testTypeId])
   @@map("TeamTestType")
+}
+
+model BilanModule {
+  id        String   @id @default(cuid())
+  title     String
+  questions Json     // Array de {id, type, label, options}
+  isActive  Boolean  @default(true) @map("is_active")
+  ordering  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  bilanId   String?  @map("bilan_id")
+  bilan     Bilan?   @relation(fields: [bilanId], references: [id], onDelete: Cascade)
+
+  @@map("bilan_modules")
 }

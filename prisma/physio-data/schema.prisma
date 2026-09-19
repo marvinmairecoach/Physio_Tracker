@@ -123,7 +123,8 @@ model Bilan {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  athlete Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  modules BilanModule[]
 
   @@index([athleteId])
   @@map("Bilan")
@@ -186,4 +187,19 @@ model Message {
 
   @@index([conversationId, createdAt(sort: Desc)])
   @@map("Message")
+}
+
+model BilanModule {
+  id        String   @id @default(uuid())
+  title     String
+  questions Json
+  isActive  Boolean  @default(true) @map("is_active")
+  ordering  Int      @default(0)
+  bilanId   String?  @map("bilan_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bilan Bilan? @relation(fields: [bilanId], references: [id], onDelete: Cascade)
+
+  @@map("BilanModule")
 }
