@@ -36,6 +36,7 @@ interface Question {
 export interface Module {
   id: string
   title: string
+  tags: string[]
   questions: Question[]
   ordering: number
   isActive: boolean
@@ -57,8 +58,9 @@ export default function ModulesPage() {
   const [editingModule, setEditingModule] = useState<{
     id?: string
     title: string
+    tags: string[]
     questions: Question[]
-  }>({ title: "", questions: [] })
+  }>({ title: "", tags: [], questions: [] })
   const [saving, setSaving] = useState(false)
 
   const fetchModules = useCallback(async () => {
@@ -80,7 +82,7 @@ export default function ModulesPage() {
   }, [fetchModules])
 
   const openCreate = () => {
-    setEditingModule({ title: "", questions: [] })
+    setEditingModule({ title: "", tags: [], questions: [] })
     setModalOpen(true)
   }
 
@@ -88,6 +90,7 @@ export default function ModulesPage() {
     setEditingModule({
       id: m.id,
       title: m.title,
+      tags: m.tags ?? [],
       questions: m.questions ?? [],
     })
     setModalOpen(true)
@@ -106,6 +109,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
+            tags: editingModule.tags,
             questions: editingModule.questions,
           }),
         })
@@ -115,6 +119,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
+            tags: editingModule.tags,
             questions: editingModule.questions,
           }),
         })
@@ -274,6 +279,62 @@ export default function ModulesPage() {
               setEditingModule((prev) => ({ ...prev, title: e.target.value }))
             }
           />
+
+          <div>
+            <span className="text-sm font-medium block mb-1">Tags</span>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {editingModule.tags.map((tag, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    className="ml-0.5 text-blue-400 hover:text-blue-700"
+                    onClick={() =>
+                      setEditingModule((prev) => ({
+                        ...prev,
+                        tags: prev.tags.filter((_, j) => j !== i),
+                      }))
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              <TextInput
+                placeholder="Ajouter un tag..."
+                className="flex-1"
+                value=""
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault()
+                    const val = (e.currentTarget as HTMLInputElement).value.trim()
+                    if (val && !editingModule.tags.includes(val)) {
+                      setEditingModule((prev) => ({
+                        ...prev,
+                        tags: [...prev.tags, val],
+                      }))
+                    }
+                    ;(e.currentTarget as HTMLInputElement).value = ""
+                  }
+                }}
+                onBlur={(e) => {
+                  const val = e.currentTarget.value.trim()
+                  if (val && !editingModule.tags.includes(val)) {
+                    setEditingModule((prev) => ({
+                      ...prev,
+                      tags: [...prev.tags, val],
+                    }))
+                  }
+                  e.currentTarget.value = ""
+                }}
+              />
+            </div>
+          </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

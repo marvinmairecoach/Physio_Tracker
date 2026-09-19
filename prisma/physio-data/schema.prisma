@@ -119,6 +119,7 @@ model Bilan {
   title       String
   athleteId   String   @map("athlete_id")
   description String?
+  date        DateTime?  @map("date_bilan")
   config      Json     @default("{\"selectedTestIds\":[],\"radarTestCount\":6,\"showNorms\":true,\"showTeamComparison\":false}")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -192,6 +193,7 @@ model Message {
 model BilanModule {
   id        String   @id @default(uuid())
   title     String
+  tags      Json     @default("[]")
   questions Json
   isActive  Boolean  @default(true) @map("is_active")
   ordering  Int      @default(0)

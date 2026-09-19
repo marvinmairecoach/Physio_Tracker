@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, memo } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, usePathname } from "next/navigation"
 import {
   ArrowLeft,
   User,
@@ -656,6 +656,7 @@ function BilansTab({ athleteId }: { athleteId: string }) {
   const [bilans, setBilans] = useState<Bilan[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
 
   // Create modal
   const [createTitle, setCreateTitle] = useState("")
@@ -717,44 +718,10 @@ function BilansTab({ athleteId }: { athleteId: string }) {
   return (
     <Stack gap="md">
       <div className="flex justify-end">
-        <Button leftSection={<Plus size={14} />} onClick={openCreate}>
+        <Button leftSection={<Plus size={14} />} onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create`)}>
           Nouveau bilan
         </Button>
       </div>
-
-      {/* Create Modal */}
-      <Modal
-        opened={createModalOpened}
-        onClose={closeCreate}
-        title="Nouveau bilan"
-        trapFocus={false}
-        size="md"
-      >
-        <Stack gap="sm">
-          <TextInput
-            label="Titre"
-            placeholder="Ex: Bilan pré-saison 2025"
-            value={createTitle}
-            onChange={(e) => setCreateTitle(e.currentTarget.value)}
-            required
-          />
-          <Textarea
-            label="Description (optionnel)"
-            placeholder="Description..."
-            value={createDescription}
-            onChange={(e) => setCreateDescription(e.currentTarget.value)}
-            minRows={2}
-          />
-          <Group justify="flex-end" mt="xs">
-            <Button variant="default" onClick={closeCreate}>
-              Annuler
-            </Button>
-            <Button onClick={handleCreate} loading={creating} disabled={!createTitle.trim()}>
-              Créer
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
 
       {bilans.length === 0 ? (
         <Card shadow="sm" p="lg" radius="md" withBorder>

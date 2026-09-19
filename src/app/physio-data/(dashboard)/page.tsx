@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSession } from "@/components/layout/providers"
 
 interface PlanningEntry {
   id: string
@@ -67,6 +68,8 @@ export default function PhysioDataDashboardPage() {
   const [loadingSession, setLoadingSession] = useState(true)
   const [loadingConversations, setLoadingConversations] = useState(true)
 
+  const { user } = useSession()
+
   // Fetch unread count
   useEffect(() => {
     fetch("/physio-data/api/messaging/unread")
@@ -90,22 +93,15 @@ export default function PhysioDataDashboardPage() {
 
   // Fetch next upcoming session
   useEffect(() => {
+    if (!user?.id) { setLoadingSession(false); return }
     const fetchNextSession = async () => {
       try {
-        // 1. Get at least one athlete
-        const athleteRes = await fetch("/physio-data/api/athletes?limit=1")
-        if (!athleteRes.ok) { setLoadingSession(false); return }
-        const athleteData = await athleteRes.json()
-        const athletes = athleteData.athletes ?? []
-        if (athletes.length === 0) { setLoadingSession(false); return }
-
-        const athleteId = athletes[0].id
-
-        // 2. Fetch planning for current month
         const now = new Date()
         const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+
+        // Fetch planning entries created by this user for the current month
         const planRes = await fetch(
-          `/physio-data/api/planning?athleteId=${athleteId}&month=${monthKey}`
+          `/physio-data/api/planning?createdById=${user.id}&month=${monthKey}`
         )
         if (!planRes.ok) { setLoadingSession(false); return }
         const entries: PlanningEntry[] = await planRes.json()
@@ -127,7 +123,7 @@ export default function PhysioDataDashboardPage() {
       }
     }
     fetchNextSession()
-  }, [])
+  }, [user])
 
   return (
     <div className="space-y-6">
@@ -350,7 +346,7 @@ export default function PhysioDataDashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/physio-data/bilans">
+        <Link href="/physio-data/bilans/modules">
           <Card className="border-blue-100 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer h-full">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">

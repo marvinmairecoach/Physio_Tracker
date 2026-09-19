@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { href: "/physio-data", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/physio-data/athletes", label: "Athlètes", icon: Users },
   { href: "/physio-data/tests", label: "Tests", icon: ClipboardCheck },
-  { href: "/physio-data/bilans", label: "Bilans", icon: FileText },
+  { href: "/physio-data/bilans/modules", label: "Bilans", icon: FileText },
   { href: "/physio-data/planning", label: "Agenda", icon: Calendar },
   { href: "/physio-data/messages", label: "Messages", icon: MessageSquare },
   { href: "/physio-data/profile", label: "Profil", icon: User },

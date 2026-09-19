@@ -39,6 +39,10 @@ export async function PATCH(
       data.questions = body.questions
     }
 
+    if (body.tags !== undefined) {
+      data.tags = body.tags
+    }
+
     if (body.isActive !== undefined) {
       data.isActive = body.isActive
     }

@@ -1,4 +1,4 @@
-import { Button } from "@mantine/core"
+import { Button, Badge } from "@mantine/core"
 import { GripVertical, FileText, Trash2 } from "lucide-react"
 import { Draggable } from "@hello-pangea/dnd"
 import type { DraggableProvided, DraggableStateSnapshot } from "@hello-pangea/dnd"
@@ -43,10 +43,20 @@ export function ModuleListItem({
                 <FileText className="h-4 w-4 text-blue-500 shrink-0" />
                 <h3 className="font-semibold truncate">{module.title}</h3>
               </div>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {(module.questions ?? []).length} question
-                {(module.questions ?? []).length > 1 ? "s" : ""}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-sm text-gray-400">
+                  {(module.questions ?? []).length} question
+                  {(module.questions ?? []).length > 1 ? "s" : ""}
+                </p>
+                {(module.tags ?? []).length > 0 && (
+                  <span className="text-gray-300">·</span>
+                )}
+                {(module.tags ?? []).map((tag) => (
+                  <Badge key={tag} variant="light" color="blue" size="sm">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-2 ml-4">
               <Button variant="outline" size="sm" onClick={() => onEdit(module)}>

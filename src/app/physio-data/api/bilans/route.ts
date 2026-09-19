@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
         title: body.title.trim(),
         athleteId: body.athleteId,
         description: body.description?.trim() || null,
+        date: body.date ? new Date(body.date) : undefined,
         config: body.config || {
           selectedTestIds: [],
           radarTestCount: 6,

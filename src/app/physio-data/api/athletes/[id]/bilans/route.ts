@@ -19,6 +19,7 @@ export async function GET(
         id: true,
         title: true,
         description: true,
+        date: true,
         config: true,
         createdAt: true,
         updatedAt: true,
@@ -53,6 +54,7 @@ export async function POST(
         title: body.title.trim(),
         athleteId: id,
         description: body.description?.trim() || null,
+        date: body.date ? new Date(body.date) : undefined,
         config: body.config || {
           selectedTestIds: [],
           radarTestCount: 6,
