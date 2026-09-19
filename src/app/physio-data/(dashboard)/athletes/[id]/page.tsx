@@ -20,6 +20,7 @@ import {
   Plus,
   Eye,
   Trash2 as TrashIcon,
+  Activity,
 } from "lucide-react"
 import {
   Button,
@@ -198,12 +199,15 @@ function AthleteInfoCard({
               </div>
             )}
             {athlete.birthDate && (
-              <div className="flex items-center gap-1.5">
-                <Calendar size={14} />
-                <span>
-                  {formatDate(athlete.birthDate)} ({calculateAge(athlete.birthDate)} ans)
-                </span>
-              </div>
+              <>
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={14} />
+                  <span>{formatDate(athlete.birthDate)}</span>
+                </div>
+                <div className="text-xs text-gray-400 pl-[22px]">
+                  {calculateAge(athlete.birthDate)} ans
+                </div>
+              </>
             )}
             {athlete.phone && (
               <div className="flex items-center gap-1.5">
@@ -277,13 +281,14 @@ function AthleteInfoCard({
 
 /* ---------- Tab bar ---------- */
 
-type TabKey = "tests" | "bilans" | "planning"
+type TabKey = "tests" | "bilans" | "planning" | "suivi"
 
 function TabBar({ active, onChange }: { active: TabKey; onChange: (t: TabKey) => void }) {
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: "tests", label: "Tests", icon: <ClipboardList size={16} /> },
     { key: "bilans", label: "Bilans", icon: <FileText size={16} /> },
     { key: "planning", label: "Planning", icon: <CalendarDays size={16} /> },
+    { key: "suivi", label: "Suivi", icon: <Activity size={16} /> },
   ]
 
   return (
@@ -782,6 +787,161 @@ function BilansTab({ athleteId }: { athleteId: string }) {
   )
 }
 
+/* ---------- Suivi Tab (évolution des indicateurs) ---------- */
+
+interface SessionDataPayload {
+  wellness?: { sleep: number; mood: number; physical: number }
+  rpe?: number
+  duration?: number
+}
+
+interface PlanningEntry {
+  id: string
+  date: string
+  sessionData: string | null
+}
+
+function SuiviTab({ athleteId }: { athleteId: string }) {
+  const [entries, setEntries] = useState<PlanningEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Fetch last 3 months of planning entries
+      const now = new Date()
+      const months: string[] = []
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
+      }
+
+      const results = await Promise.all(
+        months.map((month) =>
+          fetch(`/physio-data/api/planning?athleteId=${athleteId}&month=${month}`).then((r) =>
+            r.ok ? r.json() : [],
+          ),
+        ),
+      )
+
+      const all = results
+        .flat()
+        .filter((e: any) => e.sessionData)
+      setEntries(all)
+    } catch (err) {
+      console.error("Error fetching planning entries for suivi:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [athleteId])
+
+  useEffect(() => {
+    fetchEntries()
+  }, [fetchEntries])
+
+  const chartData = useMemo(
+    () =>
+      entries
+        .map((e) => {
+          try {
+            const sd: SessionDataPayload = JSON.parse(e.sessionData!)
+            return {
+              date: formatDateShort(e.date),
+              fullDate: e.date,
+              sommeil: sd.wellness?.sleep ?? null,
+              moral: sd.wellness?.mood ?? null,
+              physique: sd.wellness?.physical ?? null,
+              rpe: sd.rpe ?? null,
+            }
+          } catch {
+            return null
+          }
+        })
+        .filter((d): d is NonNullable<typeof d> => d !== null)
+        .sort(
+          (a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime(),
+        ),
+    [entries],
+  )
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    )
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <Card shadow="sm" p="lg" radius="md" withBorder>
+        <Text c="dimmed" ta="center">
+          Aucune donnée de suivi disponible pour cet athlète. Remplissez les questionnaires bien-être dans le planning pour voir l&apos;évolution.
+        </Text>
+      </Card>
+    )
+  }
+
+  const indicators = [
+    { key: "sommeil", label: "Sommeil", color: "#3b82f6" },
+    { key: "moral", label: "Moral", color: "#22c55e" },
+    { key: "physique", label: "Physique", color: "#f59e0b" },
+    { key: "rpe", label: "RPE", color: "#ef4444" },
+  ] as const
+
+  return (
+    <Stack gap="md">
+      <Paper p="md" withBorder radius="md">
+        <Text fw={600} size="md" mb="md">
+          Évolution des indicateurs
+        </Text>
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 11 }}
+              stroke="#9ca3af"
+            />
+            <YAxis domain={[0, 10]} tick={{ fontSize: 11 }} stroke="#9ca3af" />
+            <RechartsTooltip
+              contentStyle={{
+                borderRadius: "8px",
+                border: "1px solid #e5e7eb",
+                fontSize: "13px",
+              }}
+            />
+            {indicators.map((ind) => (
+              <Line
+                key={ind.key}
+                type="monotone"
+                dataKey={ind.key}
+                name={ind.label}
+                stroke={ind.color}
+                strokeWidth={2}
+                dot={{ r: 3, fill: ind.color }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mt-3 justify-center">
+          {indicators.map((ind) => (
+            <div key={ind.key} className="flex items-center gap-1.5 text-xs">
+              <span
+                className="inline-block w-3 h-3 rounded-full"
+                style={{ backgroundColor: ind.color }}
+              />
+              <span>{ind.label}</span>
+            </div>
+          ))}
+        </div>
+      </Paper>
+    </Stack>
+  )
+}
+
 /* ============================================================
    Main Page
    ============================================================ */
@@ -965,6 +1125,7 @@ export default function AthleteDetailPage() {
       {activeTab === "tests" && <TestsTab athleteId={athleteId} userRole={userRole} />}
       {activeTab === "bilans" && <BilansTab athleteId={athleteId} />}
       {activeTab === "planning" && <PlanningTab athleteId={athleteId} />}
+      {activeTab === "suivi" && <SuiviTab athleteId={athleteId} />}
 
       {/* ── Modals ── */}
 

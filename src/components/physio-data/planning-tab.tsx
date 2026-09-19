@@ -168,8 +168,8 @@ const EntryCard = memo(function EntryCard({
           <textarea
             autoFocus
             dir="ltr"
-            className="w-full rounded border border-blue-300 bg-white p-1 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-            style={{ textAlign: "left" }}
+            className="w-full rounded border border-blue-300 bg-white p-1 text-xs resize-none overflow-hidden focus:outline-none focus:ring-1 focus:ring-blue-400"
+            style={{ textAlign: "left", minHeight: "80px" }}
             value={editingContent}
             onChange={(e) => onEditingContentChange(e.target.value)}
             onBlur={() => onSaveEdit(entry.id, editingContent)}
@@ -178,7 +178,7 @@ const EntryCard = memo(function EntryCard({
                 onCancelEdit()
               }
             }}
-            rows={Math.max(2, (editingContent.match(/\n/g)?.length ?? 0) + 2)}
+            rows={Math.max(4, (editingContent.match(/\n/g)?.length ?? 0) + 2)}
           />
           {isSaving && (
             <span className="text-[9px] text-blue-500">Sauvegarde...</span>
