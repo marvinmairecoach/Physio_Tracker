@@ -11,6 +11,16 @@ export async function GET() {
     const modules = await prisma.bilanModule.findMany({
       where: { isActive: true },
       orderBy: { ordering: "asc" },
+      select: {
+        id: true,
+        title: true,
+        questions: true,
+        ordering: true,
+        isActive: true,
+        bilanId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
 
     return NextResponse.json({ modules })

@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, FileText, Download, Mail, Trash2, Edit3, Save, X,
-  Target, Printer, Send,
+  Target, Printer, Send, Plus, GripVertical, LayoutList,
 } from "lucide-react"
 import { Button, Card, TextInput, Textarea, Badge, Switch, Slider, Checkbox, Modal } from "@mantine/core"
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
+import { BilanModuleRenderer, type ModuleData as BMModuleData } from "@/components/physio-data/bilan-module-renderer"
 import {
   RadarChart,
   Radar,
@@ -108,6 +110,10 @@ export default function BilanViewPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
 
+  // Module assessment state
+  const [availableModules, setAvailableModules] = useState<BMModuleData[]>([])
+  const [modulesData, setModulesData] = useState<BMModuleData[]>([])
+
   const fetchBilan = async () => {
     try {
       const [bilanRes, typesRes, resultsRes] = await Promise.all([
@@ -142,6 +148,22 @@ export default function BilanViewPage() {
           const rData = await rRes.json()
           setAllResults(rData.results ?? rData ?? [])
         }
+      }
+
+      // Load available modules
+      const modRes = await fetch("/physio-data/api/bilans/modules")
+      if (modRes.ok) {
+        const modData = await modRes.json()
+        setAvailableModules((modData.modules ?? []).map((m: any) => ({
+          ...m,
+          instanceId: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+          answers: {},
+        })))
+      }
+
+      // Load saved modules_data from config
+      if (bilanData.config?.modulesData) {
+        setModulesData(bilanData.config.modulesData)
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur")
@@ -204,6 +226,7 @@ export default function BilanViewPage() {
             showTeamComparison: editShowTeam,
             subtitle: editSubtitle || undefined,
             testComments: testComments,
+            modulesData: modulesData,
           },
         }),
       })
@@ -737,6 +760,43 @@ export default function BilanViewPage() {
     }
   }
 
+  // Module assessment handlers
+  const handleAddModule = (module: any) => {
+    const newModule: BMModuleData = {
+      ...module,
+      instanceId: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      answers: {},
+    }
+    setModulesData((prev) => [...prev, newModule])
+  }
+
+  const handleRemoveModule = (instanceId: string) => {
+    setModulesData((prev) => prev.filter((m) => m.instanceId !== instanceId))
+  }
+
+  const handleModuleAnswerChange = (instanceId: string, questionId: string, value: any) => {
+    setModulesData((prev) =>
+      prev.map((m) => {
+        if (m.instanceId !== instanceId) return m
+        return {
+          ...m,
+          answers: { ...m.answers, [questionId]: value },
+        }
+      })
+    )
+  }
+
+  const handleModuleDragEnd = (result: any) => {
+    if (!result.destination) return
+    const items = Array.from(modulesData)
+    const [moved] = items.splice(result.source.index, 1)
+    items.splice(result.destination.index, 0, moved)
+    setModulesData(items)
+  }
+
+  // Build used module IDs set for sidebar filtering
+  const usedModuleIds = new Set(modulesData.map((m) => m.id))
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Chargement...</div>
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>
   if (!bilan) return <div className="p-6 text-center text-muted-foreground">Bilan introuvable</div>
@@ -964,6 +1024,49 @@ export default function BilanViewPage() {
             </Card>
           )}
 
+          {/* Modules section (edit mode) */}
+          {editing && (
+            <Card withBorder className="max-w-none">
+              <div className="px-6 pt-6 pb-3">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <LayoutList className="h-4 w-4 text-blue-500" />
+                  Modules
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {modulesData.length} module{modulesData.length > 1 ? "s" : ""} ajouté{modulesData.length > 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="px-6 pb-6 max-h-[300px] overflow-y-auto space-y-2">
+                {availableModules.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-3">
+                    Aucun module disponible
+                  </p>
+                ) : (
+                  availableModules
+                    .filter((m) => !usedModuleIds.has(m.id))
+                    .map((m) => (
+                      <Button
+                        key={m.id}
+                        variant="light"
+                        color="gray"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => handleAddModule(m)}
+                      >
+                        <Plus className="h-3 w-3 mr-2 shrink-0" />
+                        <span className="truncate">{m.title}</span>
+                      </Button>
+                    ))
+                )}
+                {availableModules.length > 0 && usedModuleIds.size === availableModules.length && (
+                  <p className="text-xs text-gray-400 text-center py-2">
+                    Tous les modules sont ajoutés
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* Stats summary */}
           <Card withBorder className="max-w-none">
             <div className="px-6 pt-6 pb-2">
@@ -1059,6 +1162,66 @@ export default function BilanViewPage() {
           )}
         </div>
       </Card>
+
+      {/* Module assessments section */}
+      {modulesData.length > 0 && editing && (
+        <DragDropContext onDragEnd={handleModuleDragEnd}>
+          <Droppable droppableId="bilan-modules">
+            {(provided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-6">
+                {modulesData.map((mod, idx) => {
+                  const qCount = (mod.questions ?? []).length
+                  const hasAnswers = Object.keys(mod.answers ?? {}).length > 0
+                  return (
+                    <Draggable key={mod.instanceId} draggableId={mod.instanceId} index={idx}>
+                      {(provided, snapshot) => {
+                        const dndStyle = provided.draggableProps.style as React.CSSProperties | undefined
+                        return (
+                          <Card
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            style={dndStyle}
+                            withBorder
+                            className={snapshot.isDragging ? "shadow-xl ring-2 ring-blue-400 z-50" : ""}
+                          >
+                            <div className="px-6 pt-6 pb-3 bg-gradient-to-r from-violet-50 to-transparent rounded-t-xl flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div {...provided.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-700">
+                                  <GripVertical className="h-5 w-5" />
+                                </div>
+                                <h2 className="text-lg font-semibold">{mod.title}</h2>
+                                <Badge color="violet" variant="light" size="sm">
+                                  {qCount} question{qCount > 1 ? "s" : ""}
+                                </Badge>
+                              </div>
+                              <Button variant="subtle" size="sm" color="red" onClick={() => handleRemoveModule(mod.instanceId)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="px-6 pb-6">
+                              {hasAnswers ? (
+                                <BilanModuleRenderer
+                                  module={mod}
+                                  onAnswerChange={(qId, val) => handleModuleAnswerChange(mod.instanceId, qId, val)}
+                                />
+                              ) : (
+                                <p className="text-sm text-gray-400 italic text-center py-4">
+                                  Remplissez les questions ci-dessus
+                                </p>
+                              )}
+                            </div>
+                          </Card>
+                        )
+                      }}
+                    </Draggable>
+                  )
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      )}
 
       {/* PDF Preview Dialog */}
       <Modal opened={pdfDialogOpen} onClose={() => setPdfDialogOpen(false)} title="Aperçu PDF" size="xl">

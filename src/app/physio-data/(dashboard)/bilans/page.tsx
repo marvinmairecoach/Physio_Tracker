@@ -10,6 +10,7 @@ import {
   Eye,
   FileText,
   Check,
+  LayoutList,
 } from "lucide-react"
 
 import {
@@ -419,14 +420,23 @@ export default function BilansListPage() {
             Gestion des modèles de bilans physiques
           </p>
         </div>
-        {isManager && (
+        <div className="flex items-center gap-2">
           <Button
-            leftSection={<Plus className="h-4 w-4" />}
-            onClick={() => setCreateOpen(true)}
+            variant="light"
+            leftSection={<LayoutList className="h-4 w-4" />}
+            onClick={() => router.push("/physio-data/bilans/modules")}
           >
-            Nouveau bilan
+            Modules
           </Button>
-        )}
+          {isManager && (
+            <Button
+              leftSection={<Plus className="h-4 w-4" />}
+              onClick={() => setCreateOpen(true)}
+            >
+              Nouveau bilan
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
