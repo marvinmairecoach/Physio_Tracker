@@ -20,6 +20,7 @@ import {
   Legend,
 } from "recharts"
 import { useSession } from "@/components/layout/providers"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 interface BilanAthlete {
   id: string
@@ -76,7 +77,15 @@ function calculateAge(birthDate: string): number {
   return age
 }
 
-export default function BilanViewPage() {
+export default function BilanViewPage(props: any) {
+  return (
+    <ErrorBoundary>
+      <BilanViewPageInner {...props} />
+    </ErrorBoundary>
+  )
+}
+
+function BilanViewPageInner() {
   const router = useRouter()
   const params = useParams()
   const bilanId = params.id as string

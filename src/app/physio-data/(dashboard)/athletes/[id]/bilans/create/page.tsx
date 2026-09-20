@@ -17,6 +17,7 @@ import {
   ResponsiveContainer, Tooltip, Legend,
 } from "recharts"
 import { BilanModuleRenderer } from "@/components/physio-data/bilan-module-renderer"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 /* ---------- Types ---------- */
 
@@ -186,6 +187,14 @@ function DraggableList({
 /* ---------- Component ---------- */
 
 export default function CreateBilanPage() {
+  return (
+    <ErrorBoundary>
+      <CreateBilanPageInner />
+    </ErrorBoundary>
+  )
+}
+
+function CreateBilanPageInner() {
   const router = useRouter()
   const params = useParams()
   const athleteId = params.id as string
