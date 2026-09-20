@@ -171,8 +171,21 @@ function BilanViewPageInner() {
       }
 
       // Load saved modules_data from config
-      if (bilanData.config?.modulesData) {
-        setModulesData(bilanData.config.modulesData)
+      const savedModules = bilanData.config?.modulesData
+      if (savedModules) {
+        if (Array.isArray(savedModules)) {
+          setModulesData(savedModules)
+        } else if (typeof savedModules === "object") {
+          // Old format: { moduleId: { questionId: value } } — convert to array
+          const moduleIds = Object.keys(savedModules)
+          const reconstructed = availableModules
+            .filter((m: any) => moduleIds.includes(m.id))
+            .map((m: any) => ({
+              ...m,
+              answers: (savedModules as any)[m.id] || {},
+            }))
+          setModulesData(reconstructed)
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur")
@@ -1173,7 +1186,7 @@ function BilanViewPageInner() {
       </Card>
 
       {/* Module assessments section */}
-      {modulesData.length > 0 && editing && (
+      {Array.isArray(modulesData) && modulesData.length > 0 && editing && (
         <DragDropContext onDragEnd={handleModuleDragEnd}>
           <Droppable droppableId="bilan-modules">
             {(provided) => (
