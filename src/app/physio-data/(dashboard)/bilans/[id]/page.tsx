@@ -198,6 +198,16 @@ function BilanViewPageInner() {
     fetchBilan()
   }, [bilanId])
 
+  // Auto-enter edit mode if ?edit=1 query param
+  useEffect(() => {
+    if (!loading && bilan && typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      if (sp.get("edit") === "1" && !editing) {
+        setEditing(true)
+      }
+    }
+  }, [loading, bilan, editing])
+
   const athlete = bilan?.athlete
 
   // Build latest results map

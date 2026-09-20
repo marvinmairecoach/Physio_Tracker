@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -82,6 +82,26 @@ export default function ModulesPage() {
   // New tag creation in tags modal
   const [newTagValue, setNewTagValue] = useState("")
   const [creatingTag, setCreatingTag] = useState(false)
+  // Seed
+  const [seeding, setSeeding] = useState(false)
+
+  // All known tags across all modules
+  const knownTags = useMemo(() => {
+    const tags = new Set<string>()
+    for (const m of modules) {
+      for (const t of (m.tags ?? [])) tags.add(t)
+    }
+    return Array.from(tags).sort()
+  }, [modules])
+
+  // Helper: add a tag to editing module
+  const addTag = (tag: string) => {
+    if (!tag) return
+    setEditingModule((prev) => {
+      if (prev.tags.includes(tag)) return prev
+      return { ...prev, tags: [...prev.tags, tag] }
+    })
+  }
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -128,17 +148,23 @@ export default function ModulesPage() {
     if (!name) return
     setCreatingTag(true)
     try {
-      // Add the tag to the first module (or create it)
+      // Add tag to all existing modules so it's available everywhere
       if (modules.length > 0) {
-        const firstModule = modules[0]
-        const currentTags: string[] = firstModule.tags ?? []
-        if (!currentTags.includes(name)) {
-          await fetch(`/physio-data/api/bilans/modules/${firstModule.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tags: [...currentTags, name] }),
-          })
+        for (const mod of modules) {
+          const currentTags: string[] = mod.tags ?? []
+          if (!currentTags.includes(name)) {
+            await fetch(`/physio-data/api/bilans/modules/${mod.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tags: [...currentTags, name] }),
+            })
+          }
         }
+      } else {
+        // No modules yet — just show a message
+        alert("Créez d'abord un module pour pouvoir y ajouter des tags")
+        setCreatingTag(false)
+        return
       }
       setNewTagValue("")
       fetchTags()
@@ -199,6 +225,21 @@ export default function ModulesPage() {
       questions: m.questions ?? [],
     })
     setModalOpen(true)
+  }
+
+  const handleSeed = async () => {
+    if (!confirm("Créer 5 modules de démonstration ?")) return
+    setSeeding(true)
+    try {
+      const res = await fetch("/physio-data/api/seed", { method: "POST" })
+      if (!res.ok) throw new Error("Erreur")
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors du seed")
+    } finally {
+      setSeeding(false)
+    }
   }
 
   const handleSave = async () => {
@@ -312,6 +353,9 @@ export default function ModulesPage() {
           <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={openTagsModal}>
             Gérer les tags
           </Button>
+          <Button variant="light" leftSection={<Loader2 className="h-4 w-4" />} onClick={handleSeed} loading={seeding}>
+            Seed modules
+          </Button>
           <Button onClick={openCreate}>
             <Plus className="mr-1 h-4 w-4" />
             Nouveau module
@@ -420,28 +464,38 @@ export default function ModulesPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === ",") {
                     e.preventDefault()
-                    const val = tagInputValue.trim()
-                    if (val && !editingModule.tags.includes(val)) {
-                      setEditingModule((prev) => ({
-                        ...prev,
-                        tags: [...prev.tags, val],
-                      }))
-                    }
+                    addTag(tagInputValue.trim())
                     setTagInputValue("")
                   }
                 }}
                 onBlur={(e) => {
-                  const val = tagInputValue.trim()
-                  if (val && !editingModule.tags.includes(val)) {
-                    setEditingModule((prev) => ({
-                      ...prev,
-                      tags: [...prev.tags, val],
-                    }))
-                  }
+                  addTag(tagInputValue.trim())
                   setTagInputValue("")
                 }}
               />
             </div>
+            {/* Existing tags suggestions */}
+            {knownTags.length > 0 && (
+              <div className="mt-2">
+                <Text size="xs" c="dimmed" className="mb-1">Tags existants :</Text>
+                <div className="flex flex-wrap gap-1">
+                  {knownTags.filter((t) => !editingModule.tags.includes(t)).map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="light"
+                      color="gray"
+                      size="sm"
+                      className="cursor-pointer hover:bg-blue-100"
+                      onClick={() => {
+                        addTag(tag)
+                      }}
+                    >
+                      + {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
