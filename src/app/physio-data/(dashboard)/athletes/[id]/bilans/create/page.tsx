@@ -426,8 +426,7 @@ function CreateBilanPageInner() {
           )
         )
       }
-      router.push(`/physio-data/athletes/${athleteId}`)
-      // Navigate to athlete page so user sees bilan in the bilans list
+      router.push(`/physio-data/bilans/${data.bilan.id}/view`)
     } catch (err) {
       console.error(err)
       alert("Erreur lors de la création du bilan")
@@ -674,6 +673,39 @@ function CreateBilanPageInner() {
       <div className="flex flex-1 overflow-hidden">
         {/* ====== Left Panel ====== */}
         <aside className="w-80 border-r bg-gray-50/50 overflow-y-auto shrink-0 p-4 space-y-6">
+          {/* MÉTRIQUES & RADARS — buttons above everything */}
+          <div className="space-y-2">
+            <Button
+              variant="light"
+              size="sm"
+              fullWidth
+              leftSection={<Activity className="h-4 w-4" />}
+              onClick={addMetricCard}
+            >
+              {metricCardItems.length > 0
+                ? `+ Métrique (${metricCardItems.length})`
+                : "Ajouter une métrique"}
+            </Button>
+            <Button
+              variant="light"
+              size="sm"
+              fullWidth
+              leftSection={<RadarIcon className="h-4 w-4" />}
+              onClick={addRadarItem}
+            >
+              {radarItems.length > 0
+                ? `+ Radar (${radarItems.length})`
+                : "Ajouter un radar"}
+            </Button>
+          </div>
+
+          {/* Summary */}
+          {hasAnySelection && (
+            <div className="text-xs text-gray-400 text-center">
+              {items.length} élément{items.length > 1 ? "s" : ""} dans le bilan
+            </div>
+          )}
+
           {/* Modules section */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -756,35 +788,6 @@ function CreateBilanPageInner() {
                 })}
               </div>
             )}
-          </div>
-
-          {/* MÉTRIQUES & RADARS SECTION */}
-          <div>
-            <Divider my="sm" label="Métriques & Radars" labelPosition="center" />
-            <div className="space-y-2 mt-3">
-              <Button
-                variant="light"
-                size="sm"
-                fullWidth
-                leftSection={<Activity className="h-4 w-4" />}
-                onClick={addMetricCard}
-              >
-                {metricCardItems.length > 0
-                  ? `+ Métrique (${metricCardItems.length})`
-                  : "Ajouter une métrique"}
-              </Button>
-              <Button
-                variant="light"
-                size="sm"
-                fullWidth
-                leftSection={<RadarIcon className="h-4 w-4" />}
-                onClick={addRadarItem}
-              >
-                {radarItems.length > 0
-                  ? `+ Radar (${radarItems.length})`
-                  : "Ajouter un radar"}
-              </Button>
-            </div>
           </div>
 
           {/* Summary */}

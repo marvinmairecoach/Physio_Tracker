@@ -79,6 +79,9 @@ export default function ModulesPage() {
 
   // Tag input in module modal
   const [tagInputValue, setTagInputValue] = useState("")
+  // New tag creation in tags modal
+  const [newTagValue, setNewTagValue] = useState("")
+  const [creatingTag, setCreatingTag] = useState(false)
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -116,7 +119,36 @@ export default function ModulesPage() {
 
   const openTagsModal = () => {
     fetchTags()
+    setNewTagValue("")
     setTagsModalOpen(true)
+  }
+
+  const handleCreateTag = async () => {
+    const name = newTagValue.trim()
+    if (!name) return
+    setCreatingTag(true)
+    try {
+      // Add the tag to the first module (or create it)
+      if (modules.length > 0) {
+        const firstModule = modules[0]
+        const currentTags: string[] = firstModule.tags ?? []
+        if (!currentTags.includes(name)) {
+          await fetch(`/physio-data/api/bilans/modules/${firstModule.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tags: [...currentTags, name] }),
+          })
+        }
+      }
+      setNewTagValue("")
+      fetchTags()
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors de la création du tag")
+    } finally {
+      setCreatingTag(false)
+    }
   }
 
   const handleRenameTag = async (oldName: string) => {
@@ -267,9 +299,6 @@ export default function ModulesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="outline" onClick={() => router.push("/physio-data/bilans")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <LayoutList className="h-6 w-6 text-blue-500" />
@@ -508,6 +537,26 @@ export default function ModulesPage() {
         size="lg"
       >
         <div className="py-2">
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <TextInput
+                placeholder="Nom du nouveau tag..."
+                size="sm"
+                className="flex-1"
+                value={newTagValue}
+                onChange={(e) => setNewTagValue(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateTag()
+                  }
+                }}
+              />
+              <Button size="sm" onClick={handleCreateTag} disabled={!newTagValue.trim()} loading={creatingTag}>
+                Créer
+              </Button>
+            </div>
+          </div>
           {tagsLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
