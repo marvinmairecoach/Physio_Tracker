@@ -1,17 +1,16 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, Save, Plus, X, Search, FileText, Activity,
   RadarIcon, LayoutList, Check, GripVertical,
-  Settings, BarChart3,
+  Settings, BarChart3, Eye,
 } from "lucide-react"
 import {
-  Button, Card, TextInput, Textarea, Badge, Switch, Select,
-  Modal, Group, Text, NumberInput, ActionIcon,
+  Button, Card, TextInput, Textarea, Badge, Switch,
+  Modal, Group, Text, ActionIcon, Divider,
 } from "@mantine/core"
-import { useDisclosure } from "@mantine/hooks"
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, Legend,
@@ -91,13 +90,7 @@ function DraggableList({
 }: {
   items: RightPanelItem[]
   onReorder: (newItems: RightPanelItem[]) => void
-  children: (item: RightPanelItem, index: number, dragProps: {
-    onDragStart: (e: React.DragEvent) => void
-    onDragOver: (e: React.DragEvent) => void
-    onDrop: (e: React.DragEvent) => void
-    onDragEnd: (e: React.DragEvent) => void
-    isDragging: boolean
-  }) => React.ReactNode
+  children: (item: RightPanelItem, index: number) => React.ReactNode
 }) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
@@ -111,13 +104,7 @@ function DraggableList({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
-    if (index !== dragIndex) {
-      setOverIndex(index)
-    }
-  }
-
-  const handleDragLeave = () => {
-    setOverIndex(null)
+    setOverIndex(index)
   }
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
@@ -154,20 +141,12 @@ function DraggableList({
             opacity: dragIndex === idx ? 0.4 : 1,
             borderTop: overIndex === idx && overIndex !== dragIndex
               ? "3px solid #3b82f6"
-              : dragIndex !== null && overIndex === null && idx === items.length - 1
-                ? "3px solid #3b82f6"
-                : "3px solid transparent",
+              : "3px solid transparent",
             transition: "opacity 0.15s, border-color 0.15s",
           }}
           draggable
         >
-          {children(item, idx, {
-            onDragStart: (e) => handleDragStart(e, idx),
-            onDragOver: (e) => handleDragOver(e, idx),
-            onDrop: (e) => handleDrop(e, idx),
-            onDragEnd: handleDragEnd,
-            isDragging: dragIndex === idx,
-          })}
+          {children(item, idx)}
         </div>
       ))}
       {items.length === 0 && (
@@ -175,8 +154,9 @@ function DraggableList({
           <FileText className="h-16 w-16 text-gray-200 mb-4" />
           <h3 className="text-lg font-medium text-gray-400 mb-1">Bilan vierge</h3>
           <p className="text-sm text-gray-400 max-w-md">
-            Utilisez les boutons ci-dessous pour ajouter des éléments
-            à ce bilan. Vous pouvez les réordonner par glisser-déposer.
+            Cliquez sur un module dans le panneau de gauche, ou utilisez
+            les boutons &laquo;&nbsp;Ajouter&nbsp;&raquo; pour commencer
+            &agrave; construire votre bilan.
           </p>
         </div>
       )}
@@ -334,7 +314,6 @@ function CreateBilanPageInner() {
   const addMetricCard = () => {
     const id = nextId("met")
     setItems((prev) => [...prev, { id, type: "metric", config: { metricIds: [] } }])
-    // Open metric picker immediately
     setMetricPickerItemId(id)
     setMetricPickerTempIds(new Set())
     setMetricPickerOpen(true)
@@ -365,7 +344,6 @@ function CreateBilanPageInner() {
     )
   }
 
-  // --- Module toggle (left panel) ---
   const handleModuleToggle = (moduleId: string) => {
     if (isModuleSelected(moduleId)) {
       removeModuleItem(moduleId)
@@ -448,7 +426,8 @@ function CreateBilanPageInner() {
           )
         )
       }
-      router.push(`/physio-data/bilans/${data.bilan.id}`)
+      router.push(`/physio-data/athletes/${athleteId}`)
+      // Navigate to athlete page so user sees bilan in the bilans list
     } catch (err) {
       console.error(err)
       alert("Erreur lors de la création du bilan")
@@ -458,17 +437,14 @@ function CreateBilanPageInner() {
   }
 
   // --- Derived data ---
-  const moduleItems = useMemo(() => items.filter((it) => it.type === "module"), [items])
   const metricCardItems = useMemo(() => items.filter((it) => it.type === "metric"), [items])
   const radarItems = useMemo(() => items.filter((it) => it.type === "radar"), [items])
 
-  // Render helpers for each card type
   const renderModuleCard = (item: RightPanelItem, idx: number) => {
     const mod = modules.find((m) => m.id === item.refId)
     if (!mod) return null
     return (
       <Card shadow="sm" radius="md" withBorder className="relative" key={item.id}>
-        {/* Title bar with drag handle and X */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
           <GripVertical className="h-4 w-4 text-gray-400 cursor-grab active:cursor-grabbing shrink-0" />
           <LayoutList className="h-4 w-4 text-blue-500 shrink-0" />
@@ -498,7 +474,6 @@ function CreateBilanPageInner() {
     const hasMetrics = metricIds.length > 0
     return (
       <Card shadow="sm" radius="md" withBorder className="relative" key={item.id}>
-        {/* Title bar with drag handle and X */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
           <GripVertical className="h-4 w-4 text-gray-400 cursor-grab active:cursor-grabbing shrink-0" />
           <Activity className="h-4 w-4 text-green-500 shrink-0" />
@@ -513,7 +488,6 @@ function CreateBilanPageInner() {
           <Button variant="light" size="xs" leftSection={<Settings className="h-3 w-3" />} onClick={() => openMetricPicker(item.id)}>
             {hasMetrics ? `Modifier les métriques (${metricIds.length})` : "Choisir les métriques"}
           </Button>
-
           {hasMetrics && (
             <div className="space-y-3">
               {metricIds.map((id) => {
@@ -533,7 +507,7 @@ function CreateBilanPageInner() {
                   <div key={id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
                     <div className="flex-1 min-w-0">
                       <Text size="sm" fw={500}>{tt.name}</Text>
-                      <Text size="xs" c="dimmed">{tt.category} — {tt.unit}</Text>
+                      <Text size="xs" c="dimmed">{tt.category} &mdash; {tt.unit}</Text>
                     </div>
                     <div className="text-right">
                       <Text fw={700} size="md" c={beatsNorm === false ? "red" : "green"}>
@@ -557,10 +531,9 @@ function CreateBilanPageInner() {
               })}
             </div>
           )}
-
           {!hasMetrics && (
             <div className="text-center py-4 text-gray-400 text-sm">
-              Cliquez sur "Choisir les métriques" pour ajouter des tests à cette card
+              Cliquez sur &ldquo;Choisir les m&eacute;triques&rdquo; pour ajouter des tests
             </div>
           )}
         </div>
@@ -573,22 +546,20 @@ function CreateBilanPageInner() {
     const hasEnoughMetrics = metricIds.length >= 3
     return (
       <Card shadow="sm" radius="md" withBorder className="relative" key={item.id}>
-        {/* Title bar with drag handle and X */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
           <GripVertical className="h-4 w-4 text-gray-400 cursor-grab active:cursor-grabbing shrink-0" />
           <RadarIcon className="h-4 w-4 text-purple-500 shrink-0" />
           <span className="font-semibold text-sm flex-1 truncate">
-            Radar {hasEnoughMetrics ? `(${metricIds.length} métriques)` : ""}
+            Radar {hasEnoughMetrics ? `(${metricIds.length} m&eacute;triques)` : ""}
           </span>
           <ActionIcon variant="subtle" color="red" size="sm" onClick={() => removeRadarItem(item.id)}>
             <X className="h-3.5 w-3.5" />
           </ActionIcon>
         </div>
         <div className="p-4 space-y-4">
-          {/* Config bar */}
           <div className="flex items-center gap-4 flex-wrap">
             <Button variant="light" size="xs" leftSection={<Settings className="h-3 w-3" />} onClick={() => openMetricPicker(item.id)}>
-              {hasEnoughMetrics ? `Modifier les métriques (${metricIds.length})` : "Choisir les métriques"}
+              {hasEnoughMetrics ? `Modifier les m&eacute;triques (${metricIds.length})` : "Choisir les m&eacute;triques"}
             </Button>
             {hasEnoughMetrics && (
               <>
@@ -613,8 +584,6 @@ function CreateBilanPageInner() {
               </>
             )}
           </div>
-
-          {/* Radar chart */}
           {hasEnoughMetrics ? (
             <div style={{ width: '100%', height: 350 }}>
               <ResponsiveContainer>
@@ -648,9 +617,7 @@ function CreateBilanPageInner() {
           ) : (
             <div className="text-center py-8 text-gray-400">
               <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-30" />
-              <Text size="sm">
-                Ajoutez au moins 3 métriques pour afficher le radar
-              </Text>
+              <Text size="sm">Ajoutez au moins 3 m&eacute;triques pour afficher le radar</Text>
             </div>
           )}
         </div>
@@ -790,11 +757,46 @@ function CreateBilanPageInner() {
               </div>
             )}
           </div>
+
+          {/* MÉTRIQUES & RADARS SECTION */}
+          <div>
+            <Divider my="sm" label="Métriques & Radars" labelPosition="center" />
+            <div className="space-y-2 mt-3">
+              <Button
+                variant="light"
+                size="sm"
+                fullWidth
+                leftSection={<Activity className="h-4 w-4" />}
+                onClick={addMetricCard}
+              >
+                {metricCardItems.length > 0
+                  ? `+ Métrique (${metricCardItems.length})`
+                  : "Ajouter une métrique"}
+              </Button>
+              <Button
+                variant="light"
+                size="sm"
+                fullWidth
+                leftSection={<RadarIcon className="h-4 w-4" />}
+                onClick={addRadarItem}
+              >
+                {radarItems.length > 0
+                  ? `+ Radar (${radarItems.length})`
+                  : "Ajouter un radar"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Summary */}
+          {hasAnySelection && (
+            <div className="text-xs text-gray-400 text-center pt-2 border-t">
+              {items.length} élément{items.length > 1 ? "s" : ""} dans le bilan
+            </div>
+          )}
         </aside>
 
         {/* ====== Right Panel ====== */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Draggable card list */}
+        <main className="flex-1 overflow-y-auto p-6">
           <DraggableList items={items} onReorder={handleReorder}>
             {(item, idx) => {
               if (item.type === "module") return renderModuleCard(item, idx)
@@ -803,21 +805,6 @@ function CreateBilanPageInner() {
               return null
             }}
           </DraggableList>
-
-          {/* Add buttons */}
-          {hasAnySelection && (
-            <div className="flex items-center gap-3 pt-4 border-t">
-              <Button variant="light" size="sm" leftSection={<Plus className="h-3.5 w-3.5" />} onClick={addMetricCard}>
-                Ajouter une métrique
-              </Button>
-              <Button variant="light" size="sm" leftSection={<Plus className="h-3.5 w-3.5" />} onClick={addRadarItem}>
-                Ajouter un radar
-              </Button>
-              <Text size="xs" c="dimmed">
-                {items.length} élément{items.length > 1 ? "s" : ""}
-              </Text>
-            </div>
-          )}
         </main>
       </div>
 
@@ -862,7 +849,7 @@ function CreateBilanPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <Text size="sm" fw={500}>{tt.name}</Text>
-                      <Text size="xs" c="dimmed">{tt.category} — {tt.unit}</Text>
+                      <Text size="xs" c="dimmed">{tt.category} &mdash; {tt.unit}</Text>
                     </div>
                     {(() => {
                       const result = latestResults.get(tt.id)

@@ -77,6 +77,9 @@ export default function ModulesPage() {
   const [renameValue, setRenameValue] = useState("")
   const [deletingTag, setDeletingTag] = useState<string | null>(null)
 
+  // Tag input in module modal
+  const [tagInputValue, setTagInputValue] = useState("")
+
   const fetchModules = useCallback(async () => {
     setLoading(true)
     try {
@@ -383,29 +386,30 @@ export default function ModulesPage() {
               <TextInput
                 placeholder="Ajouter un tag..."
                 className="flex-1"
-                value=""
+                value={tagInputValue}
+                onChange={(e) => setTagInputValue(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === ",") {
                     e.preventDefault()
-                    const val = (e.currentTarget as HTMLInputElement).value.trim()
+                    const val = tagInputValue.trim()
                     if (val && !editingModule.tags.includes(val)) {
                       setEditingModule((prev) => ({
                         ...prev,
                         tags: [...prev.tags, val],
                       }))
                     }
-                    ;(e.currentTarget as HTMLInputElement).value = ""
+                    setTagInputValue("")
                   }
                 }}
                 onBlur={(e) => {
-                  const val = e.currentTarget.value.trim()
+                  const val = tagInputValue.trim()
                   if (val && !editingModule.tags.includes(val)) {
                     setEditingModule((prev) => ({
                       ...prev,
                       tags: [...prev.tags, val],
                     }))
                   }
-                  e.currentTarget.value = ""
+                  setTagInputValue("")
                 }}
               />
             </div>
