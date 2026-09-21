@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
-  ArrowLeft, FileText, Printer, Mail, Trash2, Edit3,
-  LayoutList, Activity, RadarIcon, EyeOff,
+  ArrowLeft, FileText, Download, Mail, Trash2, Edit3,
+  LayoutList, Activity, RadarIcon,
 } from "lucide-react"
-import { Button, Card, Text, Badge, Switch, Modal, Group, TextInput } from "@mantine/core"
+import { Button, Card, Text, Badge, Modal, Group, TextInput } from "@mantine/core"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { BilanModuleRenderer, type ModuleData } from "@/components/physio-data/bilan-module-renderer"
 import {
@@ -88,6 +88,7 @@ function BilanViewPageInner() {
   // Email dialog
   const [emailDialogOpen, setEmailDialogOpen] = useState(false)
   const [emailAddr, setEmailAddr] = useState("")
+  const [pdfSaving, setPdfSaving] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -181,10 +182,260 @@ function BilanViewPageInner() {
   // --- Send email ---
   const handleEmail = async () => {
     if (!emailAddr.trim()) return
-    // Simple: open default mail client
     const subject = encodeURIComponent(`Bilan — ${athlete?.lastName?.toUpperCase()} ${athlete?.firstName}`)
     window.open(`mailto:${emailAddr.trim()}?subject=${subject}`, "_blank")
     setEmailDialogOpen(false)
+  }
+
+  // --- PDF Generation ---
+  const generatePdf = async () => {
+    setPdfSaving(true)
+    try {
+      const {
+        pdf, Document, Page, Text, View, StyleSheet, Image, Svg, Polygon, Line, Rect,
+      } = await import("@react-pdf/renderer")
+
+      // Helper: polygon points for radar
+      const polyPoints = (values: number[], cx: number, cy: number, radius: number): string => {
+        return values.map((v, i) => {
+          const angle = (2 * Math.PI * i / values.length) - Math.PI / 2
+          const r = (v / 100) * radius
+          return `${(cx + r * Math.cos(angle)).toFixed(1)},${(cy + r * Math.sin(angle)).toFixed(1)}`
+        }).join(' ')
+      }
+
+      const styles = StyleSheet.create({
+        page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
+        headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, borderBottomWidth: 2, borderBottomColor: '#2563eb', paddingBottom: 10 },
+        headerLeft: { flexDirection: 'column', alignItems: 'flex-start' },
+        headerRight: { flexDirection: 'column', alignItems: 'flex-end', fontSize: 9, color: '#555' },
+        logo: { width: 70, height: 70 },
+        title: { fontSize: 22, fontWeight: 'bold', color: '#1e40af' },
+        athleteInfo: { fontSize: 10, color: '#444', marginTop: 2 },
+        section: { marginTop: 14 },
+        sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#1e40af', marginBottom: 6, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 3 },
+        moduleCard: { marginBottom: 10, padding: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+        moduleTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: '#1e40af' },
+        qaRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 8 },
+        qLabel: { fontWeight: 'bold', width: '50%', fontSize: 10, color: '#333' },
+        qAnswer: { width: '50%', fontSize: 10, color: '#555' },
+        metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+        metricName: { fontWeight: 'bold', width: '35%', fontSize: 10 },
+        metricValue: { width: '25%', textAlign: 'center', fontSize: 10 },
+        metricNorm: { width: '20%', textAlign: 'center', fontSize: 9, color: '#666' },
+        metricComment: { fontSize: 9, color: '#555', marginTop: 2, marginBottom: 2, paddingLeft: 8 },
+        footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
+      })
+
+      // Prepare data
+      const metricCards: any[] = Array.isArray(config.metricCards) ? config.metricCards : []
+      const radars: any[] = Array.isArray(config.radars) ? config.radars : []
+      const today = new Date().toLocaleDateString("fr-FR")
+      const athleteAge = athlete?.birthDate ? calculateAge(athlete.birthDate) : null
+      const userContact: string[] = []
+      if (user?.email) userContact.push(`Email: ${user.email}`)
+      if (user?.phone) userContact.push(`Tél: ${user.phone}`)
+
+      const PdfDoc = (
+        <Document>
+          <Page size="A4" style={styles.page}>
+            {/* Header: logo left, contact right */}
+            <View style={styles.headerRow}>
+              <View style={styles.headerLeft}>
+                {user?.logoUrl ? (
+                  <Image src={user.logoUrl} style={styles.logo} />
+                ) : (
+                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#2563eb' }}>PP Tracker</Text>
+                )}
+              </View>
+              <View style={styles.headerRight}>
+                {userContact.map((line, i) => (
+                  <Text key={i}>{line}</Text>
+                ))}
+              </View>
+            </View>
+
+            {/* Title & athlete */}
+            <Text style={styles.title}>{bilan?.title ?? "Bilan"}</Text>
+            <Text style={styles.athleteInfo}>
+              {athlete?.lastName?.toUpperCase()} {athlete?.firstName}
+              {athleteAge !== null ? ` — ${athleteAge} ans` : ""}
+              {bilan?.createdAt ? ` — ${new Date(bilan.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : ""}
+            </Text>
+
+            {/* ===== MODULES (with answers) ===== */}
+            {modules.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Modules d'évaluation</Text>
+                {modules.map((mod) => (
+                  <View key={mod.instanceId} style={styles.moduleCard} wrap={false}>
+                    <Text style={styles.moduleTitle}>{mod.title}</Text>
+                    {(mod.questions ?? []).map((q: any) => (
+                      <View key={q.id} style={styles.qaRow}>
+                        <Text style={styles.qLabel}>{q.label}</Text>
+                        <Text style={styles.qAnswer}>{mod.answers?.[q.id] || "—"}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ===== METRIC CARDS ===== */}
+            {metricCards.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Métriques</Text>
+                {metricCards.map((mc: any, idx: number) => {
+                  const ids: string[] = mc.metricIds ?? []
+                  if (ids.length === 0) return null
+                  return (
+                    <View key={mc.itemId || idx} style={{ marginBottom: 8 }}>
+                      {ids.map((id: string) => {
+                        const tt = testTypes.find((t) => t.id === id)
+                        const result = latestResults.get(id)
+                        if (!tt || !result) return null
+                        const val = Number(result.value)
+                        const norm = athleteGender === "M"
+                          ? (tt.normMale != null ? Number(tt.normMale) : null)
+                          : athleteGender === "F"
+                            ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                            : null
+                        const beatsNorm = norm !== null
+                          ? tt.higherIsBetter ? val >= norm : val <= norm
+                          : null
+                        const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+                        return (
+                          <View key={id}>
+                            <View style={styles.metricRow}>
+                              <Text style={styles.metricName}>{tt.name}</Text>
+                              <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
+                              <Text style={styles.metricNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
+                            </View>
+                            {config?.testComments?.[id] && (
+                              <Text style={styles.metricComment}>{config.testComments[id]}</Text>
+                            )}
+                          </View>
+                        )
+                      })}
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+
+            {/* ===== RADARS ===== */}
+            {radars.map((rad: any, idx: number) => {
+              const ids: string[] = rad.metricIds ?? []
+              const testCount = rad.testCount ?? 6
+              const showNorms = rad.showNorms !== false
+              if (ids.length < 3) return null
+
+              const radarData = ids.slice(0, testCount).map((id: string) => {
+                const tt = testTypes.find((t) => t.id === id)
+                const result = latestResults.get(id)
+                if (!tt || !result) return null
+                const athleteVal = Number(result.value)
+                const normVal = athleteGender === "M" ? Number(tt.normMale ?? 0) : athleteGender === "F" ? Number(tt.normFemale ?? 0) : null
+                const scale = Math.max(athleteVal, normVal !== null ? normVal : 0, 1)
+                return {
+                  name: tt.name,
+                  athletePct: (athleteVal / scale) * 100,
+                  normPct: normVal !== null ? (normVal / scale) * 100 : null,
+                }
+              }).filter(Boolean) as { name: string; athletePct: number; normPct: number | null }[]
+
+              const radarCount = radarData.length
+              if (radarCount < 3) return null
+
+              return (
+                <View key={rad.itemId || idx} style={styles.section}>
+                  <Text style={styles.sectionTitle}>Radar des performances</Text>
+                  <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <Svg width={400} height={400}>
+                      {[25, 50, 75, 100].map((pct) => (
+                        <Polygon
+                          key={pct}
+                          points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
+                          fill="none"
+                          stroke="#e5e7eb"
+                          strokeWidth={1}
+                        />
+                      ))}
+                      {Array.from({ length: radarCount }, (_, i) => {
+                        const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                        const x = 200 + 120 * Math.cos(angle)
+                        const y = 200 + 120 * Math.sin(angle)
+                        return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                      })}
+                      {showNorms && radarData.some(d => d.normPct !== null) && (
+                        <Polygon
+                          points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
+                          fill="#06b6d4"
+                          fillOpacity={0.15}
+                          stroke="#06b6d4"
+                          strokeWidth={1.5}
+                          strokeDasharray="4,3"
+                        />
+                      )}
+                      <Polygon
+                        points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
+                        fill="#2563eb"
+                        fillOpacity={0.2}
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                      />
+                      {radarData.map((d, i) => {
+                        const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                        const labelR = 180
+                        const x = 200 + labelR * Math.cos(angle)
+                        const y = 200 + labelR * Math.sin(angle)
+                        const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
+                        return (
+                          <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                            {d.name}
+                          </Text>
+                        )
+                      })}
+                    </Svg>
+                    <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Svg width={12} height={12}><Rect width={12} height={12} fill="#2563eb" fillOpacity={0.4} rx={2} /></Svg>
+                        <Text style={{ marginLeft: 3 }}>Athlète</Text>
+                      </View>
+                      {showNorms && radarData.some(d => d.normPct !== null) && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Svg width={12} height={12}><Rect width={12} height={12} fill="#06b6d4" fillOpacity={0.4} rx={2} /></Svg>
+                          <Text style={{ marginLeft: 3 }}>Norme</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )
+            })}
+
+            {/* Description/Analysis */}
+            {bilan?.description && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Analyse</Text>
+                <Text style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}>{bilan.description}</Text>
+              </View>
+            )}
+
+            <Text style={styles.footer}>PP Tracker — Bilan physique généré le {today}</Text>
+          </Page>
+        </Document>
+      )
+
+      const blob = await pdf(PdfDoc).toBlob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    } catch (err) {
+      console.error("PDF generation error:", err)
+      alert("Erreur lors de la génération du PDF : " + (err instanceof Error ? err.message : "Erreur") + ". Utilisez l'impression navigateur à la place.")
+    } finally {
+      setPdfSaving(false)
+    }
   }
 
   // --- Render helpers ---
@@ -357,9 +608,9 @@ function BilanViewPageInner() {
 
       {/* PDF & Email buttons */}
       <div className="flex items-center gap-2 justify-center pt-4 border-t">
-        <Button variant="light" size="sm" leftSection={<Printer className="h-4 w-4" />}
-          onClick={() => window.print()}>
-          Imprimer / PDF
+        <Button variant="light" size="sm" leftSection={<Download className="h-4 w-4" />}
+          onClick={generatePdf} loading={pdfSaving}>
+          {pdfSaving ? "Génération..." : "Télécharger PDF"}
         </Button>
         <Button variant="light" size="sm" leftSection={<Mail className="h-4 w-4" />}
           onClick={() => {

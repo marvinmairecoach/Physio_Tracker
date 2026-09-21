@@ -805,10 +805,6 @@ function CreateBilanPageInner() {
             {athleteName}
           </Text>
         </div>
-        <Button className="mt-5" onClick={handleSave} loading={saving}>
-          <Save className="mr-1 h-4 w-4" />
-          {saving ? "Enregistrement..." : "Enregistrer"}
-        </Button>
         {editBilanId && autosaveStatus === "saving" && (
           <Text size="xs" c="blue" className="mt-5 shrink-0">Sauvegarde automatique...</Text>
         )}
@@ -818,6 +814,10 @@ function CreateBilanPageInner() {
         {editBilanId && autosaveStatus === "unsaved" && (
           <Text size="xs" c="dimmed" className="mt-5 shrink-0">Modifications non sauvegardées</Text>
         )}
+        <Button className="mt-5" onClick={handleSave} loading={saving}>
+          <Save className="mr-1 h-4 w-4" />
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </Button>
       </div>
 
       {/* ---- Body ---- */}

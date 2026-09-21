@@ -130,10 +130,18 @@ export default function BilansListPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
+                    onClick={() => router.push(`/physio-data/bilans/${bilan.id}/view`)}
                   >
                     <Eye className="mr-1 h-3.5 w-3.5" />
                     Voir
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create?edit=${bilan.id}`)}
+                  >
+                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    Modifier
                   </Button>
                   <Button
                     variant="outline"
