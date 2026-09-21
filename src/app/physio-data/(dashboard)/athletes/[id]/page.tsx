@@ -1083,6 +1083,17 @@ export default function AthleteDetailPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabKey>("planning")
 
+  // Auto-select bilans tab if ?tab=bilans query param
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      const tab = sp.get("tab")
+      if (tab === "bilans") {
+        setActiveTab("bilans")
+      }
+    }
+  }, [])
+
   // Delete modal
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)

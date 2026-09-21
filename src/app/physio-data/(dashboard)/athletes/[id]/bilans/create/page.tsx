@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, Save, Plus, X, Search, FileText, Activity,
@@ -515,6 +515,68 @@ function CreateBilanPageInner() {
     }
   }
 
+  // --- Autosave for edit mode ---
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "unsaved" | null>(null)
+
+  // Build a serializable snapshot of all editable data
+  const autosavePayload = useMemo(() => ({
+    items,
+    title,
+    testComments,
+    moduleAnswers,
+  }), [items, title, testComments, moduleAnswers])
+
+  useEffect(() => {
+    if (!editBilanId) {
+      setAutosaveStatus(null)
+      return
+    }
+    // Mark as unsaved, clear previous timer
+    setAutosaveStatus("unsaved")
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+
+    // Debounce 2 seconds
+    autosaveTimer.current = setTimeout(async () => {
+      setAutosaveStatus("saving")
+      try {
+        const orderedModuleIds = items
+          .filter((it) => it.type === "module")
+          .map((it) => it.refId!).filter(Boolean)
+        const metricCards = items
+          .filter((it) => it.type === "metric")
+          .map((it) => ({ itemId: it.id, metricIds: it.config?.metricIds ?? [] }))
+        const radars = items
+          .filter((it) => it.type === "radar")
+          .map((it) => ({
+            itemId: it.id,
+            metricIds: it.config?.metricIds ?? [],
+            testCount: it.config?.testCount ?? 6,
+            showNorms: it.config?.showNorms ?? true,
+          }))
+
+        const res = await fetch(`/physio-data/api/bilans/${editBilanId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: null,
+            config: { selectedModuleIds: orderedModuleIds, metricCards, radars, testComments, modulesData: moduleAnswers },
+          }),
+        })
+        if (!res.ok) throw new Error("Autosave failed")
+        setAutosaveStatus("saved")
+      } catch (err) {
+        console.error("Autosave error:", err)
+        setAutosaveStatus("unsaved")
+      }
+    }, 2000)
+
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+    }
+  }, [autosavePayload, editBilanId])
+
   // --- Derived data ---
   const metricCardItems = useMemo(() => items.filter((it) => it.type === "metric"), [items])
   const radarItems = useMemo(() => items.filter((it) => it.type === "radar"), [items])
@@ -747,6 +809,15 @@ function CreateBilanPageInner() {
           <Save className="mr-1 h-4 w-4" />
           {saving ? "Enregistrement..." : "Enregistrer"}
         </Button>
+        {editBilanId && autosaveStatus === "saving" && (
+          <Text size="xs" c="blue" className="mt-5 shrink-0">Sauvegarde automatique...</Text>
+        )}
+        {editBilanId && autosaveStatus === "saved" && (
+          <Text size="xs" c="green" className="mt-5 shrink-0">✓ Enregistré</Text>
+        )}
+        {editBilanId && autosaveStatus === "unsaved" && (
+          <Text size="xs" c="dimmed" className="mt-5 shrink-0">Modifications non sauvegardées</Text>
+        )}
       </div>
 
       {/* ---- Body ---- */}

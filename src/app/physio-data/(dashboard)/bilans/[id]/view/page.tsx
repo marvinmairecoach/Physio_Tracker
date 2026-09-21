@@ -169,7 +169,7 @@ function BilanViewPageInner() {
     try {
       await fetch(`/physio-data/api/bilans/${bilanId}`, { method: "DELETE" })
       if (athlete) {
-        router.push(`/physio-data/athletes/${athlete.id}`)
+        router.push(`/physio-data/athletes/${athlete.id}?tab=bilans`)
       } else {
         router.back()
       }
