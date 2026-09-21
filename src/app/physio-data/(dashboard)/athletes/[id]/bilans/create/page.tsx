@@ -178,14 +178,8 @@ function CreateBilanPageInner() {
   const router = useRouter()
   const params = useParams()
   const athleteId = params.id as string
-  // Check if we're editing an existing bilan
+  // Read edit param from URL synchronously
   const [editBilanId, setEditBilanId] = useState<string | null>(null)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search)
-      setEditBilanId(sp.get("edit"))
-    }
-  }, [])
 
   // Data
   const [modules, setModules] = useState<Module[]>([])
@@ -220,6 +214,11 @@ function CreateBilanPageInner() {
   useEffect(() => {
     async function load() {
       try {
+        // Read edit param directly from URL
+        const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
+        const editId = sp?.get("edit") ?? null
+        if (editId !== editBilanId) setEditBilanId(editId)
+        
         const [athleteRes, modulesRes, typesRes, resultsRes] = await Promise.all([
           fetch(`/physio-data/api/athletes/${athleteId}`),
           fetch("/physio-data/api/bilans/modules"),
@@ -250,8 +249,8 @@ function CreateBilanPageInner() {
         }
 
         // If editing, load existing bilan data
-        if (editBilanId) {
-          const bilanRes = await fetch(`/physio-data/api/bilans/${editBilanId}`)
+        if (editId) {
+          const bilanRes = await fetch(`/physio-data/api/bilans/${editId}`)
           if (bilanRes.ok) {
             const d = await bilanRes.json()
             const b = d.bilan
