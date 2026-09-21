@@ -35,8 +35,8 @@ export async function PATCH(
       data.title = body.title.trim()
     }
 
-    if (body.category !== undefined) {
-      data.category = body.category
+    if (body.categories !== undefined) {
+      data.categories = body.categories
     }
 
     if (body.questions !== undefined) {

@@ -36,7 +36,7 @@ interface Question {
 export interface Module {
   id: string
   title: string
-  category: string
+  categories: string[]
   questions: Question[]
   ordering: number
   isActive: boolean
@@ -58,9 +58,9 @@ export default function ModulesPage() {
   const [editingModule, setEditingModule] = useState<{
     id?: string
     title: string
-    category: string
+    categories: string[]
     questions: Question[]
-  }>({ title: "", category: "", questions: [] })
+  }>({ title: "", categories: [], questions: [] })
   const [saving, setSaving] = useState(false)
   const [seeding, setSeeding] = useState(false)
 
@@ -107,7 +107,7 @@ export default function ModulesPage() {
   }, [fetchModules, fetchCategories])
 
   const openCreate = () => {
-    setEditingModule({ title: "", category: "", questions: [] })
+    setEditingModule({ title: "", categories: [], questions: [] })
     setModalOpen(true)
   }
 
@@ -115,7 +115,7 @@ export default function ModulesPage() {
     setEditingModule({
       id: m.id,
       title: m.title,
-      category: m.category ?? "",
+      categories: m.categories ?? [],
       questions: m.questions ?? [],
     })
     setModalOpen(true)
@@ -149,7 +149,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
-            category: editingModule.category,
+            categories: editingModule.categories,
             questions: editingModule.questions,
           }),
         })
@@ -159,7 +159,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
-            category: editingModule.category,
+            categories: editingModule.categories,
             questions: editingModule.questions,
           }),
         })
@@ -383,19 +383,50 @@ export default function ModulesPage() {
             }
           />
 
-          {/* Category field: Select searchable from existing categories */}
-          <Select
-            label="Catégorie"
-            placeholder="Rechercher une catégorie..."
-            value={editingModule.category}
-            onChange={(val) =>
-              setEditingModule((prev) => ({ ...prev, category: val ?? "" }))
-            }
-            data={categoryNames}
-            searchable
-            clearable
-            nothingFoundMessage="Aucune catégorie trouvée"
-          />
+          {/* Category field: MultiSelect */}
+          <div>
+            <span className="text-sm font-medium block mb-1">Catégories</span>
+            <Select
+              label=" "
+              placeholder="Rechercher des catégories..."
+              value={editingModule.categories.length === 1 ? editingModule.categories[0] : null}
+              onChange={(val) => {
+                if (val) {
+                  // Single select mode: set one category
+                  setEditingModule((prev) => {
+                    if (prev.categories.includes(val)) return prev
+                    return { ...prev, categories: [...prev.categories, val] }
+                  })
+                }
+              }}
+              data={categoryNames}
+              searchable
+              nothingFoundMessage="Aucune catégorie trouvée"
+              clearable={false}
+            />
+            <div className="flex flex-wrap gap-1 mt-2">
+              {editingModule.categories.map((cat, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                >
+                  {cat}
+                  <button
+                    type="button"
+                    className="ml-0.5 text-blue-400 hover:text-blue-700"
+                    onClick={() =>
+                      setEditingModule((prev) => ({
+                        ...prev,
+                        categories: prev.categories.filter((_, j) => j !== i),
+                      }))
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

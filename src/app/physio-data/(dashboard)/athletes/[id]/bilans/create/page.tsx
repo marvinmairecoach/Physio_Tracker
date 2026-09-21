@@ -30,7 +30,7 @@ interface Question {
 interface Module {
   id: string
   title: string
-  category: string
+  categories: string[]
   questions: Question[]
   ordering: number
   isActive: boolean
@@ -310,12 +310,12 @@ function CreateBilanPageInner() {
   const allCategories = useMemo(() => {
     const cats = new Set<string>()
     for (const m of modules) {
-      if (m.category) cats.add(m.category)
+      for (const c of (m.categories ?? [])) if (c) cats.add(c)
     }
     return Array.from(cats).sort()
   }, [modules])
 
-  // Filtered modules by search + category
+  // Filtered modules by search + categories
   const filteredModules = useMemo(() => {
     return modules.filter((m) => {
       if (searchQuery) {
@@ -323,7 +323,10 @@ function CreateBilanPageInner() {
         if (!m.title.toLowerCase().includes(q)) return false
       }
       if (selectedTags.size > 0) {
-        if (!m.category || !selectedTags.has(m.category)) return false
+        const modCats = new Set(m.categories ?? [])
+        for (const cat of selectedTags) {
+          if (!modCats.has(cat)) return false
+        }
       }
       return true
     })
@@ -939,8 +942,12 @@ function CreateBilanPageInner() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{m.title}</p>
                         <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {m.category && (
-                            <Badge variant="light" color="gray" size="xs">{m.category}</Badge>
+                          {(m.categories ?? []).length > 0 && (
+                            <div className="flex gap-1 mt-0.5 flex-wrap">
+                              {(m.categories ?? []).map((cat) => (
+                                <Badge key={cat} variant="light" color="gray" size="xs">{cat}</Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>

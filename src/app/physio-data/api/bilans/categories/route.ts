@@ -16,12 +16,14 @@ export async function GET() {
     // Count how many modules use each category
     const modules = await prisma.bilanModule.findMany({
       where: { isActive: true },
-      select: { category: true },
+      select: { categories: true },
     })
     const usageMap = new Map<string, number>()
     for (const m of modules) {
-      if (m.category) {
-        usageMap.set(m.category, (usageMap.get(m.category) ?? 0) + 1)
+      if (Array.isArray(m.categories)) {
+        for (const cat of m.categories as string[]) {
+          if (cat) usageMap.set(cat, (usageMap.get(cat) ?? 0) + 1)
+        }
       }
     }
 
@@ -98,10 +100,23 @@ export async function PATCH(request: NextRequest) {
     })
 
     // Update all modules that used the old name
-    await prisma.bilanModule.updateMany({
-      where: { category: old.name },
-      data: { category: newName },
+    const oldMods = await prisma.bilanModule.findMany({
+      where: { isActive: true },
+      select: { id: true, categories: true },
     })
+    await Promise.all(
+      oldMods
+        .filter((m) => Array.isArray(m.categories) && (m.categories as string[]).includes(old.name))
+        .map((m) => {
+          const cats = (m.categories as string[]).map((c) =>
+            c === old.name ? newName : c
+          )
+          return prisma.bilanModule.update({
+            where: { id: m.id },
+            data: { categories: cats },
+          })
+        })
+    )
 
     return NextResponse.json({ category })
   } catch (error) {
@@ -131,10 +146,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Remove category from modules
-    await prisma.bilanModule.updateMany({
-      where: { category: cat.name },
-      data: { category: "" },
+    const affectedMods = await prisma.bilanModule.findMany({
+      where: { isActive: true },
+      select: { id: true, categories: true },
     })
+    await Promise.all(
+      affectedMods
+        .filter((m) => Array.isArray(m.categories) && (m.categories as string[]).includes(cat.name))
+        .map((m) => {
+          const cats = (m.categories as string[]).filter((c) => c !== cat.name)
+          return prisma.bilanModule.update({
+            where: { id: m.id },
+            data: { categories: cats },
+          })
+        })
+    )
 
     // Delete the category
     await prisma.bilanCategory.delete({ where: { id } })

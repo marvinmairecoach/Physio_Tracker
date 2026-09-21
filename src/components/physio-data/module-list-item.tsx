@@ -48,14 +48,14 @@ export function ModuleListItem({
                   {(module.questions ?? []).length} question
                   {(module.questions ?? []).length > 1 ? "s" : ""}
                 </p>
-                {module.category && (
-                  <>
-                    <span className="text-gray-300">·</span>
-                    <Badge variant="light" color="blue" size="sm">
-                      {module.category}
-                    </Badge>
-                  </>
+                {(module.categories ?? []).length > 0 && (
+                  <span className="text-gray-300">·</span>
                 )}
+                {(module.categories ?? []).map((cat) => (
+                  <Badge key={cat} variant="light" color="blue" size="sm">
+                    {cat}
+                  </Badge>
+                ))}
               </div>
             </div>
             <div className="flex items-center gap-2 ml-4">
