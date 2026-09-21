@@ -69,8 +69,6 @@ export default function ModulesPage() {
   const [renamingCat, setRenamingCat] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [deletingCat, setDeletingCat] = useState<string | null>(null)
-  const [newCatValue, setNewCatValue] = useState("")
-  const [creatingCat, setCreatingCat] = useState(false)
 
   // All known categories across all modules (with usage count)
   const knownCategories = useMemo(() => {
@@ -207,32 +205,6 @@ export default function ModulesPage() {
   }
 
   // --- Category CRUD ---
-  const handleCreateCategory = async () => {
-    const name = newCatValue.trim()
-    if (!name) return
-    setCreatingCat(true)
-    try {
-      if (modules.length === 0) {
-        alert("Créez d'abord un module pour pouvoir y ajouter des catégories")
-        return
-      }
-      // Add category to a module that doesn't have one, or to the first one
-      const target = modules.find((m) => !m.category) || modules[0]
-      await fetch(`/physio-data/api/bilans/modules/${target.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: name }),
-      })
-      setNewCatValue("")
-      fetchModules()
-    } catch (e) {
-      console.error(e)
-      alert("Erreur lors de la création")
-    } finally {
-      setCreatingCat(false)
-    }
-  }
-
   const handleRenameCategory = async (oldName: string) => {
     if (!renameValue.trim() || renameValue === oldName) {
       setRenamingCat(null)
@@ -317,7 +289,7 @@ export default function ModulesPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={() => { setNewCatValue(""); setCatModalOpen(true) }}>
+          <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={() => setCatModalOpen(true)}>
             Gérer les catégories
           </Button>
           <Button variant="light" leftSection={<Loader2 className="h-4 w-4" />} onClick={handleSeed} loading={seeding}>
@@ -523,26 +495,6 @@ export default function ModulesPage() {
         size="lg"
       >
         <div className="py-2">
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <TextInput
-                placeholder="Nom de la nouvelle catégorie..."
-                size="sm"
-                className="flex-1"
-                value={newCatValue}
-                onChange={(e) => setNewCatValue(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleCreateCategory()
-                  }
-                }}
-              />
-              <Button size="sm" onClick={handleCreateCategory} disabled={!newCatValue.trim()} loading={creatingCat}>
-                Créer
-              </Button>
-            </div>
-          </div>
           {knownCategories.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <Tags className="h-12 w-12 mx-auto mb-2 opacity-30" />
