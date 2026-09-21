@@ -219,7 +219,14 @@ function BilanViewPageInner() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="light" size="sm" leftSection={<Edit3 className="h-4 w-4" />}
-            onClick={() => router.push(`/physio-data/bilans/${bilanId}?edit=1`)}>
+            onClick={() => {
+            const athleteId = bilan?.athlete?.id
+            if (athleteId) {
+              router.push(`/physio-data/athletes/${athleteId}/bilans/create?edit=${bilanId}`)
+            } else {
+              router.push(`/physio-data/bilans/${bilanId}?edit=1`)
+            }
+          }}>
             Modifier
           </Button>
           <Button variant="light" size="sm" color="red" onClick={handleDelete}>

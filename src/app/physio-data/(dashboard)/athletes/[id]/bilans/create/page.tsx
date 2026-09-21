@@ -178,6 +178,14 @@ function CreateBilanPageInner() {
   const router = useRouter()
   const params = useParams()
   const athleteId = params.id as string
+  // Check if we're editing an existing bilan
+  const [editBilanId, setEditBilanId] = useState<string | null>(null)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      setEditBilanId(sp.get("edit"))
+    }
+  }, [])
 
   // Data
   const [modules, setModules] = useState<Module[]>([])
@@ -239,6 +247,56 @@ function CreateBilanPageInner() {
         if (resultsRes.ok) {
           const r = await resultsRes.json()
           setResults(Array.isArray(r.results ?? r) ? (r.results ?? r) : [])
+        }
+
+        // If editing, load existing bilan data
+        if (editBilanId) {
+          const bilanRes = await fetch(`/physio-data/api/bilans/${editBilanId}`)
+          if (bilanRes.ok) {
+            const d = await bilanRes.json()
+            const b = d.bilan
+            if (b && b.athleteId === athleteId) {
+              setTitle(b.title)
+
+              // Reconstruct items from config
+              const cfg = b.config || {}
+              const newItems: RightPanelItem[] = []
+
+              // Modules
+              const modIds: string[] = cfg.selectedModuleIds ?? []
+              for (const mid of modIds) {
+                newItems.push({ id: nextId("mod"), type: "module", refId: mid })
+              }
+
+              // Metric cards
+              const mCards: any[] = cfg.metricCards ?? []
+              for (const mc of mCards) {
+                newItems.push({
+                  id: mc.itemId || nextId("met"),
+                  type: "metric",
+                  config: { metricIds: mc.metricIds ?? [] },
+                })
+              }
+
+              // Radars
+              const rads: any[] = cfg.radars ?? []
+              for (const rad of rads) {
+                newItems.push({
+                  id: rad.itemId || nextId("rad"),
+                  type: "radar",
+                  config: {
+                    metricIds: rad.metricIds ?? [],
+                    testCount: rad.testCount ?? 6,
+                    showNorms: rad.showNorms ?? true,
+                  },
+                })
+              }
+
+              setItems(newItems)
+              if (cfg.testComments) setTestComments(cfg.testComments)
+              if (cfg.modulesData) setModuleAnswers(cfg.modulesData)
+            }
+          }
         }
       } catch (err) {
         console.error(err)
@@ -397,36 +455,59 @@ function CreateBilanPageInner() {
 
     setSaving(true)
     try {
-      const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: null,
-          config: {
-            selectedModuleIds: orderedModuleIds,
-            metricCards,
-            radars,
-            testComments,
-            modulesData: moduleAnswers,
-          },
-        }),
-      })
-      if (!res.ok) throw new Error("Erreur")
-      const data = await res.json()
-      // Link modules to the bilan
-      if (orderedModuleIds.length > 0) {
-        await Promise.all(
-          orderedModuleIds.map((modId, idx) =>
-            fetch(`/physio-data/api/bilans/modules/${modId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ bilanId: data.bilan.id, ordering: idx }),
-            })
+      let bilanId = editBilanId
+      if (editBilanId) {
+        // Update existing bilan
+        const res = await fetch(`/physio-data/api/bilans/${editBilanId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: null,
+            config: {
+              selectedModuleIds: orderedModuleIds,
+              metricCards,
+              radars,
+              testComments,
+              modulesData: moduleAnswers,
+            },
+          }),
+        })
+        if (!res.ok) throw new Error("Erreur")
+      } else {
+        // Create new bilan
+        const res = await fetch(`/physio-data/api/athletes/${athleteId}/bilans`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: null,
+            config: {
+              selectedModuleIds: orderedModuleIds,
+              metricCards,
+              radars,
+              testComments,
+              modulesData: moduleAnswers,
+            },
+          }),
+        })
+        if (!res.ok) throw new Error("Erreur")
+        const data = await res.json()
+        bilanId = data.bilan.id
+        // Link modules to the bilan (only for new bilans)
+        if (orderedModuleIds.length > 0) {
+          await Promise.all(
+            orderedModuleIds.map((modId, idx) =>
+              fetch(`/physio-data/api/bilans/modules/${modId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bilanId, ordering: idx }),
+              })
+            )
           )
-        )
+        }
       }
-      router.push(`/physio-data/bilans/${data.bilan.id}/view`)
+      router.push(`/physio-data/bilans/${bilanId}/view`)
     } catch (err) {
       console.error(err)
       alert("Erreur lors de la création du bilan")
