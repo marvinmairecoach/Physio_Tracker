@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, FileText, Plus, Trash2, Eye } from "lucide-react"
+import { ArrowLeft, FileText, Plus, Trash2, Eye, Edit3 } from "lucide-react"
 import { Button, Card, Badge } from "@mantine/core"
 
 interface BilanItem {
@@ -140,7 +140,7 @@ export default function BilansListPage() {
                     size="sm"
                     onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create?edit=${bilan.id}`)}
                   >
-                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    <Edit3 className="mr-1 h-3.5 w-3.5" />
                     Modifier
                   </Button>
                   <Button

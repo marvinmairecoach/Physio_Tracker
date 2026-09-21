@@ -230,6 +230,10 @@ function BilanViewPageInner() {
       // Prepare data
       const metricCards: any[] = Array.isArray(config.metricCards) ? config.metricCards : []
       const radars: any[] = Array.isArray(config.radars) ? config.radars : []
+      const itemOrder: any[] = Array.isArray(config.itemOrder) ? config.itemOrder : null
+      const moduleMap = new Map(modules.map((m) => [m.id, m]))
+      const metricCardMap = new Map(metricCards.map((mc: any, i: number) => [mc.itemId || String(i), mc]))
+      const radarMap = new Map(radars.map((r: any, i: number) => [r.itemId || String(i), r]))
       const today = new Date().toLocaleDateString("fr-FR")
       const athleteAge = athlete?.birthDate ? calculateAge(athlete.birthDate) : null
       const userContact: string[] = []
@@ -263,156 +267,303 @@ function BilanViewPageInner() {
               {bilan?.createdAt ? ` — ${new Date(bilan.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : ""}
             </Text>
 
-            {/* ===== MODULES (with answers) ===== */}
-            {modules.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Modules d'évaluation</Text>
-                {modules.map((mod) => (
-                  <View key={mod.instanceId} style={styles.moduleCard} wrap={false}>
-                    <Text style={styles.moduleTitle}>{mod.title}</Text>
-                    {(mod.questions ?? []).map((q: any) => (
-                      <View key={q.id} style={styles.qaRow}>
-                        <Text style={styles.qLabel}>{q.label}</Text>
-                        <Text style={styles.qAnswer}>{mod.answers?.[q.id] || "—"}</Text>
+            {/* ===== CARDS IN ORDER (PDF) ===== */}
+            {itemOrder ? itemOrder.map((entry: any, idx: number) => {
+              if (entry.type === "module") {
+                const mod = moduleMap.get(entry.refId)
+                if (!mod) return null
+                return (
+                  <View key={entry.refId} style={styles.section}>
+                    <Text style={styles.sectionTitle}>{mod.title}</Text>
+                    <View style={styles.moduleCard} wrap={false}>
+                      {(mod.questions ?? []).map((q: any) => (
+                        <View key={q.id} style={styles.qaRow}>
+                          <Text style={styles.qLabel}>{q.label}</Text>
+                          <Text style={styles.qAnswer}>{mod.answers?.[q.id] || "—"}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )
+              } else if (entry.type === "metric") {
+                const mc = metricCardMap.get(entry.itemId)
+                if (!mc) return null
+                const ids: string[] = mc.metricIds ?? []
+                if (ids.length === 0) return null
+                return (
+                  <View key={entry.itemId} style={styles.section}>
+                    <Text style={styles.sectionTitle}>Métriques</Text>
+                    {ids.map((id: string) => {
+                      const tt = testTypes.find((t) => t.id === id)
+                      const result = latestResults.get(id)
+                      if (!tt || !result) return null
+                      const val = Number(result.value)
+                      const norm = athleteGender === "M"
+                        ? (tt.normMale != null ? Number(tt.normMale) : null)
+                        : athleteGender === "F"
+                          ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                          : null
+                      const beatsNorm = norm !== null
+                        ? tt.higherIsBetter ? val >= norm : val <= norm
+                        : null
+                      const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+                      return (
+                        <View key={id}>
+                          <View style={styles.metricRow}>
+                            <Text style={styles.metricName}>{tt.name}</Text>
+                            <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
+                            <Text style={styles.metricNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
+                          </View>
+                          {config?.testComments?.[id] && (
+                            <Text style={styles.metricComment}>{config.testComments[id]}</Text>
+                          )}
+                        </View>
+                      )
+                    })}
+                  </View>
+                )
+              } else if (entry.type === "radar") {
+                const rad = radarMap.get(entry.itemId)
+                if (!rad) return null
+                const ids: string[] = rad.metricIds ?? []
+                const testCount = rad.testCount ?? 6
+                const showNorms = rad.showNorms !== false
+                if (ids.length < 3) return null
+
+                const radarData = ids.slice(0, testCount).map((id: string) => {
+                  const tt = testTypes.find((t) => t.id === id)
+                  const result = latestResults.get(id)
+                  if (!tt || !result) return null
+                  const athleteVal = Number(result.value)
+                  const normVal = athleteGender === "M" ? Number(tt.normMale ?? 0) : athleteGender === "F" ? Number(tt.normFemale ?? 0) : null
+                  const scale = Math.max(athleteVal, normVal !== null ? normVal : 0, 1)
+                  return {
+                    name: tt.name,
+                    athletePct: (athleteVal / scale) * 100,
+                    normPct: normVal !== null ? (normVal / scale) * 100 : null,
+                  }
+                }).filter(Boolean) as { name: string; athletePct: number; normPct: number | null }[]
+
+                const radarCount = radarData.length
+                if (radarCount < 3) return null
+
+                return (
+                  <View key={entry.itemId} style={styles.section}>
+                    <Text style={styles.sectionTitle}>Radar des performances</Text>
+                    <View style={{ alignItems: 'center', marginTop: 4 }}>
+                      <Svg width={400} height={400}>
+                        {[25, 50, 75, 100].map((pct) => (
+                          <Polygon
+                            key={pct}
+                            points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
+                            fill="none"
+                            stroke="#e5e7eb"
+                            strokeWidth={1}
+                          />
+                        ))}
+                        {Array.from({ length: radarCount }, (_, i) => {
+                          const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                          const x = 200 + 120 * Math.cos(angle)
+                          const y = 200 + 120 * Math.sin(angle)
+                          return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                        })}
+                        {showNorms && radarData.some(d => d.normPct !== null) && (
+                          <Polygon
+                            points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
+                            fill="#06b6d4"
+                            fillOpacity={0.15}
+                            stroke="#06b6d4"
+                            strokeWidth={1.5}
+                            strokeDasharray="4,3"
+                          />
+                        )}
+                        <Polygon
+                          points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
+                          fill="#2563eb"
+                          fillOpacity={0.2}
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                        />
+                        {radarData.map((d, i) => {
+                          const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                          const labelR = 180
+                          const x = 200 + labelR * Math.cos(angle)
+                          const y = 200 + labelR * Math.sin(angle)
+                          const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
+                          return (
+                            <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                              {d.name}
+                            </Text>
+                          )
+                        })}
+                      </Svg>
+                      <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Svg width={12} height={12}><Rect width={12} height={12} fill="#2563eb" fillOpacity={0.4} rx={2} /></Svg>
+                          <Text style={{ marginLeft: 3 }}>Athlète</Text>
+                        </View>
+                        {showNorms && radarData.some(d => d.normPct !== null) && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Svg width={12} height={12}><Rect width={12} height={12} fill="#06b6d4" fillOpacity={0.4} rx={2} /></Svg>
+                            <Text style={{ marginLeft: 3 }}>Norme</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                )
+              }
+              return null
+            }) : (
+              <>
+                {/* Fallback: grouped PDF rendering for older bilans */}
+                {modules.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Modules d'évaluation</Text>
+                    {modules.map((mod) => (
+                      <View key={mod.instanceId} style={styles.moduleCard} wrap={false}>
+                        <Text style={styles.moduleTitle}>{mod.title}</Text>
+                        {(mod.questions ?? []).map((q: any) => (
+                          <View key={q.id} style={styles.qaRow}>
+                            <Text style={styles.qLabel}>{q.label}</Text>
+                            <Text style={styles.qAnswer}>{mod.answers?.[q.id] || "—"}</Text>
+                          </View>
+                        ))}
                       </View>
                     ))}
                   </View>
-                ))}
-              </View>
-            )}
+                )}
+                {metricCards.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Métriques</Text>
+                    {metricCards.map((mc: any, idx: number) => {
+                      const ids: string[] = mc.metricIds ?? []
+                      if (ids.length === 0) return null
+                      return (
+                        <View key={mc.itemId || idx} style={{ marginBottom: 8 }}>
+                          {ids.map((id: string) => {
+                            const tt = testTypes.find((t) => t.id === id)
+                            const result = latestResults.get(id)
+                            if (!tt || !result) return null
+                            const val = Number(result.value)
+                            const norm = athleteGender === "M"
+                              ? (tt.normMale != null ? Number(tt.normMale) : null)
+                              : athleteGender === "F"
+                                ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                                : null
+                            const beatsNorm = norm !== null
+                              ? tt.higherIsBetter ? val >= norm : val <= norm
+                              : null
+                            const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+                            return (
+                              <View key={id}>
+                                <View style={styles.metricRow}>
+                                  <Text style={styles.metricName}>{tt.name}</Text>
+                                  <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
+                                  <Text style={styles.metricNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
+                                </View>
+                                {config?.testComments?.[id] && (
+                                  <Text style={styles.metricComment}>{config.testComments[id]}</Text>
+                                )}
+                              </View>
+                            )
+                          })}
+                        </View>
+                      )
+                    })}
+                  </View>
+                )}
+                {radars.map((rad: any, idx: number) => {
+                  const ids: string[] = rad.metricIds ?? []
+                  const testCount = rad.testCount ?? 6
+                  const showNorms = rad.showNorms !== false
+                  if (ids.length < 3) return null
 
-            {/* ===== METRIC CARDS ===== */}
-            {metricCards.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Métriques</Text>
-                {metricCards.map((mc: any, idx: number) => {
-                  const ids: string[] = mc.metricIds ?? []
-                  if (ids.length === 0) return null
+                  const radarData = ids.slice(0, testCount).map((id: string) => {
+                    const tt = testTypes.find((t) => t.id === id)
+                    const result = latestResults.get(id)
+                    if (!tt || !result) return null
+                    const athleteVal = Number(result.value)
+                    const normVal = athleteGender === "M" ? Number(tt.normMale ?? 0) : athleteGender === "F" ? Number(tt.normFemale ?? 0) : null
+                    const scale = Math.max(athleteVal, normVal !== null ? normVal : 0, 1)
+                    return {
+                      name: tt.name,
+                      athletePct: (athleteVal / scale) * 100,
+                      normPct: normVal !== null ? (normVal / scale) * 100 : null,
+                    }
+                  }).filter(Boolean) as { name: string; athletePct: number; normPct: number | null }[]
+
+                  const radarCount = radarData.length
+                  if (radarCount < 3) return null
+
                   return (
-                    <View key={mc.itemId || idx} style={{ marginBottom: 8 }}>
-                      {ids.map((id: string) => {
-                        const tt = testTypes.find((t) => t.id === id)
-                        const result = latestResults.get(id)
-                        if (!tt || !result) return null
-                        const val = Number(result.value)
-                        const norm = athleteGender === "M"
-                          ? (tt.normMale != null ? Number(tt.normMale) : null)
-                          : athleteGender === "F"
-                            ? (tt.normFemale != null ? Number(tt.normFemale) : null)
-                            : null
-                        const beatsNorm = norm !== null
-                          ? tt.higherIsBetter ? val >= norm : val <= norm
-                          : null
-                        const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
-                        return (
-                          <View key={id}>
-                            <View style={styles.metricRow}>
-                              <Text style={styles.metricName}>{tt.name}</Text>
-                              <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
-                              <Text style={styles.metricNorm}>{norm !== null ? `${norm.toFixed(1)} ${tt.unit}` : "—"}</Text>
-                            </View>
-                            {config?.testComments?.[id] && (
-                              <Text style={styles.metricComment}>{config.testComments[id]}</Text>
-                            )}
+                    <View key={rad.itemId || idx} style={styles.section}>
+                      <Text style={styles.sectionTitle}>Radar des performances</Text>
+                      <View style={{ alignItems: 'center', marginTop: 4 }}>
+                        <Svg width={400} height={400}>
+                          {[25, 50, 75, 100].map((pct) => (
+                            <Polygon
+                              key={pct}
+                              points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
+                              fill="none"
+                              stroke="#e5e7eb"
+                              strokeWidth={1}
+                            />
+                          ))}
+                          {Array.from({ length: radarCount }, (_, i) => {
+                            const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                            const x = 200 + 120 * Math.cos(angle)
+                            const y = 200 + 120 * Math.sin(angle)
+                            return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                          })}
+                          {showNorms && radarData.some(d => d.normPct !== null) && (
+                            <Polygon
+                              points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
+                              fill="#06b6d4"
+                              fillOpacity={0.15}
+                              stroke="#06b6d4"
+                              strokeWidth={1.5}
+                              strokeDasharray="4,3"
+                            />
+                          )}
+                          <Polygon
+                            points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
+                            fill="#2563eb"
+                            fillOpacity={0.2}
+                            stroke="#2563eb"
+                            strokeWidth={2}
+                          />
+                          {radarData.map((d, i) => {
+                            const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                            const labelR = 180
+                            const x = 200 + labelR * Math.cos(angle)
+                            const y = 200 + labelR * Math.sin(angle)
+                            const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
+                            return (
+                              <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                                {d.name}
+                              </Text>
+                            )
+                          })}
+                        </Svg>
+                        <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Svg width={12} height={12}><Rect width={12} height={12} fill="#2563eb" fillOpacity={0.4} rx={2} /></Svg>
+                            <Text style={{ marginLeft: 3 }}>Athlète</Text>
                           </View>
-                        )
-                      })}
+                          {showNorms && radarData.some(d => d.normPct !== null) && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Svg width={12} height={12}><Rect width={12} height={12} fill="#06b6d4" fillOpacity={0.4} rx={2} /></Svg>
+                              <Text style={{ marginLeft: 3 }}>Norme</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
                     </View>
                   )
                 })}
-              </View>
+              </>
             )}
-
-            {/* ===== RADARS ===== */}
-            {radars.map((rad: any, idx: number) => {
-              const ids: string[] = rad.metricIds ?? []
-              const testCount = rad.testCount ?? 6
-              const showNorms = rad.showNorms !== false
-              if (ids.length < 3) return null
-
-              const radarData = ids.slice(0, testCount).map((id: string) => {
-                const tt = testTypes.find((t) => t.id === id)
-                const result = latestResults.get(id)
-                if (!tt || !result) return null
-                const athleteVal = Number(result.value)
-                const normVal = athleteGender === "M" ? Number(tt.normMale ?? 0) : athleteGender === "F" ? Number(tt.normFemale ?? 0) : null
-                const scale = Math.max(athleteVal, normVal !== null ? normVal : 0, 1)
-                return {
-                  name: tt.name,
-                  athletePct: (athleteVal / scale) * 100,
-                  normPct: normVal !== null ? (normVal / scale) * 100 : null,
-                }
-              }).filter(Boolean) as { name: string; athletePct: number; normPct: number | null }[]
-
-              const radarCount = radarData.length
-              if (radarCount < 3) return null
-
-              return (
-                <View key={rad.itemId || idx} style={styles.section}>
-                  <Text style={styles.sectionTitle}>Radar des performances</Text>
-                  <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <Svg width={400} height={400}>
-                      {[25, 50, 75, 100].map((pct) => (
-                        <Polygon
-                          key={pct}
-                          points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
-                          fill="none"
-                          stroke="#e5e7eb"
-                          strokeWidth={1}
-                        />
-                      ))}
-                      {Array.from({ length: radarCount }, (_, i) => {
-                        const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                        const x = 200 + 120 * Math.cos(angle)
-                        const y = 200 + 120 * Math.sin(angle)
-                        return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
-                      })}
-                      {showNorms && radarData.some(d => d.normPct !== null) && (
-                        <Polygon
-                          points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
-                          fill="#06b6d4"
-                          fillOpacity={0.15}
-                          stroke="#06b6d4"
-                          strokeWidth={1.5}
-                          strokeDasharray="4,3"
-                        />
-                      )}
-                      <Polygon
-                        points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
-                        fill="#2563eb"
-                        fillOpacity={0.2}
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                      />
-                      {radarData.map((d, i) => {
-                        const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                        const labelR = 180
-                        const x = 200 + labelR * Math.cos(angle)
-                        const y = 200 + labelR * Math.sin(angle)
-                        const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
-                        return (
-                          <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
-                            {d.name}
-                          </Text>
-                        )
-                      })}
-                    </Svg>
-                    <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Svg width={12} height={12}><Rect width={12} height={12} fill="#2563eb" fillOpacity={0.4} rx={2} /></Svg>
-                        <Text style={{ marginLeft: 3 }}>Athlète</Text>
-                      </View>
-                      {showNorms && radarData.some(d => d.normPct !== null) && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Svg width={12} height={12}><Rect width={12} height={12} fill="#06b6d4" fillOpacity={0.4} rx={2} /></Svg>
-                          <Text style={{ marginLeft: 3 }}>Norme</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              )
-            })}
 
             {/* Description/Analysis */}
             {bilan?.description && (
@@ -441,6 +592,12 @@ function BilanViewPageInner() {
   // --- Render helpers ---
   const metricCards: any[] = Array.isArray(config.metricCards) ? config.metricCards : []
   const radarItems: any[] = Array.isArray(config.radars) ? config.radars : []
+  const itemOrder: any[] = Array.isArray(config.itemOrder) ? config.itemOrder : null
+
+  // Build lookup maps for order-based rendering
+  const moduleMap = new Map(modules.map((m) => [m.instanceId, m]))
+  const metricCardMap = new Map(metricCards.map((mc: any, i: number) => [mc.itemId || String(i), mc]))
+  const radarMap = new Map(radarItems.map((r: any, i: number) => [r.itemId || String(i), r]))
 
   if (loading) {
     return <div className="p-6 text-center text-gray-400 py-24">Chargement...</div>
@@ -458,7 +615,8 @@ function BilanViewPageInner() {
     <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="subtle" size="sm" onClick={() => router.back()}>
+        <Button variant="subtle" size="sm"
+          onClick={() => athlete ? router.push(`/physio-data/athletes/${athlete.id}?tab=bilans`) : router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
@@ -493,118 +651,230 @@ function BilanViewPageInner() {
         </Card>
       )}
 
-      {/* ====== MODULES ====== */}
-      {modules.map((mod) => (
-        <Card key={mod.instanceId} shadow="sm" radius="md" withBorder>
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
-            <LayoutList className="h-4 w-4 text-blue-500 shrink-0" />
-            <span className="font-semibold text-sm">{mod.title}</span>
-          </div>
-          <div className="p-4">
-            <BilanModuleRenderer
-              module={mod}
-              onAnswerChange={() => {}} // read-only
-            />
-          </div>
-        </Card>
-      ))}
-
-      {/* ====== METRIC CARDS ====== */}
-      {metricCards.map((mc: any, idx: number) => {
-        const ids: string[] = mc.metricIds ?? []
-        if (ids.length === 0) return null
-        return (
-          <Card key={mc.itemId || idx} shadow="sm" radius="md" withBorder>
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
-              <Activity className="h-4 w-4 text-green-500 shrink-0" />
-              <span className="font-semibold text-sm">Métriques ({ids.length})</span>
-            </div>
-            <div className="p-4 space-y-3">
-              {ids.map((id: string) => {
-                const tt = testTypes.find((t) => t.id === id)
-                const result = latestResults.get(id)
-                if (!tt || !result) return null
-                const val = Number(result.value)
-                const norm = athleteGender === "M"
-                  ? (tt.normMale != null ? Number(tt.normMale) : null)
-                  : athleteGender === "F"
-                    ? (tt.normFemale != null ? Number(tt.normFemale) : null)
-                    : null
-                const beatsNorm = norm !== null
-                  ? tt.higherIsBetter ? val >= norm : val <= norm
-                  : null
-                return (
-                  <div key={id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                    <div>
-                      <Text size="sm" fw={500}>{tt.name}</Text>
-                      <Text size="xs" c="dimmed">{tt.category}</Text>
-                    </div>
-                    <div className="text-right">
-                      <Text fw={700} size="lg" c={beatsNorm === false ? "red" : "green"}>
-                        {val.toFixed(1)} <Text span size="xs" c="dimmed">{tt.unit}</Text>
-                      </Text>
-                      {norm !== null && (
-                        <Text size="xs" c={beatsNorm === true ? "green" : beatsNorm === false ? "red" : "dimmed"}>
-                          Norme: {norm.toFixed(1)}
-                        </Text>
-                      )}
-                    </div>
+      {/* ====== CARDS IN ORDER ====== */}
+      {itemOrder ? (
+        // Render using the saved interleaving order
+        itemOrder.map((entry: any, idx: number) => {
+          if (entry.type === "module") {
+            const mod = moduleMap.get(entry.refId)
+            if (!mod) return null
+            return (
+              <Card key={entry.refId} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <LayoutList className="h-4 w-4 text-blue-500 shrink-0" />
+                  <span className="font-semibold text-sm">{mod.title}</span>
+                </div>
+                <div className="p-4">
+                  <BilanModuleRenderer module={mod} onAnswerChange={() => {}} />
+                </div>
+              </Card>
+            )
+          } else if (entry.type === "metric") {
+            const mc = metricCardMap.get(entry.itemId)
+            if (!mc) return null
+            const ids: string[] = mc.metricIds ?? []
+            if (ids.length === 0) return null
+            return (
+              <Card key={entry.itemId} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <Activity className="h-4 w-4 text-green-500 shrink-0" />
+                  <span className="font-semibold text-sm">Métriques ({ids.length})</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {ids.map((id: string) => {
+                    const tt = testTypes.find((t) => t.id === id)
+                    const result = latestResults.get(id)
+                    if (!tt || !result) return null
+                    const val = Number(result.value)
+                    const norm = athleteGender === "M"
+                      ? (tt.normMale != null ? Number(tt.normMale) : null)
+                      : athleteGender === "F"
+                        ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                        : null
+                    const beatsNorm = norm !== null
+                      ? tt.higherIsBetter ? val >= norm : val <= norm
+                      : null
+                    return (
+                      <div key={id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                        <div>
+                          <Text size="sm" fw={500}>{tt.name}</Text>
+                          <Text size="xs" c="dimmed">{tt.category}</Text>
+                        </div>
+                        <div className="text-right">
+                          <Text fw={700} size="lg" c={beatsNorm === false ? "red" : "green"}>
+                            {val.toFixed(1)} <Text span size="xs" c="dimmed">{tt.unit}</Text>
+                          </Text>
+                          {norm !== null && (
+                            <Text size="xs" c={beatsNorm === true ? "green" : beatsNorm === false ? "red" : "dimmed"}>
+                              Norme: {norm.toFixed(1)}
+                            </Text>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            )
+          } else if (entry.type === "radar") {
+            const rad = radarMap.get(entry.itemId)
+            if (!rad) return null
+            const ids: string[] = rad.metricIds ?? []
+            const testCount = rad.testCount ?? 6
+            const showNorms = rad.showNorms !== false
+            if (ids.length < 3) return null
+            return (
+              <Card key={entry.itemId} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <RadarIcon className="h-4 w-4 text-purple-500 shrink-0" />
+                  <span className="font-semibold text-sm">Radar ({ids.length} métriques)</span>
+                  {showNorms && <Badge size="xs" variant="light">Normes</Badge>}
+                </div>
+                <div className="p-4">
+                  <div style={{ width: '100%', height: 350 }}>
+                    <ResponsiveContainer>
+                      <RadarChart
+                        data={ids.slice(0, testCount).map((id: string) => {
+                          const tt = testTypes.find((t) => t.id === id)
+                          const result = latestResults.get(id)
+                          if (!tt || !result) return null
+                          const val = Number(result.value)
+                          const norm = athleteGender === "M" ? tt.normMale : athleteGender === "F" ? tt.normFemale : null
+                          const maxVal = Math.max(val, norm ?? 0, 1)
+                          return {
+                            name: tt.name,
+                            Valeur: Math.round((val / maxVal) * 100),
+                            ...(showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
+                          }
+                        }).filter(Boolean) as any[]}
+                      >
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="name" fontSize={11} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                        <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
+                        {showNorms && (
+                          <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
+                        )}
+                        <Tooltip />
+                        <Legend />
+                      </RadarChart>
+                    </ResponsiveContainer>
                   </div>
-                )
-              })}
-            </div>
-          </Card>
-        )
-      })}
-
-      {/* ====== RADARS ====== */}
-      {radarItems.map((rad: any, idx: number) => {
-        const ids: string[] = rad.metricIds ?? []
-        const testCount = rad.testCount ?? 6
-        const showNorms = rad.showNorms !== false
-        const hasEnough = ids.length >= 3
-        if (!hasEnough) return null
-        return (
-          <Card key={rad.itemId || idx} shadow="sm" radius="md" withBorder>
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
-              <RadarIcon className="h-4 w-4 text-purple-500 shrink-0" />
-              <span className="font-semibold text-sm">Radar ({ids.length} métriques)</span>
-              {showNorms && <Badge size="xs" variant="light">Normes</Badge>}
-            </div>
-            <div className="p-4">
-              <div style={{ width: '100%', height: 350 }}>
-                <ResponsiveContainer>
-                  <RadarChart
-                    data={ids.slice(0, testCount).map((id: string) => {
-                      const tt = testTypes.find((t) => t.id === id)
-                      const result = latestResults.get(id)
-                      if (!tt || !result) return null
-                      const val = Number(result.value)
-                      const norm = athleteGender === "M" ? tt.normMale : athleteGender === "F" ? tt.normFemale : null
-                      const maxVal = Math.max(val, norm ?? 0, 1)
-                      return {
-                        name: tt.name,
-                        Valeur: Math.round((val / maxVal) * 100),
-                        ...(showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
-                      }
-                    }).filter(Boolean) as any[]}
-                  >
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="name" fontSize={11} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                    <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
-                    {showNorms && (
-                      <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
-                    )}
-                    <Tooltip />
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
+                </div>
+              </Card>
+            )
+          }
+          return null
+        })
+      ) : (
+        <>
+          {/* Fallback: grouped rendering for bilans without itemOrder */}
+          {modules.map((mod) => (
+            <Card key={mod.instanceId} shadow="sm" radius="md" withBorder>
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                <LayoutList className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="font-semibold text-sm">{mod.title}</span>
               </div>
-            </div>
-          </Card>
-        )
-      })}
+              <div className="p-4">
+                <BilanModuleRenderer module={mod} onAnswerChange={() => {}} />
+              </div>
+            </Card>
+          ))}
+          {metricCards.map((mc: any, idx: number) => {
+            const ids: string[] = mc.metricIds ?? []
+            if (ids.length === 0) return null
+            return (
+              <Card key={mc.itemId || idx} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <Activity className="h-4 w-4 text-green-500 shrink-0" />
+                  <span className="font-semibold text-sm">Métriques ({ids.length})</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {ids.map((id: string) => {
+                    const tt = testTypes.find((t) => t.id === id)
+                    const result = latestResults.get(id)
+                    if (!tt || !result) return null
+                    const val = Number(result.value)
+                    const norm = athleteGender === "M"
+                      ? (tt.normMale != null ? Number(tt.normMale) : null)
+                      : athleteGender === "F"
+                        ? (tt.normFemale != null ? Number(tt.normFemale) : null)
+                        : null
+                    const beatsNorm = norm !== null
+                      ? tt.higherIsBetter ? val >= norm : val <= norm
+                      : null
+                    return (
+                      <div key={id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                        <div>
+                          <Text size="sm" fw={500}>{tt.name}</Text>
+                          <Text size="xs" c="dimmed">{tt.category}</Text>
+                        </div>
+                        <div className="text-right">
+                          <Text fw={700} size="lg" c={beatsNorm === false ? "red" : "green"}>
+                            {val.toFixed(1)} <Text span size="xs" c="dimmed">{tt.unit}</Text>
+                          </Text>
+                          {norm !== null && (
+                            <Text size="xs" c={beatsNorm === true ? "green" : beatsNorm === false ? "red" : "dimmed"}>
+                              Norme: {norm.toFixed(1)}
+                            </Text>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            )
+          })}
+          {radarItems.map((rad: any, idx: number) => {
+            const ids: string[] = rad.metricIds ?? []
+            const testCount = rad.testCount ?? 6
+            const showNorms = rad.showNorms !== false
+            const hasEnough = ids.length >= 3
+            if (!hasEnough) return null
+            return (
+              <Card key={rad.itemId || idx} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <RadarIcon className="h-4 w-4 text-purple-500 shrink-0" />
+                  <span className="font-semibold text-sm">Radar ({ids.length} métriques)</span>
+                  {showNorms && <Badge size="xs" variant="light">Normes</Badge>}
+                </div>
+                <div className="p-4">
+                  <div style={{ width: '100%', height: 350 }}>
+                    <ResponsiveContainer>
+                      <RadarChart
+                        data={ids.slice(0, testCount).map((id: string) => {
+                          const tt = testTypes.find((t) => t.id === id)
+                          const result = latestResults.get(id)
+                          if (!tt || !result) return null
+                          const val = Number(result.value)
+                          const norm = athleteGender === "M" ? tt.normMale : athleteGender === "F" ? tt.normFemale : null
+                          const maxVal = Math.max(val, norm ?? 0, 1)
+                          return {
+                            name: tt.name,
+                            Valeur: Math.round((val / maxVal) * 100),
+                            ...(showNorms && norm ? { Norme: Math.round((Number(norm) / maxVal) * 100) } : {}),
+                          }
+                        }).filter(Boolean) as any[]}
+                      >
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="name" fontSize={11} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                        <Radar name="Athlète" dataKey="Valeur" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} />
+                        {showNorms && (
+                          <Radar name="Norme" dataKey="Norme" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} />
+                        )}
+                        <Tooltip />
+                        <Legend />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </Card>
+            )
+          })}
+        </>
+      )}
 
       {/* PDF & Email buttons */}
       <div className="flex items-center gap-2 justify-center pt-4 border-t">

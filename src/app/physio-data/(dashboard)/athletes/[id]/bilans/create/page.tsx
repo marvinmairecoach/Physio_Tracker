@@ -451,6 +451,12 @@ function CreateBilanPageInner() {
       testCount: it.config?.testCount ?? 6,
       showNorms: it.config?.showNorms ?? true,
     }))
+    // Preserve full item order (interleaving) for view rendering
+    const itemOrder = items.map((it) => ({
+      type: it.type,
+      refId: it.refId,
+      itemId: it.id,
+    }))
 
     setSaving(true)
     try {
@@ -469,6 +475,7 @@ function CreateBilanPageInner() {
               radars,
               testComments,
               modulesData: moduleAnswers,
+              itemOrder,
             },
           }),
         })
@@ -487,6 +494,7 @@ function CreateBilanPageInner() {
               radars,
               testComments,
               modulesData: moduleAnswers,
+              itemOrder,
             },
           }),
         })
@@ -554,6 +562,11 @@ function CreateBilanPageInner() {
             testCount: it.config?.testCount ?? 6,
             showNorms: it.config?.showNorms ?? true,
           }))
+        const itemOrder = items.map((it) => ({
+          type: it.type,
+          refId: it.refId,
+          itemId: it.id,
+        }))
 
         const res = await fetch(`/physio-data/api/bilans/${editBilanId}`, {
           method: "PATCH",
@@ -561,7 +574,7 @@ function CreateBilanPageInner() {
           body: JSON.stringify({
             title: title.trim(),
             description: null,
-            config: { selectedModuleIds: orderedModuleIds, metricCards, radars, testComments, modulesData: moduleAnswers },
+            config: { selectedModuleIds: orderedModuleIds, metricCards, radars, testComments, modulesData: moduleAnswers, itemOrder },
           }),
         })
         if (!res.ok) throw new Error("Autosave failed")

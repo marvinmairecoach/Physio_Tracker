@@ -821,7 +821,7 @@ function BilansTab({ athleteId }: { athleteId: string }) {
                         <Button
                           variant="light"
                           size="xs"
-                          onClick={() => router.push(`/physio-data/bilans/${bilan.id}`)}
+                          onClick={() => router.push(`/physio-data/bilans/${bilan.id}/view`)}
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
@@ -829,7 +829,7 @@ function BilansTab({ athleteId }: { athleteId: string }) {
                           variant="light"
                           size="xs"
                           color="yellow"
-                          onClick={() => openEditModal(bilan)}
+                          onClick={() => router.push(`/physio-data/athletes/${athleteId}/bilans/create?edit=${bilan.id}`)}
                         >
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
