@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ArrowLeft,
   Plus,
   Trash2,
   Save,
   LayoutList,
   FileText,
   Loader2,
+  Tags,
 } from "lucide-react"
 import { Button, Card, TextInput, Select, Autocomplete, Badge, Modal, Group, Text, ActionIcon } from "@mantine/core"
 import { DragDropContext, Droppable } from "@hello-pangea/dnd"
@@ -64,14 +64,28 @@ export default function ModulesPage() {
   const [saving, setSaving] = useState(false)
   const [seeding, setSeeding] = useState(false)
 
-  // All known categories across all modules
+  // Categories management modal
+  const [catModalOpen, setCatModalOpen] = useState(false)
+  const [renamingCat, setRenamingCat] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [deletingCat, setDeletingCat] = useState<string | null>(null)
+  const [newCatValue, setNewCatValue] = useState("")
+  const [creatingCat, setCreatingCat] = useState(false)
+
+  // All known categories across all modules (with usage count)
   const knownCategories = useMemo(() => {
-    const cats = new Set<string>()
+    const catCount = new Map<string, number>()
     for (const m of modules) {
-      if (m.category) cats.add(m.category)
+      if (m.category) {
+        catCount.set(m.category, (catCount.get(m.category) ?? 0) + 1)
+      }
     }
-    return Array.from(cats).sort()
+    return Array.from(catCount.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
   }, [modules])
+
+  const categoryNames = useMemo(() => knownCategories.map((c) => c.name), [knownCategories])
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -192,6 +206,80 @@ export default function ModulesPage() {
     }
   }
 
+  // --- Category CRUD ---
+  const handleCreateCategory = async () => {
+    const name = newCatValue.trim()
+    if (!name) return
+    setCreatingCat(true)
+    try {
+      if (modules.length === 0) {
+        alert("Créez d'abord un module pour pouvoir y ajouter des catégories")
+        return
+      }
+      // Add category to a module that doesn't have one, or to the first one
+      const target = modules.find((m) => !m.category) || modules[0]
+      await fetch(`/physio-data/api/bilans/modules/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: name }),
+      })
+      setNewCatValue("")
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors de la création")
+    } finally {
+      setCreatingCat(false)
+    }
+  }
+
+  const handleRenameCategory = async (oldName: string) => {
+    if (!renameValue.trim() || renameValue === oldName) {
+      setRenamingCat(null)
+      setRenameValue("")
+      return
+    }
+    try {
+      const affected = modules.filter((m) => m.category === oldName)
+      await Promise.all(
+        affected.map((m) =>
+          fetch(`/physio-data/api/bilans/modules/${m.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: renameValue.trim() }),
+          })
+        )
+      )
+      setRenamingCat(null)
+      setRenameValue("")
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors du renommage")
+    }
+  }
+
+  const handleDeleteCategory = async (name: string) => {
+    try {
+      const affected = modules.filter((m) => m.category === name)
+      await Promise.all(
+        affected.map((m) =>
+          fetch(`/physio-data/api/bilans/modules/${m.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: "" }),
+          })
+        )
+      )
+      setDeletingCat(null)
+      fetchModules()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors de la suppression")
+    }
+  }
+
+  // --- Questions management ---
   const addQuestion = () => {
     setEditingModule((prev) => ({
       ...prev,
@@ -229,6 +317,9 @@ export default function ModulesPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={() => { setNewCatValue(""); setCatModalOpen(true) }}>
+            Gérer les catégories
+          </Button>
           <Button variant="light" leftSection={<Loader2 className="h-4 w-4" />} onClick={handleSeed} loading={seeding}>
             Seed modules
           </Button>
@@ -307,16 +398,37 @@ export default function ModulesPage() {
             }
           />
 
-          <Autocomplete
-            label="Catégorie"
-            placeholder="Sélectionner ou saisir une catégorie..."
-            value={editingModule.category}
-            onChange={(val) =>
-              setEditingModule((prev) => ({ ...prev, category: val }))
-            }
-            data={knownCategories}
-            clearable
-          />
+          {/* Category field: TextInput + suggestion badges */}
+          <div>
+            <span className="text-sm font-medium block mb-1">Catégorie</span>
+            <TextInput
+              placeholder="Ex: Douleur, Fonctionnel, Bien-être..."
+              value={editingModule.category}
+              onChange={(e) =>
+                setEditingModule((prev) => ({ ...prev, category: e.target.value }))
+              }
+            />
+            {categoryNames.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {categoryNames
+                  .filter((c) => c !== editingModule.category)
+                  .map((c) => (
+                    <Badge
+                      key={c}
+                      variant="light"
+                      color="gray"
+                      size="sm"
+                      className="cursor-pointer hover:bg-blue-100"
+                      onClick={() =>
+                        setEditingModule((prev) => ({ ...prev, category: c }))
+                      }
+                    >
+                      + {c}
+                    </Badge>
+                  ))}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -396,6 +508,130 @@ export default function ModulesPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ── Categories management modal ── */}
+      <Modal
+        opened={catModalOpen}
+        onClose={() => setCatModalOpen(false)}
+        title={
+          <span className="text-lg font-semibold flex items-center gap-2">
+            <Tags className="h-5 w-5 text-blue-500" />
+            Gestion des catégories
+          </span>
+        }
+        size="lg"
+      >
+        <div className="py-2">
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <TextInput
+                placeholder="Nom de la nouvelle catégorie..."
+                size="sm"
+                className="flex-1"
+                value={newCatValue}
+                onChange={(e) => setNewCatValue(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateCategory()
+                  }
+                }}
+              />
+              <Button size="sm" onClick={handleCreateCategory} disabled={!newCatValue.trim()} loading={creatingCat}>
+                Créer
+              </Button>
+            </div>
+          </div>
+          {knownCategories.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Tags className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <Text size="sm">Aucune catégorie définie. Créez des catégories dans les modules.</Text>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {knownCategories.map((cat) => (
+                <div
+                  key={cat.name}
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    {renamingCat === cat.name ? (
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          size="xs"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameCategory(cat.name)
+                            if (e.key === "Escape") { setRenamingCat(null); setRenameValue("") }
+                          }}
+                          autoFocus
+                          className="w-48"
+                        />
+                        <Button size="xs" onClick={() => handleRenameCategory(cat.name)}>OK</Button>
+                        <Button size="xs" variant="default" onClick={() => { setRenamingCat(null); setRenameValue("") }}>Annuler</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="filled" color="blue" size="lg">
+                          {cat.name}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {cat.count} module{cat.count > 1 ? "s" : ""}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+
+                  {renamingCat !== cat.name && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => {
+                          setRenamingCat(cat.name)
+                          setRenameValue(cat.name)
+                        }}
+                      >
+                        Renommer
+                      </Button>
+                      <ActionIcon
+                        variant="light"
+                        color="red"
+                        size="sm"
+                        onClick={() => setDeletingCat(cat.name)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </ActionIcon>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Delete category confirmation ── */}
+      <Modal
+        opened={!!deletingCat}
+        onClose={() => setDeletingCat(null)}
+        title="Supprimer une catégorie"
+        size="sm"
+      >
+        <Text mb="md">
+          Êtes-vous sûr de vouloir supprimer la catégorie <strong>{deletingCat}</strong> de tous les modules ?
+          Cette action est irréversible.
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setDeletingCat(null)}>
+            Annuler
+          </Button>
+          <Button color="red" onClick={() => deletingCat && handleDeleteCategory(deletingCat)}>
+            Supprimer
+          </Button>
+        </Group>
       </Modal>
     </div>
   )
