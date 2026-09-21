@@ -383,37 +383,19 @@ export default function ModulesPage() {
             }
           />
 
-          {/* Category field: TextInput + suggestion badges */}
-          <div>
-            <span className="text-sm font-medium block mb-1">Catégorie</span>
-            <TextInput
-              placeholder="Ex: Douleur, Fonctionnel, Bien-être..."
-              value={editingModule.category}
-              onChange={(e) =>
-                setEditingModule((prev) => ({ ...prev, category: e.target.value }))
-              }
-            />
-            {categoryNames.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {categoryNames
-                  .filter((c) => c !== editingModule.category)
-                  .map((c) => (
-                    <Badge
-                      key={c}
-                      variant="light"
-                      color="gray"
-                      size="sm"
-                      className="cursor-pointer hover:bg-blue-100"
-                      onClick={() =>
-                        setEditingModule((prev) => ({ ...prev, category: c }))
-                      }
-                    >
-                      + {c}
-                    </Badge>
-                  ))}
-              </div>
-            )}
-          </div>
+          {/* Category field: Select searchable from existing categories */}
+          <Select
+            label="Catégorie"
+            placeholder="Rechercher une catégorie..."
+            value={editingModule.category}
+            onChange={(val) =>
+              setEditingModule((prev) => ({ ...prev, category: val ?? "" }))
+            }
+            data={categoryNames}
+            searchable
+            clearable
+            nothingFoundMessage="Aucune catégorie trouvée"
+          />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
