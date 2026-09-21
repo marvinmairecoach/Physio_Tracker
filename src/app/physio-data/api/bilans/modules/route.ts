@@ -14,7 +14,7 @@ export async function GET() {
       select: {
         id: true,
         title: true,
-        tags: true,
+        category: true,
         questions: true,
         ordering: true,
         isActive: true,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const module = await prisma.bilanModule.create({
       data: {
         title: body.title.trim(),
-        tags: body.tags || [],
+        category: body.category || "",
         questions: body.questions || [],
         ordering: (lastModule?.ordering ?? -1) + 1,
         bilanId: body.bilanId || null,

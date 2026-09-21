@@ -1,4 +1,4 @@
-import { Button, Badge } from "@mantine/core"
+import { Badge, Button } from "@mantine/core"
 import { GripVertical, FileText, Trash2 } from "lucide-react"
 import { Draggable } from "@hello-pangea/dnd"
 import type { DraggableProvided, DraggableStateSnapshot } from "@hello-pangea/dnd"
@@ -48,14 +48,14 @@ export function ModuleListItem({
                   {(module.questions ?? []).length} question
                   {(module.questions ?? []).length > 1 ? "s" : ""}
                 </p>
-                {(module.tags ?? []).length > 0 && (
-                  <span className="text-gray-300">·</span>
+                {module.category && (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <Badge variant="light" color="blue" size="sm">
+                      {module.category}
+                    </Badge>
+                  </>
                 )}
-                {(module.tags ?? []).map((tag) => (
-                  <Badge key={tag} variant="light" color="blue" size="sm">
-                    {tag}
-                  </Badge>
-                ))}
               </div>
             </div>
             <div className="flex items-center gap-2 ml-4">

@@ -193,7 +193,7 @@ model Message {
 model BilanModule {
   id        String   @id @default(uuid())
   title     String
-  tags      Json     @default("[]")
+  category  String   @default("")
   questions Json
   isActive  Boolean  @default(true) @map("is_active")
   ordering  Int      @default(0)

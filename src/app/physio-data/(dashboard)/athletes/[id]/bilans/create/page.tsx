@@ -30,7 +30,7 @@ interface Question {
 interface Module {
   id: string
   title: string
-  tags: string[]
+  category: string
   questions: Question[]
   ordering: number
   isActive: boolean
@@ -306,16 +306,16 @@ function CreateBilanPageInner() {
     load()
   }, [athleteId, router])
 
-  // All available tags from modules
-  const allTags = useMemo(() => {
-    const tags = new Set<string>()
+  // All available categories from modules
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>()
     for (const m of modules) {
-      for (const t of (m.tags ?? [])) tags.add(t)
+      if (m.category) cats.add(m.category)
     }
-    return Array.from(tags).sort()
+    return Array.from(cats).sort()
   }, [modules])
 
-  // Filtered modules by search + tags
+  // Filtered modules by search + category
   const filteredModules = useMemo(() => {
     return modules.filter((m) => {
       if (searchQuery) {
@@ -323,10 +323,7 @@ function CreateBilanPageInner() {
         if (!m.title.toLowerCase().includes(q)) return false
       }
       if (selectedTags.size > 0) {
-        const moduleTagSet = new Set(m.tags ?? [])
-        for (const tag of selectedTags) {
-          if (!moduleTagSet.has(tag)) return false
-        }
+        if (!m.category || !selectedTags.has(m.category)) return false
       }
       return true
     })
@@ -891,25 +888,25 @@ function CreateBilanPageInner() {
               size="sm"
             />
 
-            {allTags.length > 0 && (
+            {allCategories.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-3">
-                {allTags.map((tag) => (
+                {allCategories.map((cat) => (
                   <Badge
-                    key={tag}
-                    variant={selectedTags.has(tag) ? "filled" : "light"}
+                    key={cat}
+                    variant={selectedTags.has(cat) ? "filled" : "light"}
                     color="blue"
                     size="sm"
                     className="cursor-pointer"
                     onClick={() =>
                       setSelectedTags((prev) => {
                         const next = new Set(prev)
-                        if (next.has(tag)) next.delete(tag)
-                        else next.add(tag)
+                        if (next.has(cat)) next.delete(cat)
+                        else next.add(cat)
                         return next
                       })
                     }
                   >
-                    {tag}
+                    {cat}
                   </Badge>
                 ))}
               </div>
@@ -942,9 +939,9 @@ function CreateBilanPageInner() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{m.title}</p>
                         <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {(m.tags ?? []).map((tag) => (
-                            <Badge key={tag} variant="light" color="gray" size="xs">{tag}</Badge>
-                          ))}
+                          {m.category && (
+                            <Badge variant="light" color="gray" size="xs">{m.category}</Badge>
+                          )}
                         </div>
                       </div>
                     </div>

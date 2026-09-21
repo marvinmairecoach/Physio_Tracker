@@ -111,27 +111,27 @@ export async function POST() {
 
     // ── Seed bilan modules ──
     const modulesData = [
-      { title: "Bilan douleur", tags: ["douleur", "épaule", "genou"], questions: [
+      { title: "Bilan douleur", category: "Douleur", questions: [
         { id: "q1", type: "single_choice", label: "Localisation de la douleur", options: "Épaule, Genou, Cheville, Dos, Coude, Poignet, Hanche" },
         { id: "q2", type: "single_choice", label: "Type de douleur", options: "Aiguë, Chronique, Diffuse, Ponctuelle" },
         { id: "q3", type: "text", label: "Intensité de la douleur (0-10)", options: "" },
       ]},
-      { title: "Anamnèse blessure", tags: ["blessure", "historique"], questions: [
+      { title: "Anamnèse blessure", category: "Blessure", questions: [
         { id: "q4", type: "text", label: "Date estimée de la blessure", options: "" },
         { id: "q5", type: "text", label: "Mécanisme de la blessure", options: "" },
         { id: "q6", type: "multiple_choice", label: "Traitements suivis", options: "Repos, Kinésithérapie, Anti-inflammatoires, Chirurgie, Aucun" },
       ]},
-      { title: "Bilan fonctionnel", tags: ["fonctionnel", "mobilité"], questions: [
+      { title: "Bilan fonctionnel", category: "Fonctionnel", questions: [
         { id: "q7", type: "ratio_gd", label: "Ratio force quadriceps G/D", options: "" },
         { id: "q8", type: "ratio_gd", label: "Ratio force ischio-jambiers G/D", options: "" },
         { id: "q9", type: "text", label: "Amplitude articulaire (/10)", options: "" },
       ]},
-      { title: "Questionnaire bien-être", tags: ["bien-être", "récupération"], questions: [
+      { title: "Questionnaire bien-être", category: "Bien-être", questions: [
         { id: "q10", type: "text", label: "Qualité du sommeil (1-10)", options: "" },
         { id: "q11", type: "text", label: "Niveau d'énergie (1-10)", options: "" },
         { id: "q12", type: "single_choice", label: "Courbatures", options: "Aucunes, Légères, Modérées, Importantes" },
       ]},
-      { title: "Bilan pré-saison", tags: ["pré-saison", "évaluation"], questions: [
+      { title: "Bilan pré-saison", category: "Pré-saison", questions: [
         { id: "q13", type: "text", label: "Objectifs de la saison", options: "" },
         { id: "q14", type: "multiple_choice", label: "Antécédents médicaux", options: "Aucun, Blessure musculaire, Entorse, Fracture, Tendinite, Opération" },
         { id: "q15", type: "text", label: "Niveau de préparation perçu (1-10)", options: "" },

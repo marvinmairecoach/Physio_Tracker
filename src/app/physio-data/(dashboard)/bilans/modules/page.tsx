@@ -10,9 +10,8 @@ import {
   LayoutList,
   FileText,
   Loader2,
-  Tags,
 } from "lucide-react"
-import { Button, Card, TextInput, Textarea, Select, Badge, Modal, Group, Text, ActionIcon } from "@mantine/core"
+import { Button, Card, TextInput, Select, Autocomplete, Badge, Modal, Group, Text, ActionIcon } from "@mantine/core"
 import { DragDropContext, Droppable } from "@hello-pangea/dnd"
 import { ModuleListItem } from "@/components/physio-data/module-list-item"
 
@@ -37,7 +36,7 @@ interface Question {
 export interface Module {
   id: string
   title: string
-  tags: string[]
+  category: string
   questions: Question[]
   ordering: number
   isActive: boolean
@@ -51,11 +50,6 @@ const emptyQuestion = (): Question => ({
   options: "",
 })
 
-interface TagInfo {
-  name: string
-  count: number
-}
-
 export default function ModulesPage() {
   const router = useRouter()
   const [modules, setModules] = useState<Module[]>([])
@@ -64,44 +58,20 @@ export default function ModulesPage() {
   const [editingModule, setEditingModule] = useState<{
     id?: string
     title: string
-    tags: string[]
+    category: string
     questions: Question[]
-  }>({ title: "", tags: [], questions: [] })
+  }>({ title: "", category: "", questions: [] })
   const [saving, setSaving] = useState(false)
-
-  // Tags management modal
-  const [tagsModalOpen, setTagsModalOpen] = useState(false)
-  const [allTags, setAllTags] = useState<TagInfo[]>([])
-  const [tagsLoading, setTagsLoading] = useState(false)
-  const [renamingTag, setRenamingTag] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState("")
-  const [deletingTag, setDeletingTag] = useState<string | null>(null)
-
-  // Tag input in module modal
-  const [tagInputValue, setTagInputValue] = useState("")
-  // New tag creation in tags modal
-  const [newTagValue, setNewTagValue] = useState("")
-  const [creatingTag, setCreatingTag] = useState(false)
-  // Seed
   const [seeding, setSeeding] = useState(false)
 
-  // All known tags across all modules
-  const knownTags = useMemo(() => {
-    const tags = new Set<string>()
+  // All known categories across all modules
+  const knownCategories = useMemo(() => {
+    const cats = new Set<string>()
     for (const m of modules) {
-      for (const t of (m.tags ?? [])) tags.add(t)
+      if (m.category) cats.add(m.category)
     }
-    return Array.from(tags).sort()
+    return Array.from(cats).sort()
   }, [modules])
-
-  // Helper: add a tag to editing module
-  const addTag = (tag: string) => {
-    if (!tag) return
-    setEditingModule((prev) => {
-      if (prev.tags.includes(tag)) return prev
-      return { ...prev, tags: [...prev.tags, tag] }
-    })
-  }
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -121,99 +91,8 @@ export default function ModulesPage() {
     fetchModules()
   }, [fetchModules])
 
-  // Tags management
-  const fetchTags = async () => {
-    setTagsLoading(true)
-    try {
-      const res = await fetch("/physio-data/api/bilans/tags")
-      if (res.ok) {
-        const data = await res.json()
-        setAllTags(data.tags ?? [])
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setTagsLoading(false)
-    }
-  }
-
-  const openTagsModal = () => {
-    fetchTags()
-    setNewTagValue("")
-    setTagsModalOpen(true)
-  }
-
-  const handleCreateTag = async () => {
-    const name = newTagValue.trim()
-    if (!name) return
-    setCreatingTag(true)
-    try {
-      // Add tag to all existing modules so it's available everywhere
-      if (modules.length > 0) {
-        for (const mod of modules) {
-          const currentTags: string[] = mod.tags ?? []
-          if (!currentTags.includes(name)) {
-            await fetch(`/physio-data/api/bilans/modules/${mod.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tags: [...currentTags, name] }),
-            })
-          }
-        }
-      } else {
-        // No modules yet — just show a message
-        alert("Créez d'abord un module pour pouvoir y ajouter des tags")
-        setCreatingTag(false)
-        return
-      }
-      setNewTagValue("")
-      fetchTags()
-      fetchModules()
-    } catch (e) {
-      console.error(e)
-      alert("Erreur lors de la création du tag")
-    } finally {
-      setCreatingTag(false)
-    }
-  }
-
-  const handleRenameTag = async (oldName: string) => {
-    if (!renameValue.trim() || renameValue === oldName) {
-      setRenamingTag(null)
-      setRenameValue("")
-      return
-    }
-    try {
-      const res = await fetch(
-        `/physio-data/api/bilans/tags?old=${encodeURIComponent(oldName)}&new=${encodeURIComponent(renameValue.trim())}`,
-        { method: "PATCH" }
-      )
-      if (!res.ok) throw new Error("Erreur")
-      setRenamingTag(null)
-      setRenameValue("")
-      fetchTags()
-      fetchModules()
-    } catch (e) {
-      console.error(e)
-      alert("Erreur lors du renommage du tag")
-    }
-  }
-
-  const handleDeleteTag = async (name: string) => {
-    try {
-      const res = await fetch(`/physio-data/api/bilans/tags?name=${encodeURIComponent(name)}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Erreur")
-      setDeletingTag(null)
-      fetchTags()
-      fetchModules()
-    } catch (e) {
-      console.error(e)
-      alert("Erreur lors de la suppression du tag")
-    }
-  }
-
   const openCreate = () => {
-    setEditingModule({ title: "", tags: [], questions: [] })
+    setEditingModule({ title: "", category: "", questions: [] })
     setModalOpen(true)
   }
 
@@ -221,7 +100,7 @@ export default function ModulesPage() {
     setEditingModule({
       id: m.id,
       title: m.title,
-      tags: m.tags ?? [],
+      category: m.category ?? "",
       questions: m.questions ?? [],
     })
     setModalOpen(true)
@@ -255,7 +134,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
-            tags: editingModule.tags,
+            category: editingModule.category,
             questions: editingModule.questions,
           }),
         })
@@ -265,7 +144,7 @@ export default function ModulesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: editingModule.title.trim(),
-            tags: editingModule.tags,
+            category: editingModule.category,
             questions: editingModule.questions,
           }),
         })
@@ -350,9 +229,6 @@ export default function ModulesPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="light" leftSection={<Tags className="h-4 w-4" />} onClick={openTagsModal}>
-            Gérer les tags
-          </Button>
           <Button variant="light" leftSection={<Loader2 className="h-4 w-4" />} onClick={handleSeed} loading={seeding}>
             Seed modules
           </Button>
@@ -431,72 +307,16 @@ export default function ModulesPage() {
             }
           />
 
-          <div>
-            <span className="text-sm font-medium block mb-1">Tags</span>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {editingModule.tags.map((tag, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    className="ml-0.5 text-blue-400 hover:text-blue-700"
-                    onClick={() =>
-                      setEditingModule((prev) => ({
-                        ...prev,
-                        tags: prev.tags.filter((_, j) => j !== i),
-                      }))
-                    }
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              <TextInput
-                placeholder="Ajouter un tag..."
-                className="flex-1"
-                value={tagInputValue}
-                onChange={(e) => setTagInputValue(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault()
-                    addTag(tagInputValue.trim())
-                    setTagInputValue("")
-                  }
-                }}
-                onBlur={(e) => {
-                  addTag(tagInputValue.trim())
-                  setTagInputValue("")
-                }}
-              />
-            </div>
-            {/* Existing tags suggestions */}
-            {knownTags.length > 0 && (
-              <div className="mt-2">
-                <Text size="xs" c="dimmed" className="mb-1">Tags existants :</Text>
-                <div className="flex flex-wrap gap-1">
-                  {knownTags.filter((t) => !editingModule.tags.includes(t)).map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="light"
-                      color="gray"
-                      size="sm"
-                      className="cursor-pointer hover:bg-blue-100"
-                      onClick={() => {
-                        addTag(tag)
-                      }}
-                    >
-                      + {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <Autocomplete
+            label="Catégorie"
+            placeholder="Sélectionner ou saisir une catégorie..."
+            value={editingModule.category}
+            onChange={(val) =>
+              setEditingModule((prev) => ({ ...prev, category: val }))
+            }
+            data={knownCategories}
+            clearable
+          />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -576,136 +396,6 @@ export default function ModulesPage() {
             </Button>
           </div>
         </div>
-      </Modal>
-
-      {/* ── Tags management modal ── */}
-      <Modal
-        opened={tagsModalOpen}
-        onClose={() => setTagsModalOpen(false)}
-        title={
-          <span className="text-lg font-semibold flex items-center gap-2">
-            <Tags className="h-5 w-5 text-blue-500" />
-            Gestion des tags
-          </span>
-        }
-        size="lg"
-      >
-        <div className="py-2">
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <TextInput
-                placeholder="Nom du nouveau tag..."
-                size="sm"
-                className="flex-1"
-                value={newTagValue}
-                onChange={(e) => setNewTagValue(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleCreateTag()
-                  }
-                }}
-              />
-              <Button size="sm" onClick={handleCreateTag} disabled={!newTagValue.trim()} loading={creatingTag}>
-                Créer
-              </Button>
-            </div>
-          </div>
-          {tagsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : allTags.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <Tags className="h-12 w-12 mx-auto mb-2 opacity-30" />
-              <Text size="sm">Aucun tag défini. Créez des tags dans les modules.</Text>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {allTags.map((tag) => (
-                <div
-                  key={tag.name}
-                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  {/* Tag name */}
-                  <div className="flex-1 min-w-0">
-                    {renamingTag === tag.name ? (
-                      <div className="flex items-center gap-2">
-                        <TextInput
-                          size="xs"
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRenameTag(tag.name)
-                            if (e.key === "Escape") { setRenamingTag(null); setRenameValue("") }
-                          }}
-                          autoFocus
-                          className="w-48"
-                        />
-                        <Button size="xs" onClick={() => handleRenameTag(tag.name)}>OK</Button>
-                        <Button size="xs" variant="default" onClick={() => { setRenamingTag(null); setRenameValue("") }}>Annuler</Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="filled" color="blue" size="lg">
-                          {tag.name}
-                        </Badge>
-                        <Text size="xs" c="dimmed">
-                          {tag.count} module{tag.count > 1 ? "s" : ""}
-                        </Text>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  {renamingTag !== tag.name && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="light"
-                        size="xs"
-                        onClick={() => {
-                          setRenamingTag(tag.name)
-                          setRenameValue(tag.name)
-                        }}
-                      >
-                        Renommer
-                      </Button>
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        size="sm"
-                        onClick={() => setDeletingTag(tag.name)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </ActionIcon>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* ── Delete tag confirmation ── */}
-      <Modal
-        opened={!!deletingTag}
-        onClose={() => setDeletingTag(null)}
-        title="Supprimer un tag"
-        size="sm"
-      >
-        <Text mb="md">
-          Êtes-vous sûr de vouloir supprimer le tag <strong>{deletingTag}</strong> de tous les modules ?
-          Cette action est irréversible.
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setDeletingTag(null)}>
-            Annuler
-          </Button>
-          <Button color="red" onClick={() => deletingTag && handleDeleteTag(deletingTag)}>
-            Supprimer
-          </Button>
-        </Group>
       </Modal>
     </div>
   )
