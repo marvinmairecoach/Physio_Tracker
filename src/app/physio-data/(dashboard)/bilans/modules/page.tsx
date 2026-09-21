@@ -68,22 +68,24 @@ export default function ModulesPage() {
   const [catModalOpen, setCatModalOpen] = useState(false)
   const [renamingCat, setRenamingCat] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState("")
-  const [deletingCat, setDeletingCat] = useState<string | null>(null)
+  const [deletingCat, setDeletingCat] = useState<{ id: string; name: string } | null>(null)
+  const [newCatValue, setNewCatValue] = useState("")
+  const [creatingCat, setCreatingCat] = useState(false)
+  const [allCategories, setAllCategories] = useState<{ id: string; name: string; count: number }[]>([])
 
-  // All known categories across all modules (with usage count)
-  const knownCategories = useMemo(() => {
-    const catCount = new Map<string, number>()
-    for (const m of modules) {
-      if (m.category) {
-        catCount.set(m.category, (catCount.get(m.category) ?? 0) + 1)
+  const categoryNames = useMemo(() => allCategories.map((c) => c.name), [allCategories])
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch("/physio-data/api/bilans/categories")
+      if (res.ok) {
+        const data = await res.json()
+        setAllCategories(data.categories ?? [])
       }
+    } catch (e) {
+      console.error(e)
     }
-    return Array.from(catCount.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-  }, [modules])
-
-  const categoryNames = useMemo(() => knownCategories.map((c) => c.name), [knownCategories])
+  }, [])
 
   const fetchModules = useCallback(async () => {
     setLoading(true)
@@ -101,7 +103,8 @@ export default function ModulesPage() {
 
   useEffect(() => {
     fetchModules()
-  }, [fetchModules])
+    fetchCategories()
+  }, [fetchModules, fetchCategories])
 
   const openCreate = () => {
     setEditingModule({ title: "", category: "", questions: [] })
@@ -205,25 +208,42 @@ export default function ModulesPage() {
   }
 
   // --- Category CRUD ---
-  const handleRenameCategory = async (oldName: string) => {
-    if (!renameValue.trim() || renameValue === oldName) {
+  const handleCreateCategory = async () => {
+    const name = newCatValue.trim()
+    if (!name) return
+    setCreatingCat(true)
+    try {
+      const res = await fetch("/physio-data/api/bilans/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      if (!res.ok) throw new Error("Erreur")
+      setNewCatValue("")
+      fetchCategories()
+    } catch (e) {
+      console.error(e)
+      alert("Erreur lors de la création")
+    } finally {
+      setCreatingCat(false)
+    }
+  }
+
+  const handleRenameCategory = async (cat: { id: string; name: string }) => {
+    if (!renameValue.trim() || renameValue === cat.name) {
       setRenamingCat(null)
       setRenameValue("")
       return
     }
     try {
-      const affected = modules.filter((m) => m.category === oldName)
-      await Promise.all(
-        affected.map((m) =>
-          fetch(`/physio-data/api/bilans/modules/${m.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ category: renameValue.trim() }),
-          })
-        )
+      const res = await fetch(
+        `/physio-data/api/bilans/categories?id=${cat.id}&name=${encodeURIComponent(renameValue.trim())}`,
+        { method: "PATCH" }
       )
+      if (!res.ok) throw new Error("Erreur")
       setRenamingCat(null)
       setRenameValue("")
+      fetchCategories()
       fetchModules()
     } catch (e) {
       console.error(e)
@@ -231,19 +251,12 @@ export default function ModulesPage() {
     }
   }
 
-  const handleDeleteCategory = async (name: string) => {
+  const handleDeleteCategory = async (cat: { id: string; name: string }) => {
     try {
-      const affected = modules.filter((m) => m.category === name)
-      await Promise.all(
-        affected.map((m) =>
-          fetch(`/physio-data/api/bilans/modules/${m.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ category: "" }),
-          })
-        )
-      )
+      const res = await fetch(`/physio-data/api/bilans/categories?id=${cat.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Erreur")
       setDeletingCat(null)
+      fetchCategories()
       fetchModules()
     } catch (e) {
       console.error(e)
@@ -495,33 +508,54 @@ export default function ModulesPage() {
         size="lg"
       >
         <div className="py-2">
-          {knownCategories.length === 0 ? (
+          {/* Create new category */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <TextInput
+                placeholder="Nom de la nouvelle catégorie..."
+                size="sm"
+                className="flex-1"
+                value={newCatValue}
+                onChange={(e) => setNewCatValue(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateCategory()
+                  }
+                }}
+              />
+              <Button size="sm" onClick={handleCreateCategory} disabled={!newCatValue.trim()} loading={creatingCat}>
+                Créer
+              </Button>
+            </div>
+          </div>
+          {allCategories.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <Tags className="h-12 w-12 mx-auto mb-2 opacity-30" />
               <Text size="sm">Aucune catégorie définie. Créez des catégories dans les modules.</Text>
             </div>
           ) : (
             <div className="space-y-2">
-              {knownCategories.map((cat) => (
+              {allCategories.map((cat: { id: string; name: string; count: number }) => (
                 <div
-                  key={cat.name}
+                  key={cat.id}
                   className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    {renamingCat === cat.name ? (
+                    {renamingCat === cat.id ? (
                       <div className="flex items-center gap-2">
                         <TextInput
                           size="xs"
                           value={renameValue}
                           onChange={(e) => setRenameValue(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRenameCategory(cat.name)
+                            if (e.key === "Enter") handleRenameCategory(cat)
                             if (e.key === "Escape") { setRenamingCat(null); setRenameValue("") }
                           }}
                           autoFocus
                           className="w-48"
                         />
-                        <Button size="xs" onClick={() => handleRenameCategory(cat.name)}>OK</Button>
+                        <Button size="xs" onClick={() => handleRenameCategory(cat)}>OK</Button>
                         <Button size="xs" variant="default" onClick={() => { setRenamingCat(null); setRenameValue("") }}>Annuler</Button>
                       </div>
                     ) : (
@@ -536,13 +570,13 @@ export default function ModulesPage() {
                     )}
                   </div>
 
-                  {renamingCat !== cat.name && (
+                  {renamingCat !== cat.id && (
                     <div className="flex items-center gap-1 shrink-0">
                       <Button
                         variant="light"
                         size="xs"
                         onClick={() => {
-                          setRenamingCat(cat.name)
+                          setRenamingCat(cat.id)
                           setRenameValue(cat.name)
                         }}
                       >
@@ -552,7 +586,7 @@ export default function ModulesPage() {
                         variant="light"
                         color="red"
                         size="sm"
-                        onClick={() => setDeletingCat(cat.name)}
+                        onClick={() => setDeletingCat(cat)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </ActionIcon>
@@ -573,7 +607,7 @@ export default function ModulesPage() {
         size="sm"
       >
         <Text mb="md">
-          Êtes-vous sûr de vouloir supprimer la catégorie <strong>{deletingCat}</strong> de tous les modules ?
+          Êtes-vous sûr de vouloir supprimer la catégorie <strong>{deletingCat?.name}</strong> de tous les modules ?
           Cette action est irréversible.
         </Text>
         <Group justify="flex-end">
