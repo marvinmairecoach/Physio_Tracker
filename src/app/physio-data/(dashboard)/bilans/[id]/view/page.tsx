@@ -204,27 +204,31 @@ function BilanViewPageInner() {
         }).join(' ')
       }
 
+      const darkGrey = '#5E5E5E'
       const styles = StyleSheet.create({
-        page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
-        headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, borderBottomWidth: 2, borderBottomColor: '#2563eb', paddingBottom: 10 },
+        page: { padding: 49, fontSize: 10, fontFamily: 'Helvetica', color: darkGrey },
+        headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
         headerLeft: { flexDirection: 'column', alignItems: 'flex-start' },
-        headerRight: { flexDirection: 'column', alignItems: 'flex-end', fontSize: 9, color: '#555' },
-        logo: { width: 70, height: 70 },
-        title: { fontSize: 22, fontWeight: 'bold', color: '#1e40af' },
-        athleteInfo: { fontSize: 10, color: '#444', marginTop: 2 },
-        section: { marginTop: 14 },
-        sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#1e40af', marginBottom: 6, borderBottomWidth: 1, borderBottomColor: '#bfdbfe', paddingBottom: 3 },
-        moduleCard: { marginBottom: 10, padding: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-        moduleTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: '#1e40af' },
+        headerRight: { flexDirection: 'column', alignItems: 'flex-end' },
+        coachName: { fontSize: 24, fontWeight: 'bold', color: darkGrey },
+        coachSubtitle: { fontSize: 15, color: darkGrey, marginTop: 2 },
+        logo: { width: 90, height: 90 },
+        title: { fontSize: 22, fontWeight: 'bold', color: darkGrey },
+        athleteInfo: { fontSize: 10, color: darkGrey, marginTop: 2, marginBottom: 12 },
+        dashSeparator: { borderTopWidth: 0.5, borderTopColor: darkGrey, borderStyle: 'dashed', marginVertical: 12 },
+        section: { marginTop: 8 },
+        sectionTitle: { fontSize: 13, fontWeight: 'bold', color: darkGrey, marginBottom: 6 },
+        moduleCard: { marginBottom: 8 },
+        moduleTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: darkGrey },
         qaRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 8 },
-        qLabel: { fontWeight: 'bold', width: '50%', fontSize: 10, color: '#333' },
-        qAnswer: { width: '50%', fontSize: 10, color: '#555' },
-        metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-        metricName: { fontWeight: 'bold', width: '35%', fontSize: 10 },
+        qLabel: { fontWeight: 'bold', width: '50%', fontSize: 10, color: darkGrey },
+        qAnswer: { width: '50%', fontSize: 10, color: darkGrey },
+        metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 5, paddingBottom: 5, borderBottomWidth: 0.5, borderBottomColor: '#ddd' },
+        metricName: { fontWeight: 'bold', width: '35%', fontSize: 10, color: darkGrey },
         metricValue: { width: '25%', textAlign: 'center', fontSize: 10 },
-        metricNorm: { width: '20%', textAlign: 'center', fontSize: 9, color: '#666' },
-        metricComment: { fontSize: 9, color: '#555', marginTop: 2, marginBottom: 2, paddingLeft: 8 },
-        footer: { position: 'absolute', bottom: 20, left: 40, right: 40, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
+        metricNorm: { width: '20%', textAlign: 'center', fontSize: 9, color: '#888' },
+        metricComment: { fontSize: 9, color: '#777', marginTop: 2, marginBottom: 2, paddingLeft: 8 },
+        footer: { position: 'absolute', bottom: 20, left: 49, right: 49, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 0.5, borderTopColor: '#ccc', paddingTop: 8 },
       })
 
       // Prepare data
@@ -241,17 +245,17 @@ function BilanViewPageInner() {
       const PdfDoc = (
         <Document>
           <Page size="A4" style={styles.page}>
-            {/* Header: logo left, contact right */}
+            {/* Header: logo left, name+profession right (35px gap) */}
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
                 {user?.logoUrl ? (
                   <Image src={user.logoUrl} style={styles.logo} />
                 ) : (
-                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#2563eb' }}>PP Tracker</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: darkGrey }}>PP Tracker</Text>
                 )}
               </View>
               <View style={styles.headerRight}>
-                {userName}
+                <Text style={styles.coachName}>{userName}</Text>
               </View>
             </View>
 
@@ -263,6 +267,8 @@ function BilanViewPageInner() {
               {bilan?.createdAt ? ` — ${new Date(bilan.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : ""}
             </Text>
 
+            <View style={styles.dashSeparator} />
+
             {/* ===== CARDS IN ORDER (PDF) ===== */}
             {itemOrder ? itemOrder.map((entry: any, idx: number) => {
               if (entry.type === "module") {
@@ -270,6 +276,7 @@ function BilanViewPageInner() {
                 if (!mod) return null
                 return (
                   <View key={entry.refId} style={styles.section}>
+                    {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>{mod.title}</Text>
                     <View style={styles.moduleCard} wrap={false}>
                       {(mod.questions ?? []).map((q: any) => (
@@ -288,6 +295,7 @@ function BilanViewPageInner() {
                 if (ids.length === 0) return null
                 return (
                   <View key={entry.itemId} style={styles.section}>
+                    {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Métriques</Text>
                     {ids.map((id: string) => {
                       const tt = testTypes.find((t) => t.id === id)
@@ -302,7 +310,7 @@ function BilanViewPageInner() {
                       const beatsNorm = norm !== null
                         ? tt.higherIsBetter ? val >= norm : val <= norm
                         : null
-                      const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+                      const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : darkGrey
                       return (
                         <View key={id}>
                           <View style={styles.metricRow}>
@@ -345,6 +353,7 @@ function BilanViewPageInner() {
 
                 return (
                   <View key={entry.itemId} style={styles.section}>
+                    {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Radar des performances</Text>
                     <View style={{ alignItems: 'center', marginTop: 4 }}>
                       <Svg width={400} height={400}>
@@ -450,7 +459,7 @@ function BilanViewPageInner() {
                             const beatsNorm = norm !== null
                               ? tt.higherIsBetter ? val >= norm : val <= norm
                               : null
-                            const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : '#333'
+                            const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : darkGrey
                             return (
                               <View key={id}>
                                 <View style={styles.metricRow}>
@@ -564,8 +573,9 @@ function BilanViewPageInner() {
             {/* Description/Analysis */}
             {bilan?.description && (
               <View style={styles.section}>
+                <View style={styles.dashSeparator} />
                 <Text style={styles.sectionTitle}>Analyse</Text>
-                <Text style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}>{bilan.description}</Text>
+                <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.4 }}>{bilan.description}</Text>
               </View>
             )}
 
