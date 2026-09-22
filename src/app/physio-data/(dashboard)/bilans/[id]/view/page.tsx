@@ -236,9 +236,7 @@ function BilanViewPageInner() {
       const radarMap = new Map(radars.map((r: any, i: number) => [r.itemId || String(i), r]))
       const today = new Date().toLocaleDateString("fr-FR")
       const athleteAge = athlete?.birthDate ? calculateAge(athlete.birthDate) : null
-      const userContact: string[] = []
-      if (user?.email) userContact.push(`Email: ${user.email}`)
-      if (user?.phone) userContact.push(`Tél: ${user.phone}`)
+      const userName = user ? `${user.firstName} ${user.lastName}` : "PP Tracker"
 
       const PdfDoc = (
         <Document>
@@ -253,9 +251,7 @@ function BilanViewPageInner() {
                 )}
               </View>
               <View style={styles.headerRight}>
-                {userContact.map((line, i) => (
-                  <Text key={i}>{line}</Text>
-                ))}
+                {userName}
               </View>
             </View>
 
