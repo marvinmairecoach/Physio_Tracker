@@ -199,9 +199,6 @@ function CreateBilanPageInner() {
 
   // Left filter state
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-
-  // Metric picker modal
   const [metricPickerOpen, setMetricPickerOpen] = useState(false)
   const [metricPickerItemId, setMetricPickerItemId] = useState<string | null>(null)
   const [metricPickerTempIds, setMetricPickerTempIds] = useState<Set<string>>(new Set())
@@ -306,31 +303,16 @@ function CreateBilanPageInner() {
     load()
   }, [athleteId, router])
 
-  // All available categories from modules
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>()
-    for (const m of modules) {
-      for (const c of (m.categories ?? [])) if (c) cats.add(c)
-    }
-    return Array.from(cats).sort()
-  }, [modules])
-
-  // Filtered modules by search + categories
+  // Filtered modules by search (title + categories)
   const filteredModules = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
     return modules.filter((m) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        if (!m.title.toLowerCase().includes(q)) return false
-      }
-      if (selectedTags.size > 0) {
-        const modCats = new Set(m.categories ?? [])
-        for (const cat of selectedTags) {
-          if (!modCats.has(cat)) return false
-        }
-      }
-      return true
+      if (!q) return true
+      const inTitle = m.title.toLowerCase().includes(q)
+      const inCats = (m.categories ?? []).some((c) => c.toLowerCase().includes(q))
+      return inTitle || inCats
     })
-  }, [modules, searchQuery, selectedTags])
+  }, [modules, searchQuery])
 
   // Latest results per test type
   const latestResults = useMemo(() => {
@@ -883,37 +865,13 @@ function CreateBilanPageInner() {
             </div>
 
             <TextInput
-              placeholder="Rechercher..."
+              placeholder="Rechercher un module ou une catégorie..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftSection={<Search className="h-3.5 w-3.5" />}
               className="mb-2"
               size="sm"
             />
-
-            {allCategories.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-3">
-                {allCategories.map((cat) => (
-                  <Badge
-                    key={cat}
-                    variant={selectedTags.has(cat) ? "filled" : "light"}
-                    color="blue"
-                    size="sm"
-                    className="cursor-pointer"
-                    onClick={() =>
-                      setSelectedTags((prev) => {
-                        const next = new Set(prev)
-                        if (next.has(cat)) next.delete(cat)
-                        else next.add(cat)
-                        return next
-                      })
-                    }
-                  >
-                    {cat}
-                  </Badge>
-                ))}
-              </div>
-            )}
 
             {filteredModules.length === 0 ? (
               <Text size="sm" c="dimmed" className="text-center py-4">
