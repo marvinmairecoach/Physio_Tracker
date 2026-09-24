@@ -20,6 +20,7 @@ export default function ProfilePage() {
   // Logo
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoError, setLogoError] = useState<string | null>(null)
 
   function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -30,12 +31,42 @@ export default function ProfilePage() {
     })
   }
 
+  // Compress image to max dimension and quality before upload
+  function compressImage(file: File, maxDim: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) { reject(new Error("Canvas context error")); return }
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL("image/webp", quality))
+      }
+      img.onerror = () => reject(new Error("Failed to load image"))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setLogoError(null)
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError("L'image ne doit pas dépasser 2 Mo")
+      return
+    }
     setUploadingLogo(true)
     try {
-      const b64 = await fileToBase64(file)
+      // Compress image to max 800x800, quality 0.7 before uploading
+      const b64 = await compressImage(file, 800, 0.7)
       const res = await fetch("/physio-data/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -44,8 +75,13 @@ export default function ProfilePage() {
       if (res.ok) {
         await refresh()
         setLogoPreview(b64)
+      } else {
+        const errData = await res.json().catch(() => ({ error: "Erreur serveur" }))
+        setLogoError(errData.error || "Erreur lors de l'enregistrement du logo")
       }
-    } catch {} finally {
+    } catch (err) {
+      setLogoError("Erreur lors de l'envoi du logo")
+    } finally {
       setUploadingLogo(false)
     }
   }
@@ -114,6 +150,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </label>
+            {logoError && <p className="text-sm text-red-500 mt-2">{logoError}</p>}
             <div className="text-sm text-muted-foreground">
               <p>Clique pour ajouter ou changer le logo</p>
               <p className="text-xs">Le logo sera redimensionné automatiquement dans le PDF.</p>

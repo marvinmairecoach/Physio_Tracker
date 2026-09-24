@@ -21,7 +21,7 @@ model User {
   lastName      String   @map("last_name")
   phone         String?
   avatarUrl     String?  @map("avatar_url")
-  logoUrl       String?  @map("logo_url") @db.Text
+  logoUrl       String?  @map("logo_url") @db.MediumText
   role          String   @default("coach") // admin | coach | athlete
   isActive      Boolean  @default(true) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")
