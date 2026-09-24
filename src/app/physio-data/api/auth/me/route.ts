@@ -9,6 +9,7 @@ const userSelect = {
   firstName: true,
   lastName: true,
   phone: true,
+  logoUrl: true,
 } as const
 
 export async function GET() {

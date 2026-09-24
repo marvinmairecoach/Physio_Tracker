@@ -259,12 +259,10 @@ function BilanViewPageInner() {
               </View>
             </View>
 
-            {/* Title & athlete */}
+            {/* Title + date */}
             <Text style={styles.title}>{bilan?.title ?? "Bilan"}</Text>
             <Text style={styles.athleteInfo}>
-              {athlete?.lastName?.toUpperCase()} {athlete?.firstName}
-              {athleteAge !== null ? ` — ${athleteAge} ans` : ""}
-              {bilan?.createdAt ? ` — ${new Date(bilan.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : ""}
+              {bilan?.createdAt ? new Date(bilan.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : ""}
             </Text>
 
             <View style={styles.dashSeparator} />
