@@ -58,12 +58,14 @@ interface AthleteResult {
 
 interface RightPanelItem {
   id: string
-  type: "module" | "metric" | "radar"
+  type: "module" | "metric" | "radar" | "textNote"
   refId?: string
   config?: {
     metricIds?: string[]
     testCount?: number
     showNorms?: boolean
+    textTitle?: string
+    textContent?: string
   }
 }
 
@@ -288,6 +290,19 @@ function CreateBilanPageInner() {
                 })
               }
 
+              // Text notes
+              const notes: any[] = cfg.textNotes ?? []
+              for (const note of notes) {
+                newItems.push({
+                  id: note.itemId || nextId("note"),
+                  type: "textNote",
+                  config: {
+                    textTitle: note.title ?? "Note",
+                    textContent: note.content ?? "",
+                  },
+                })
+              }
+
               setItems(newItems)
               if (cfg.testComments) setTestComments(cfg.testComments)
               if (cfg.modulesData) setModuleAnswers(cfg.modulesData)
@@ -377,6 +392,19 @@ function CreateBilanPageInner() {
     setItems((prev) => prev.filter((it) => it.id !== itemId))
   }
 
+  const addTextNoteItem = () => {
+    const id = nextId("note")
+    setItems((prev) => [...prev, {
+      id,
+      type: "textNote",
+      config: { textTitle: "Note", textContent: "" },
+    }])
+  }
+
+  const removeTextNoteItem = (itemId: string) => {
+    setItems((prev) => prev.filter((it) => it.id !== itemId))
+  }
+
   const updateItemConfig = (itemId: string, patch: Partial<RightPanelItem["config"]>) => {
     setItems((prev) =>
       prev.map((it) => (it.id === itemId ? { ...it, config: { ...it.config, ...patch } } : it))
@@ -433,6 +461,11 @@ function CreateBilanPageInner() {
       testCount: it.config?.testCount ?? 6,
       showNorms: it.config?.showNorms ?? true,
     }))
+    const textNotes = items.filter((it) => it.type === "textNote").map((it) => ({
+      itemId: it.id,
+      title: it.config?.textTitle ?? "Note",
+      content: it.config?.textContent ?? "",
+    }))
     // Preserve full item order (interleaving) for view rendering
     const itemOrder = items.map((it) => ({
       type: it.type,
@@ -455,6 +488,7 @@ function CreateBilanPageInner() {
               selectedModuleIds: orderedModuleIds,
               metricCards,
               radars,
+              textNotes,
               testComments,
               modulesData: moduleAnswers,
               itemOrder,
@@ -474,6 +508,7 @@ function CreateBilanPageInner() {
               selectedModuleIds: orderedModuleIds,
               metricCards,
               radars,
+              textNotes,
               testComments,
               modulesData: moduleAnswers,
               itemOrder,
@@ -544,6 +579,13 @@ function CreateBilanPageInner() {
             testCount: it.config?.testCount ?? 6,
             showNorms: it.config?.showNorms ?? true,
           }))
+        const textNotes = items
+          .filter((it) => it.type === "textNote")
+          .map((it) => ({
+            itemId: it.id,
+            title: it.config?.textTitle ?? "Note",
+            content: it.config?.textContent ?? "",
+          }))
         const itemOrder = items.map((it) => ({
           type: it.type,
           refId: it.refId,
@@ -556,7 +598,7 @@ function CreateBilanPageInner() {
           body: JSON.stringify({
             title: title.trim(),
             description: null,
-            config: { selectedModuleIds: orderedModuleIds, metricCards, radars, testComments, modulesData: moduleAnswers, itemOrder },
+            config: { selectedModuleIds: orderedModuleIds, metricCards, radars, textNotes, testComments, modulesData: moduleAnswers, itemOrder },
           }),
         })
         if (!res.ok) throw new Error("Autosave failed")
@@ -763,6 +805,40 @@ function CreateBilanPageInner() {
 
   const hasAnySelection = items.length > 0
 
+  const textNoteItems = useMemo(() => items.filter((it) => it.type === "textNote"), [items])
+
+  const renderTextNoteCard = (item: RightPanelItem, idx: number) => {
+    return (
+      <Card shadow="sm" radius="md" withBorder className="relative" key={item.id}>
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+          <GripVertical className="h-4 w-4 text-gray-400 cursor-grab active:cursor-grabbing shrink-0" />
+          <FileText className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="font-semibold text-sm flex-1 truncate">Note</span>
+          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => removeTextNoteItem(item.id)}>
+            <X className="h-3.5 w-3.5" />
+          </ActionIcon>
+        </div>
+        <div className="p-4 space-y-3">
+          <TextInput
+            label="Titre"
+            placeholder="Titre de la note"
+            size="sm"
+            value={item.config?.textTitle ?? ""}
+            onChange={(e) => updateItemConfig(item.id, { textTitle: e.target.value })}
+          />
+          <Textarea
+            label="Contenu"
+            placeholder="Saisissez votre texte..."
+            minRows={4}
+            autosize
+            value={item.config?.textContent ?? ""}
+            onChange={(e) => updateItemConfig(item.id, { textContent: e.target.value })}
+          />
+        </div>
+      </Card>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -842,6 +918,17 @@ function CreateBilanPageInner() {
               {radarItems.length > 0
                 ? `+ Radar (${radarItems.length})`
                 : "Ajouter un radar"}
+            </Button>
+            <Button
+              variant="light"
+              size="sm"
+              fullWidth
+              leftSection={<FileText className="h-4 w-4" />}
+              onClick={addTextNoteItem}
+            >
+              {textNoteItems.length > 0
+                ? `+ Note (${textNoteItems.length})`
+                : "Ajouter une note"}
             </Button>
           </div>
 
@@ -931,6 +1018,7 @@ function CreateBilanPageInner() {
               if (item.type === "module") return renderModuleCard(item, idx)
               if (item.type === "metric") return renderMetricCard(item, idx)
               if (item.type === "radar") return renderRadarCard(item, idx)
+              if (item.type === "textNote") return renderTextNoteCard(item, idx)
               return null
             }}
           </DraggableList>

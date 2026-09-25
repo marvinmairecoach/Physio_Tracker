@@ -234,10 +234,12 @@ function BilanViewPageInner() {
       // Prepare data
       const metricCards: any[] = Array.isArray(config.metricCards) ? config.metricCards : []
       const radars: any[] = Array.isArray(config.radars) ? config.radars : []
+      const textNotes: any[] = Array.isArray(config.textNotes) ? config.textNotes : []
       const itemOrder: any[] = Array.isArray(config.itemOrder) ? config.itemOrder : null
       const moduleMap = new Map(modules.map((m) => [m.id, m]))
       const metricCardMap = new Map(metricCards.map((mc: any, i: number) => [mc.itemId || String(i), mc]))
       const radarMap = new Map(radars.map((r: any, i: number) => [r.itemId || String(i), r]))
+      const textNoteMap = new Map(textNotes.map((n: any, i: number) => [n.itemId || String(i), n]))
       const today = new Date().toLocaleDateString("fr-FR")
       const athleteAge = athlete?.birthDate ? calculateAge(athlete.birthDate) : null
       const userName = user ? `${user.firstName} ${user.lastName}` : "PP Tracker"
@@ -415,6 +417,18 @@ function BilanViewPageInner() {
                     </View>
                   </View>
                 )
+              } else if (entry.type === "textNote") {
+                const note = textNoteMap.get(entry.itemId || entry.refId)
+                if (!note) return null
+                return (
+                  <View key={entry.itemId || note.itemId} style={styles.section}>
+                    <View style={styles.dashSeparator} />
+                    <Text style={styles.sectionTitle}>{note.title || "Note"}</Text>
+                    <View style={styles.moduleCard}>
+                      <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.5 }}>{note.content}</Text>
+                    </View>
+                  </View>
+                )
               }
               return null
             }) : (
@@ -565,6 +579,15 @@ function BilanViewPageInner() {
                     </View>
                   )
                 })}
+              {textNotes.length > 0 && textNotes.map((note: any, idx: number) => (
+                <View key={note.itemId || idx} style={styles.section}>
+                  <View style={styles.dashSeparator} />
+                  <Text style={styles.sectionTitle}>{note.title || "Note"}</Text>
+                  <View style={styles.moduleCard}>
+                    <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.5 }}>{note.content}</Text>
+                  </View>
+                </View>
+              ))}
               </>
             )}
 
@@ -596,6 +619,7 @@ function BilanViewPageInner() {
   // --- Render helpers ---
   const metricCards: any[] = Array.isArray(config.metricCards) ? config.metricCards : []
   const radarItems: any[] = Array.isArray(config.radars) ? config.radars : []
+  const textNotes: any[] = Array.isArray(config.textNotes) ? config.textNotes : []
   const itemOrder: any[] = Array.isArray(config.itemOrder) ? config.itemOrder : null
 
   // Build lookup maps for order-based rendering
@@ -767,6 +791,20 @@ function BilanViewPageInner() {
                 </div>
               </Card>
             )
+          } else if (entry.type === "textNote") {
+            const note = textNotes.find((n: any) => n.itemId === entry.itemId || n.itemId === entry.refId)
+            if (!note) return null
+            return (
+              <Card key={entry.itemId} shadow="sm" radius="md" withBorder>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                  <FileText className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="font-semibold text-sm">{note.title || "Note"}</span>
+                </div>
+                <div className="p-4 whitespace-pre-wrap">
+                  <Text size="sm">{note.content || "(vide)"}</Text>
+                </div>
+              </Card>
+            )
           }
           return null
         })
@@ -877,6 +915,17 @@ function BilanViewPageInner() {
               </Card>
             )
           })}
+          {textNotes.map((note: any, idx: number) => (
+            <Card key={note.itemId || idx} shadow="sm" radius="md" withBorder>
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
+                <FileText className="h-4 w-4 text-amber-500 shrink-0" />
+                <span className="font-semibold text-sm">{note.title || "Note"}</span>
+              </div>
+              <div className="p-4 whitespace-pre-wrap">
+                <Text size="sm">{note.content || "(vide)"}</Text>
+              </div>
+            </Card>
+          ))}
         </>
       )}
 
