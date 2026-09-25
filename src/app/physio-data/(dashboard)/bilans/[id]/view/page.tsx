@@ -204,31 +204,36 @@ function BilanViewPageInner() {
         }).join(' ')
       }
 
-      const darkGrey = '#5E5E5E'
+      const nuit = '#123F54'
+      const petrole = '#087F9D'
+      const grisTexte = '#263238'
+      const grisSecond = '#53636B'
+      const grisSeparateur = '#D5DDE0'
       const styles = StyleSheet.create({
-        page: { padding: 49, fontSize: 10, fontFamily: 'Helvetica', color: darkGrey },
+        page: { padding: 49, fontSize: 11, fontFamily: 'Helvetica', color: grisTexte, lineHeight: 1.15 },
         headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
         headerLeft: { flexDirection: 'column', alignItems: 'flex-start' },
         headerRight: { flexDirection: 'column', alignItems: 'flex-end' },
-        coachName: { fontSize: 24, fontWeight: 'bold', color: darkGrey },
-        coachSubtitle: { fontSize: 15, color: darkGrey, marginTop: 2 },
+        coachName: { fontSize: 18, fontWeight: 'bold', color: nuit },
         logo: { width: 90, height: 90 },
-        title: { fontSize: 22, fontWeight: 'bold', color: darkGrey },
-        athleteInfo: { fontSize: 10, color: darkGrey, marginTop: 2, marginBottom: 12 },
-        dashSeparator: { borderTopWidth: 0.5, borderTopColor: darkGrey, borderStyle: 'dashed', marginVertical: 12 },
-        section: { marginTop: 8 },
-        sectionTitle: { fontSize: 13, fontWeight: 'bold', color: darkGrey, marginBottom: 6 },
-        moduleCard: { marginBottom: 8 },
-        moduleTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: darkGrey },
+        title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 2 },
+        athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8 },
+        dashSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 10 },
+        section: { marginTop: 6 },
+        sectionTitle: { fontSize: 15, fontWeight: 'bold', color: petrole, marginBottom: 4 },
+        moduleCard: { marginBottom: 6 },
+        moduleTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: nuit },
         qaRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 8 },
-        qLabel: { fontWeight: 'bold', width: '50%', fontSize: 10, color: darkGrey },
-        qAnswer: { width: '50%', fontSize: 10, color: darkGrey },
-        metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 5, paddingBottom: 5, borderBottomWidth: 0.5, borderBottomColor: '#ddd' },
-        metricName: { fontWeight: 'bold', width: '35%', fontSize: 10, color: darkGrey },
-        metricValue: { width: '25%', textAlign: 'center', fontSize: 10 },
-        metricNorm: { width: '20%', textAlign: 'center', fontSize: 9, color: '#888' },
-        metricComment: { fontSize: 9, color: '#777', marginTop: 2, marginBottom: 2, paddingLeft: 8 },
-        footer: { position: 'absolute', bottom: 20, left: 49, right: 49, fontSize: 8, color: '#999', textAlign: 'center', borderTopWidth: 0.5, borderTopColor: '#ccc', paddingTop: 8 },
+        qLabel: { fontWeight: 'bold', width: '50%', fontSize: 11, color: grisTexte },
+        qAnswer: { width: '50%', fontSize: 11, color: grisSecond },
+        metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: grisSeparateur },
+        metricName: { fontWeight: 'bold', width: '35%', fontSize: 11, color: grisTexte },
+        metricValue: { width: '20%', textAlign: 'center', fontSize: 13, fontWeight: 'bold', color: petrole },
+        metricNorm: { width: '20%', textAlign: 'center', fontSize: 9, color: grisSecond },
+        metricComment: { fontSize: 9, color: grisSecond, marginTop: 2, marginBottom: 2, paddingLeft: 8 },
+        footer: { position: 'absolute', bottom: 20, left: 49, right: 49, textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8 },
+        footerLine1: { fontSize: 9, color: grisSecond },
+        footerLine2: { fontSize: 9, color: grisSecond, marginTop: 2 },
       })
 
       // Prepare data
@@ -253,7 +258,7 @@ function BilanViewPageInner() {
                 {user?.logoUrl ? (
                   <Image src={user.logoUrl} style={styles.logo} />
                 ) : (
-                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: darkGrey }}>PP Tracker</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: nuit }}>PP Tracker</Text>
                 )}
               </View>
               <View style={styles.headerRight}>
@@ -310,7 +315,7 @@ function BilanViewPageInner() {
                       const beatsNorm = norm !== null
                         ? tt.higherIsBetter ? val >= norm : val <= norm
                         : null
-                      const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : darkGrey
+                      const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : grisTexte
                       return (
                         <View key={id}>
                           <View style={styles.metricRow}>
@@ -425,7 +430,7 @@ function BilanViewPageInner() {
                     <View style={styles.dashSeparator} />
                     <Text style={styles.sectionTitle}>{note.title || "Note"}</Text>
                     <View style={styles.moduleCard}>
-                      <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.5 }}>{note.content}</Text>
+                      <Text style={{ fontSize: 10, color: grisTexte, lineHeight: 1.5 }}>{note.content}</Text>
                     </View>
                   </View>
                 )
@@ -471,7 +476,7 @@ function BilanViewPageInner() {
                             const beatsNorm = norm !== null
                               ? tt.higherIsBetter ? val >= norm : val <= norm
                               : null
-                            const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : darkGrey
+                            const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : grisTexte
                             return (
                               <View key={id}>
                                 <View style={styles.metricRow}>
@@ -584,7 +589,7 @@ function BilanViewPageInner() {
                   <View style={styles.dashSeparator} />
                   <Text style={styles.sectionTitle}>{note.title || "Note"}</Text>
                   <View style={styles.moduleCard}>
-                    <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.5 }}>{note.content}</Text>
+                    <Text style={{ fontSize: 10, color: grisTexte, lineHeight: 1.5 }}>{note.content}</Text>
                   </View>
                 </View>
               ))}
@@ -596,11 +601,12 @@ function BilanViewPageInner() {
               <View style={styles.section}>
                 <View style={styles.dashSeparator} />
                 <Text style={styles.sectionTitle}>Analyse</Text>
-                <Text style={{ fontSize: 10, color: darkGrey, lineHeight: 1.4 }}>{bilan.description}</Text>
+                <Text style={{ fontSize: 10, color: grisSecond, lineHeight: 1.4 }}>{bilan.description}</Text>
               </View>
             )}
 
-            <Text style={styles.footer}>PP Tracker — Bilan physique généré le {today}</Text>
+            <Text style={styles.footerLine1}>1 sur 1</Text>
+            <Text style={styles.footerLine2}>PhysioData — Bilan de {athlete?.lastName?.toUpperCase()} {athlete?.firstName}</Text>
           </Page>
         </Document>
       )
@@ -648,8 +654,8 @@ function BilanViewPageInner() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">{bilan.title}</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold tracking-tight truncate" style={{ fontFamily: 'Montserrat, sans-serif', color: '#123F54' }}>{bilan.title}</h1>
+          <p className="text-sm" style={{ color: '#53636B' }}>
             {athlete?.lastName?.toUpperCase()} {athlete?.firstName}
             {athleteAge !== null ? ` — ${athleteAge} ans` : ""}
           </p>
@@ -689,8 +695,8 @@ function BilanViewPageInner() {
             return (
               <Card key={entry.refId} shadow="sm" radius="md" withBorder>
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
-                  <LayoutList className="h-4 w-4 text-blue-500 shrink-0" />
-                  <span className="font-semibold text-sm">{mod.title}</span>
+                  <LayoutList className="h-4 w-4 shrink-0" style={{ color: '#123F54' }} />
+                  <span className="font-semibold text-sm" style={{ fontFamily: 'Montserrat, sans-serif', color: '#123F54' }}>{mod.title}</span>
                 </div>
                 <div className="p-4">
                   <BilanModuleRenderer module={mod} onAnswerChange={() => {}} />
@@ -798,7 +804,7 @@ function BilanViewPageInner() {
               <Card key={entry.itemId} shadow="sm" radius="md" withBorder>
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
                   <FileText className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="font-semibold text-sm">{note.title || "Note"}</span>
+                  <span className="font-semibold text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{note.title || "Note"}</span>
                 </div>
                 <div className="p-4 whitespace-pre-wrap">
                   <Text size="sm">{note.content || "(vide)"}</Text>
@@ -919,7 +925,7 @@ function BilanViewPageInner() {
             <Card key={note.itemId || idx} shadow="sm" radius="md" withBorder>
               <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50/30 rounded-t-md">
                 <FileText className="h-4 w-4 text-amber-500 shrink-0" />
-                <span className="font-semibold text-sm">{note.title || "Note"}</span>
+                <span className="font-semibold text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{note.title || "Note"}</span>
               </div>
               <div className="p-4 whitespace-pre-wrap">
                 <Text size="sm">{note.content || "(vide)"}</Text>
