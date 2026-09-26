@@ -605,8 +605,10 @@ function BilanViewPageInner() {
               </View>
             )}
 
-            <Text style={styles.footerLine1}>1 sur 1</Text>
-            <Text style={styles.footerLine2}>PhysioData — Bilan de {athlete?.lastName?.toUpperCase()} {athlete?.firstName}</Text>
+            <View style={styles.footer} fixed>
+              <Text style={styles.footerLine1}>1 sur 1</Text>
+              <Text style={styles.footerLine2}>PhysioData — Bilan de {athlete?.lastName?.toUpperCase()} {athlete?.firstName}</Text>
+            </View>
           </Page>
         </Document>
       )
