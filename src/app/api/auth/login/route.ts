@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
+        profession: user.profession,
+        address: user.address,
       },
     })
   } catch (error) {

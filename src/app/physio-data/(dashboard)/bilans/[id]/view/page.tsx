@@ -192,7 +192,7 @@ function BilanViewPageInner() {
     setPdfSaving(true)
     try {
       const {
-        pdf, Document, Page, Text, View, StyleSheet, Image, Svg, Polygon, Line, Rect,
+        pdf, Document, Page, Text, View, StyleSheet, Image, Svg, Circle, Polygon, Line, Rect,
       } = await import("@react-pdf/renderer")
 
       // Helper: polygon points for radar
@@ -211,10 +211,18 @@ function BilanViewPageInner() {
       const grisSeparateur = '#D5DDE0'
       const styles = StyleSheet.create({
         page: { padding: 49, fontSize: 11, fontFamily: 'Helvetica', color: grisTexte, lineHeight: 1.15 },
-        headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-        headerLeft: { flexDirection: 'column', alignItems: 'flex-start' },
-        headerRight: { flexDirection: 'column', alignItems: 'flex-end' },
-        coachName: { fontSize: 18, fontWeight: 'bold', color: nuit },
+        headerRow: { flexDirection: 'row', marginBottom: 16 },
+        headerLeft: { width: 90 },
+        verticalSeparator: { width: 1, backgroundColor: grisSeparateur, marginHorizontal: 12 },
+        headerRight: { flex: 1, flexDirection: 'column' },
+        infoName: { fontSize: 18, fontWeight: 'bold', color: nuit },
+        infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4 },
+        infoHorizSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 4 },
+        infoRowContainer: { flexDirection: 'column', gap: 3 },
+        infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+        infoIcon: { width: 16, height: 16, marginRight: 6 },
+        infoText: { fontSize: 10, color: grisTexte },
+        infoLinkText: { fontSize: 10, color: grisTexte },
         logo: { width: 90, height: 90 },
         title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 2 },
         athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8 },
@@ -252,7 +260,7 @@ function BilanViewPageInner() {
       const PdfDoc = (
         <Document>
           <Page size="A4" style={styles.page}>
-            {/* Header: logo left, name+profession right (35px gap) */}
+            {/* Header: logo left | vertical sep | name + profession + contact */}
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
                 {user?.logoUrl ? (
@@ -261,8 +269,41 @@ function BilanViewPageInner() {
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: nuit }}>PP Tracker</Text>
                 )}
               </View>
+              <View style={styles.verticalSeparator} />
               <View style={styles.headerRight}>
-                <Text style={styles.coachName}>{userName}</Text>
+                <Text style={styles.infoName}>{user?.firstName} {user?.lastName?.toUpperCase()}</Text>
+                {user?.profession && <Text style={styles.infoProfession}>{user.profession}</Text>}
+                <View style={styles.infoHorizSeparator} />
+                <View style={styles.infoRowContainer}>
+                  {user?.address && (
+                    <View style={styles.infoRow}>
+                      <Svg width={12} height={12} viewBox="0 0 12 12">
+                        <Circle cx={6} cy={4} r={2.5} fill={grisSecond} />
+                        <Line x1={6} y1={6} x2={6} y2={12} stroke={grisSecond} strokeWidth={1.5} />
+                      </Svg>
+                      <Text style={styles.infoText}>{user.address}</Text>
+                    </View>
+                  )}
+                  {(user?.phone || user?.email) && (
+                    <View style={styles.infoRow}>
+                      {user?.phone && (
+                        <>
+                          <Svg width={12} height={12} viewBox="0 0 12 12">
+                            <Rect x={2.5} y={1} width={7} height={10} rx={1.5} stroke={grisSecond} strokeWidth={0.8} fill="none" />
+                            <Line x1={5} y1={9.5} x2={7} y2={9.5} stroke={grisSecond} strokeWidth={0.8} />
+                          </Svg>
+                          <Text style={styles.infoText}>{user.phone}</Text>
+                          <Text style={[styles.infoText, { marginHorizontal: 6 }]}>·</Text>
+                        </>
+                      )}
+                      <Svg width={12} height={12} viewBox="0 0 12 12">
+                        <Rect x={1} y={2.5} width={10} height={7} rx={1} stroke={grisSecond} strokeWidth={0.8} fill="none" />
+                        <Polygon points="1,2.5 6,6.5 11,2.5" stroke={grisSecond} strokeWidth={0.8} fill="none" />
+                      </Svg>
+                      <Text style={styles.infoText}>{user?.email}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
 

@@ -13,6 +13,8 @@ export default function ProfilePage() {
 
   const [email, setEmail] = useState(user?.email ?? "")
   const [phone, setPhone] = useState(user?.phone ?? "")
+  const [profession, setProfession] = useState(user?.profession ?? "")
+  const [address, setAddress] = useState(user?.address ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -99,7 +101,12 @@ export default function ProfilePage() {
       const res = await fetch("/physio-data/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), phone: phone.trim() || null }),
+        body: JSON.stringify({ 
+              email: email.trim(), 
+              phone: phone.trim() || null,
+              profession: profession.trim() || null,
+              address: address.trim() || null,
+            }),
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
@@ -163,7 +170,7 @@ export default function ProfilePage() {
         <div className="px-6 pt-6 pb-3">
           <h2 className="text-xl font-semibold">Informations personnelles</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Modifie ton email et ton numéro de téléphone.
+            Modifie tes informations personnelles.
           </p>
         </div>
         <div className="px-6 pb-6">
@@ -178,6 +185,12 @@ export default function ProfilePage() {
 
             <TextInput label="Téléphone" id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
               placeholder="+33 6 12 34 56 78" />
+
+            <TextInput label="Profession" id="profession" value={profession} onChange={(e) => setProfession(e.target.value)}
+              placeholder="Kinésithérapeute, préparateur physique..." />
+
+            <TextInput label="Adresse" id="address" value={address} onChange={(e) => setAddress(e.target.value)}
+              placeholder="12 rue du Sport, 75001 Paris" />
 
             {error && <p className="text-sm text-red-500">{error}</p>}
             {success && <p className="text-sm text-green-600 bg-green-50 rounded-md px-3 py-2">Profil mis à jour avec succès</p>}
@@ -210,6 +223,14 @@ export default function ProfilePage() {
           <div>
             <p className="text-sm text-muted-foreground">Téléphone</p>
             <p className="font-medium">{user.phone || "Non renseigné"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Profession</p>
+            <p className="font-medium">{user.profession || "Non renseigné"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Adresse</p>
+            <p className="font-medium">{user.address || "Non renseignée"}</p>
           </div>
         </div>
       </Card>

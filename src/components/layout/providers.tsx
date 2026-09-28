@@ -9,6 +9,8 @@ interface AuthUser {
   id: string
   email: string
   phone: string | null
+  profession: string | null
+  address: string | null
   role: "admin" | "coach" | "athlete"
   firstName: string
   lastName: string

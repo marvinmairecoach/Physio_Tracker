@@ -44,6 +44,8 @@ model User {
   firstName     String   @map("first_name")
   lastName      String   @map("last_name")
   phone         String?
+  profession    String?
+  address       String?
   avatarUrl     String?  @map("avatar_url")
   logoUrl       String?  @map("logo_url") @db.Text
   role          Role     @default(coach)

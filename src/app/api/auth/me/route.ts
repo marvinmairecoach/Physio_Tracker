@@ -9,7 +9,8 @@ const userSelect = {
   firstName: true,
   lastName: true,
   phone: true,
-  avatarUrl: true,
+  profession: true,
+  address: true,
   logoUrl: true,
   roleAssignments: {
     include: {
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, phone, logoUrl } = body
+    const { email, phone, profession, address, logoUrl } = body
 
     // Vérifier que l'email n'est pas déjà pris par un autre utilisateur
     if (email) {
@@ -66,6 +67,8 @@ export async function PATCH(request: NextRequest) {
       data: {
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
+        ...(profession !== undefined && { profession }),
+        ...(address !== undefined && { address }),
         ...(logoUrl !== undefined && { logoUrl }),
       },
       select: userSelect,
