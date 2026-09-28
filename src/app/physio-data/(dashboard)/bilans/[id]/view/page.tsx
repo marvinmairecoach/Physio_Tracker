@@ -216,11 +216,11 @@ function BilanViewPageInner() {
         verticalSeparator: { width: 1, backgroundColor: grisSeparateur, marginHorizontal: 12 },
         headerRight: { flex: 1, flexDirection: 'column' },
         infoName: { fontSize: 18, fontWeight: 'bold', color: nuit },
-        infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4, marginTop: 6 },
+        infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4, marginTop: 9 },
         infoHorizSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 4 },
         infoRowContainer: { flexDirection: 'column' },
         infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-        infoIcon: { width: 16, height: 16, marginRight: 6 },
+        infoIcon: { marginRight: 6 },
         infoText: { fontSize: 10, color: grisTexte },
         infoLinkText: { fontSize: 10, color: grisTexte },
         logo: { width: 90, height: 90 },
@@ -238,6 +238,10 @@ function BilanViewPageInner() {
         metricName: { fontWeight: 'bold', flex: 7, fontSize: 11, color: grisTexte },
         metricValue: { flex: 4, textAlign: 'center', fontSize: 13, fontWeight: 'bold', color: petrole },
         metricNorm: { flex: 4, textAlign: 'center', fontSize: 9, color: grisSecond },
+        metricLabelRow: { flexDirection: 'row', width: '100%', marginBottom: 2 },
+        metricLabelEmpty: { flex: 7, fontSize: 8 },
+        metricLabelValue: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
+        metricLabelNorm: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
         metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, padding: 6, marginBottom: 6 },
         metricComment: { fontSize: 9, color: grisSecond, marginTop: 2, marginBottom: 2, paddingLeft: 8 },
         footer: { position: 'absolute', bottom: 20, left: 49, right: 49, textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8 },
@@ -287,7 +291,7 @@ function BilanViewPageInner() {
                 <View style={styles.infoRowContainer}>
                   {user?.address && (
                     <View style={styles.infoRow}>
-                      <Svg width={12} height={12} viewBox="0 0 12 12">
+                      <Svg width={12} height={12} viewBox="0 0 12 12" style={styles.infoIcon}>
                         <Circle cx={6} cy={4} r={2.5} fill={grisSecond} />
                         <Line x1={6} y1={6} x2={6} y2={12} stroke={grisSecond} strokeWidth={1.5} />
                       </Svg>
@@ -298,7 +302,7 @@ function BilanViewPageInner() {
                     <View style={styles.infoRow}>
                       {user?.phone && (
                         <>
-                          <Svg width={12} height={12} viewBox="0 0 12 12">
+                          <Svg width={12} height={12} viewBox="0 0 12 12" style={styles.infoIcon}>
                             <Rect x={2.5} y={1} width={7} height={10} rx={1.5} stroke={grisSecond} strokeWidth={0.8} fill="none" />
                             <Line x1={5} y1={9.5} x2={7} y2={9.5} stroke={grisSecond} strokeWidth={0.8} />
                           </Svg>
@@ -306,7 +310,7 @@ function BilanViewPageInner() {
                           <Text style={[styles.infoText, { marginHorizontal: 6 }]}>·</Text>
                         </>
                       )}
-                      <Svg width={12} height={12} viewBox="0 0 12 12">
+                      <Svg width={12} height={12} viewBox="0 0 12 12" style={styles.infoIcon}>
                         <Rect x={1} y={2.5} width={10} height={7} rx={1} stroke={grisSecond} strokeWidth={0.8} fill="none" />
                         <Polygon points="1,2.5 6,6.5 11,2.5" stroke={grisSecond} strokeWidth={0.8} fill="none" />
                       </Svg>
@@ -369,6 +373,11 @@ function BilanViewPageInner() {
                       const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : grisTexte
                       return (
                         <View key={id} style={styles.metricCard}>
+                          <View style={styles.metricLabelRow}>
+                            <Text style={styles.metricLabelEmpty} />
+                            <Text style={styles.metricLabelValue}>Score</Text>
+                            <Text style={styles.metricLabelNorm}>Norme</Text>
+                          </View>
                           <View style={styles.metricRow}>
                             <Text style={styles.metricName}>{tt.name}</Text>
                             <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
@@ -445,17 +454,18 @@ function BilanViewPageInner() {
                           stroke="#2563eb"
                           strokeWidth={2}
                         />
-                        {radarData.map((d, i) => {
+                        {radarData.flatMap((d, i) => {
                           const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
                           const labelR = 92
                           const x = 180 + labelR * Math.cos(angle)
                           const y = 140 + labelR * Math.sin(angle)
                           const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
-                          return (
-                            <Text key={i} x={x} y={y} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
-                              {wrapLabel(d.name)}
+                          const lines = wrapLabel(d.name).split('\n')
+                          return lines.map((line, li) => (
+                            <Text key={`${i}_${li}`} x={x} y={y + li * 8} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                              {line}
                             </Text>
-                          )
+                          ))
                         })}
                       </Svg>
                       <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
@@ -530,6 +540,11 @@ function BilanViewPageInner() {
                             const color = beatsNorm === true ? '#16a34a' : beatsNorm === false ? '#dc2626' : grisTexte
                             return (
                               <View key={id} style={styles.metricCard}>
+                                <View style={styles.metricLabelRow}>
+                                  <Text style={styles.metricLabelEmpty} />
+                                  <Text style={styles.metricLabelValue}>Score</Text>
+                                  <Text style={styles.metricLabelNorm}>Norme</Text>
+                                </View>
                                 <View style={styles.metricRow}>
                                   <Text style={styles.metricName}>{tt.name}</Text>
                                   <Text style={{ ...styles.metricValue, color }}>{val.toFixed(1)} {tt.unit}</Text>
@@ -606,17 +621,18 @@ function BilanViewPageInner() {
                             stroke="#2563eb"
                             strokeWidth={2}
                           />
-                          {radarData.map((d, i) => {
+                          {radarData.flatMap((d, i) => {
                             const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
                             const labelR = 92
                             const x = 180 + labelR * Math.cos(angle)
                             const y = 140 + labelR * Math.sin(angle)
                             const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
-                            return (
-                              <Text key={i} x={x} y={y} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
-                                {wrapLabel(d.name)}
+                            const lines = wrapLabel(d.name).split('\n')
+                            return lines.map((line, li) => (
+                              <Text key={`${i}_${li}`} x={x} y={y + li * 8} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                                {line}
                               </Text>
-                            )
+                            ))
                           })}
                         </Svg>
                         <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
