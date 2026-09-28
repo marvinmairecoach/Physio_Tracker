@@ -244,7 +244,7 @@ function BilanViewPageInner() {
         metricLabelNorm: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
         metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, paddingHorizontal: 9, paddingTop: 6, paddingBottom: 9, marginBottom: 6 },
         metricComment: { fontSize: 9, color: grisSecond, marginTop: 5, marginBottom: 2, paddingLeft: 8 },
-        footer: { position: 'absolute', bottom: 20, left: 49, right: 49, textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8 },
+        footer: { textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8, marginTop: 6 },
         footerLine1: { fontSize: 9, color: grisSecond },
         footerLine2: { fontSize: 9, color: grisSecond, marginTop: 2 },
       })
@@ -274,7 +274,8 @@ function BilanViewPageInner() {
       const PdfDoc = (
         <Document>
           <Page size="A4" style={styles.page}>
-            {/* Header: logo left | vertical sep | name + profession + contact */}
+            <View style={{ flex: 1 }}>
+              {/* Header: logo left | vertical sep | name + profession + contact */}
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
                 {user?.logoUrl ? (
@@ -671,9 +672,10 @@ function BilanViewPageInner() {
                 <Text style={{ fontSize: 10, color: grisSecond, lineHeight: 1.4 }}>{bilan.description}</Text>
               </View>
             )}
+          </View>
 
             <View style={styles.footer} fixed>
-              <Text style={styles.footerLine1}>1 sur 1</Text>
+              <Text style={styles.footerLine1} render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) => `${pageNumber} sur ${totalPages}`} />
               <Text style={styles.footerLine2}>PhysioData — Bilan de {athlete?.lastName?.toUpperCase()} {athlete?.firstName}</Text>
             </View>
           </Page>
