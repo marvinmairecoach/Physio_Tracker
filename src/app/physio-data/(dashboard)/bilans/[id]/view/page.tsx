@@ -216,7 +216,7 @@ function BilanViewPageInner() {
         verticalSeparator: { width: 1, backgroundColor: grisSeparateur, marginHorizontal: 12 },
         headerRight: { flex: 1, flexDirection: 'column' },
         infoName: { fontSize: 18, fontWeight: 'bold', color: nuit },
-        infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4, marginTop: 4 },
+        infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4, marginTop: 6 },
         infoHorizSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 4 },
         infoRowContainer: { flexDirection: 'column' },
         infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
@@ -224,13 +224,13 @@ function BilanViewPageInner() {
         infoText: { fontSize: 10, color: grisTexte },
         infoLinkText: { fontSize: 10, color: grisTexte },
         logo: { width: 90, height: 90 },
-        title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 10, textAlign: 'center' },
+        title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 14, textAlign: 'center' },
         athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8, textAlign: 'center' },
         dashSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 10 },
         section: { marginTop: 6 },
-        sectionTitle: { fontSize: 15, fontWeight: 'bold', color: petrole, marginBottom: 4 },
+        sectionTitle: { fontSize: 15, fontWeight: 'bold', color: petrole, marginBottom: 8 },
         moduleCard: { marginBottom: 6 },
-        moduleTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: nuit },
+        moduleTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: nuit },
         qaRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 8, width: '100%' },
         qLabel: { fontWeight: 'bold', flex: 1, fontSize: 11, color: grisTexte },
         qAnswer: { flex: 1, fontSize: 11, color: grisSecond },
@@ -257,6 +257,15 @@ function BilanViewPageInner() {
       const today = new Date().toLocaleDateString("fr-FR")
       const athleteAge = athlete?.birthDate ? calculateAge(athlete.birthDate) : null
       const userName = user ? `${user.firstName} ${user.lastName}` : "PP Tracker"
+
+      // Split long labels for radar (2 lines max)
+      const wrapLabel = (t: string, maxLen: number = 10) => {
+        if (t.length <= maxLen) return t
+        const mid = Math.floor(t.length / 2)
+        for (let i = mid; i < t.length; i++) { if (t[i] === ' ') return t.slice(0, i) + '\n' + t.slice(i + 1) }
+        for (let i = mid; i >= 0; i--) { if (t[i] === ' ') return t.slice(0, i) + '\n' + t.slice(i + 1) }
+        return t.slice(0, mid) + '\n' + t.slice(mid)
+      }
 
       const PdfDoc = (
         <Document>
@@ -403,11 +412,11 @@ function BilanViewPageInner() {
                     {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Radar des performances</Text>
                     <View style={{ alignItems: 'center', marginTop: 4 }}>
-                      <Svg width={200} height={200}>
+                      <Svg width={340} height={280}>
                         {[25, 50, 75, 100].map((pct) => (
                           <Polygon
                             key={pct}
-                            points={polyPoints(Array(radarCount).fill(pct), 100, 100, 60)}
+                            points={polyPoints(Array(radarCount).fill(pct), 180, 140, 55)}
                             fill="none"
                             stroke="#e5e7eb"
                             strokeWidth={1}
@@ -415,13 +424,13 @@ function BilanViewPageInner() {
                         ))}
                         {Array.from({ length: radarCount }, (_, i) => {
                           const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                          const x = 100 + 60 * Math.cos(angle)
-                          const y = 100 + 60 * Math.sin(angle)
-                          return <Line key={i} x1={100} y1={100} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                          const x = 180 + 55 * Math.cos(angle)
+                          const y = 140 + 55 * Math.sin(angle)
+                          return <Line key={i} x1={180} y1={140} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                         })}
                         {showNorms && radarData.some(d => d.normPct !== null) && (
                           <Polygon
-                            points={polyPoints(radarData.map(d => d.normPct ?? 0), 100, 100, 60)}
+                            points={polyPoints(radarData.map(d => d.normPct ?? 0), 180, 140, 55)}
                             fill="#06b6d4"
                             fillOpacity={0.15}
                             stroke="#06b6d4"
@@ -430,12 +439,24 @@ function BilanViewPageInner() {
                           />
                         )}
                         <Polygon
-                          points={polyPoints(radarData.map(d => d.athletePct), 100, 100, 60)}
+                          points={polyPoints(radarData.map(d => d.athletePct), 180, 140, 55)}
                           fill="#2563eb"
                           fillOpacity={0.2}
                           stroke="#2563eb"
                           strokeWidth={2}
                         />
+                        {radarData.map((d, i) => {
+                          const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
+                          const labelR = 92
+                          const x = 180 + labelR * Math.cos(angle)
+                          const y = 140 + labelR * Math.sin(angle)
+                          const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
+                          return (
+                            <Text key={i} x={x} y={y} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                              {wrapLabel(d.name)}
+                            </Text>
+                          )
+                        })}
                       </Svg>
                       <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -448,13 +469,6 @@ function BilanViewPageInner() {
                             <Text style={{ marginLeft: 3 }}>Norme</Text>
                           </View>
                         )}
-                      </View>
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8, maxWidth: 400 }}>
-                        {radarData.map((d, i) => (
-                          <Text key={i} style={{ fontSize: 8, color: grisSecond, marginHorizontal: 6, marginBottom: 2 }}>
-                            • {d.name}
-                          </Text>
-                        ))}
                       </View>
                     </View>
                   </View>
@@ -559,11 +573,11 @@ function BilanViewPageInner() {
                     <View key={rad.itemId || idx} style={styles.section}>
                       <Text style={styles.sectionTitle}>Radar des performances</Text>
                       <View style={{ alignItems: 'center', marginTop: 4 }}>
-                        <Svg width={400} height={400}>
+                        <Svg width={340} height={280}>
                           {[25, 50, 75, 100].map((pct) => (
                             <Polygon
                               key={pct}
-                              points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
+                              points={polyPoints(Array(radarCount).fill(pct), 180, 140, 55)}
                               fill="none"
                               stroke="#e5e7eb"
                               strokeWidth={1}
@@ -571,13 +585,13 @@ function BilanViewPageInner() {
                           ))}
                           {Array.from({ length: radarCount }, (_, i) => {
                             const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                            const x = 200 + 120 * Math.cos(angle)
-                            const y = 200 + 120 * Math.sin(angle)
-                            return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                            const x = 180 + 55 * Math.cos(angle)
+                            const y = 140 + 55 * Math.sin(angle)
+                            return <Line key={i} x1={180} y1={140} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                           })}
                           {showNorms && radarData.some(d => d.normPct !== null) && (
                             <Polygon
-                              points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
+                              points={polyPoints(radarData.map(d => d.normPct ?? 0), 180, 140, 55)}
                               fill="#06b6d4"
                               fillOpacity={0.15}
                               stroke="#06b6d4"
@@ -586,7 +600,7 @@ function BilanViewPageInner() {
                             />
                           )}
                           <Polygon
-                            points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
+                            points={polyPoints(radarData.map(d => d.athletePct), 180, 140, 55)}
                             fill="#2563eb"
                             fillOpacity={0.2}
                             stroke="#2563eb"
@@ -594,13 +608,13 @@ function BilanViewPageInner() {
                           />
                           {radarData.map((d, i) => {
                             const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                            const labelR = 180
-                            const x = 200 + labelR * Math.cos(angle)
-                            const y = 200 + labelR * Math.sin(angle)
+                            const labelR = 92
+                            const x = 180 + labelR * Math.cos(angle)
+                            const y = 140 + labelR * Math.sin(angle)
                             const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                             return (
-                              <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
-                                {d.name}
+                              <Text key={i} x={x} y={y} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                                {wrapLabel(d.name)}
                               </Text>
                             )
                           })}
