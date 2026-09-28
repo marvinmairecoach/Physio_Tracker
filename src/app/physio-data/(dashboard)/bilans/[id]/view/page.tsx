@@ -211,21 +211,21 @@ function BilanViewPageInner() {
       const grisSeparateur = '#D5DDE0'
       const styles = StyleSheet.create({
         page: { padding: 49, fontSize: 11, fontFamily: 'Helvetica', color: grisTexte, lineHeight: 1.15 },
-        headerRow: { flexDirection: 'row', marginBottom: 16 },
+        headerRow: { flexDirection: 'row', marginBottom: 24 },
         headerLeft: { width: 90 },
         verticalSeparator: { width: 1, backgroundColor: grisSeparateur, marginHorizontal: 12 },
         headerRight: { flex: 1, flexDirection: 'column' },
         infoName: { fontSize: 18, fontWeight: 'bold', color: nuit },
         infoProfession: { fontSize: 10, color: grisSecond, marginBottom: 4 },
         infoHorizSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 4 },
-        infoRowContainer: { flexDirection: 'column', gap: 3 },
+        infoRowContainer: { flexDirection: 'column' },
         infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
         infoIcon: { width: 16, height: 16, marginRight: 6 },
         infoText: { fontSize: 10, color: grisTexte },
         infoLinkText: { fontSize: 10, color: grisTexte },
         logo: { width: 90, height: 90 },
-        title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 2 },
-        athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8 },
+        title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 2, textAlign: 'center' },
+        athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8, textAlign: 'center' },
         dashSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 10 },
         section: { marginTop: 6 },
         sectionTitle: { fontSize: 15, fontWeight: 'bold', color: petrole, marginBottom: 4 },
@@ -402,11 +402,11 @@ function BilanViewPageInner() {
                     {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Radar des performances</Text>
                     <View style={{ alignItems: 'center', marginTop: 4 }}>
-                      <Svg width={400} height={400}>
+                      <Svg width={200} height={200}>
                         {[25, 50, 75, 100].map((pct) => (
                           <Polygon
                             key={pct}
-                            points={polyPoints(Array(radarCount).fill(pct), 200, 200, 120)}
+                            points={polyPoints(Array(radarCount).fill(pct), 100, 100, 60)}
                             fill="none"
                             stroke="#e5e7eb"
                             strokeWidth={1}
@@ -414,13 +414,13 @@ function BilanViewPageInner() {
                         ))}
                         {Array.from({ length: radarCount }, (_, i) => {
                           const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                          const x = 200 + 120 * Math.cos(angle)
-                          const y = 200 + 120 * Math.sin(angle)
-                          return <Line key={i} x1={200} y1={200} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
+                          const x = 100 + 60 * Math.cos(angle)
+                          const y = 100 + 60 * Math.sin(angle)
+                          return <Line key={i} x1={100} y1={100} x2={x} y2={y} stroke="#e5e7eb" strokeWidth={1} />
                         })}
                         {showNorms && radarData.some(d => d.normPct !== null) && (
                           <Polygon
-                            points={polyPoints(radarData.map(d => d.normPct ?? 0), 200, 200, 120)}
+                            points={polyPoints(radarData.map(d => d.normPct ?? 0), 100, 100, 60)}
                             fill="#06b6d4"
                             fillOpacity={0.15}
                             stroke="#06b6d4"
@@ -429,7 +429,7 @@ function BilanViewPageInner() {
                           />
                         )}
                         <Polygon
-                          points={polyPoints(radarData.map(d => d.athletePct), 200, 200, 120)}
+                          points={polyPoints(radarData.map(d => d.athletePct), 100, 100, 60)}
                           fill="#2563eb"
                           fillOpacity={0.2}
                           stroke="#2563eb"
@@ -437,12 +437,12 @@ function BilanViewPageInner() {
                         />
                         {radarData.map((d, i) => {
                           const angle = (2 * Math.PI * i / radarCount) - Math.PI / 2
-                          const labelR = 180
-                          const x = 200 + labelR * Math.cos(angle)
-                          const y = 200 + labelR * Math.sin(angle)
+                          const labelR = 90
+                          const x = 100 + labelR * Math.cos(angle)
+                          const y = 100 + labelR * Math.sin(angle)
                           const textAnchor = angle > Math.PI / 2 || angle < -Math.PI / 2 ? 'end' : angle === -Math.PI / 2 || angle === Math.PI / 2 ? 'middle' : 'start'
                           return (
-                            <Text key={i} x={x} y={y} style={{ fontSize: 8, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
+                            <Text key={i} x={x} y={y} style={{ fontSize: 7, fill: '#374151', fontFamily: 'Helvetica' }} textAnchor={textAnchor}>
                               {d.name}
                             </Text>
                           )
