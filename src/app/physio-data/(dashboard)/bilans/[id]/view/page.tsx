@@ -230,7 +230,7 @@ function BilanViewPageInner() {
         section: { marginTop: 6 },
         sectionTitle: { fontSize: 15, fontWeight: 'bold', color: petrole, marginBottom: 8 },
         moduleCard: { marginBottom: 6 },
-        moduleTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 6, color: nuit },
+        moduleTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 9, color: nuit },
         qaRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 8, width: '100%' },
         qLabel: { fontWeight: 'bold', flex: 1, fontSize: 11, color: grisTexte },
         qAnswer: { flex: 1, fontSize: 11, color: grisSecond },
@@ -242,8 +242,8 @@ function BilanViewPageInner() {
         metricLabelEmpty: { flex: 7, fontSize: 8 },
         metricLabelValue: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
         metricLabelNorm: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
-        metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, padding: 6, marginBottom: 6 },
-        metricComment: { fontSize: 9, color: grisSecond, marginTop: 2, marginBottom: 2, paddingLeft: 8 },
+        metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, paddingHorizontal: 9, paddingTop: 6, paddingBottom: 9, marginBottom: 6 },
+        metricComment: { fontSize: 9, color: grisSecond, marginTop: 5, marginBottom: 2, paddingLeft: 8 },
         footer: { position: 'absolute', bottom: 20, left: 49, right: 49, textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8 },
         footerLine1: { fontSize: 9, color: grisSecond },
         footerLine2: { fontSize: 9, color: grisSecond, marginTop: 2 },
@@ -290,7 +290,7 @@ function BilanViewPageInner() {
                 <View style={styles.infoHorizSeparator} />
                 <View style={styles.infoRowContainer}>
                   {user?.address && (
-                    <View style={styles.infoRow}>
+                    <View style={[styles.infoRow, { marginTop: 3 }]}>
                       <Svg width={12} height={12} viewBox="0 0 12 12" style={styles.infoIcon}>
                         <Circle cx={6} cy={4} r={2.5} fill={grisSecond} />
                         <Line x1={6} y1={6} x2={6} y2={12} stroke={grisSecond} strokeWidth={1.5} />
@@ -417,7 +417,7 @@ function BilanViewPageInner() {
                 if (radarCount < 3) return null
 
                 return (
-                  <View key={entry.itemId} style={styles.section}>
+                  <View key={entry.itemId} style={styles.section} wrap={false}>
                     {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Radar des performances</Text>
                     <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -585,7 +585,7 @@ function BilanViewPageInner() {
                   if (radarCount < 3) return null
 
                   return (
-                    <View key={rad.itemId || idx} style={styles.section}>
+                    <View key={rad.itemId || idx} style={styles.section} wrap={false}>
                       <Text style={styles.sectionTitle}>Radar des performances</Text>
                       <View style={{ alignItems: 'center', marginTop: 4 }}>
                         <Svg width={340} height={280}>
