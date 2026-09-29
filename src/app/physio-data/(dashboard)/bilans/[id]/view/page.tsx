@@ -223,7 +223,7 @@ function BilanViewPageInner() {
         infoIcon: { marginRight: 6 },
         infoText: { fontSize: 10, color: grisTexte },
         infoLinkText: { fontSize: 10, color: grisTexte },
-        logo: { width: 90, height: 90 },
+        logo: { width: 90 },
         title: { fontSize: 22, fontWeight: 'bold', color: nuit, marginBottom: 14, textAlign: 'center' },
         athleteInfo: { fontSize: 11, color: grisSecond, marginBottom: 8, textAlign: 'center' },
         dashSeparator: { borderTopWidth: 0.5, borderTopColor: grisSeparateur, marginVertical: 10 },
@@ -242,9 +242,9 @@ function BilanViewPageInner() {
         metricLabelEmpty: { flex: 7, fontSize: 8 },
         metricLabelValue: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
         metricLabelNorm: { flex: 4, textAlign: 'center', fontSize: 8, color: grisSecond },
-        metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, paddingHorizontal: 9, paddingTop: 6, paddingBottom: 9, marginBottom: 6 },
-        metricComment: { fontSize: 9, color: grisSecond, marginTop: 5, marginBottom: 2, paddingLeft: 8 },
-        footer: { textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8, marginTop: 6 },
+        metricCard: { borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, paddingHorizontal: 9, paddingTop: 6, paddingBottom: 12, marginBottom: 6 },
+        metricComment: { fontSize: 9, color: grisSecond, marginTop: 12, marginBottom: 2, paddingLeft: 8 },
+        footer: { position: 'absolute', bottom: 20, left: 49, right: 49, textAlign: 'center', borderTopWidth: 0.5, borderTopColor: grisSeparateur, paddingTop: 8 },
         footerLine1: { fontSize: 9, color: grisSecond },
         footerLine2: { fontSize: 9, color: grisSecond, marginTop: 2 },
       })
@@ -421,7 +421,21 @@ function BilanViewPageInner() {
                   <View key={entry.itemId} style={styles.section} wrap={false}>
                     {idx > 0 && <View style={styles.dashSeparator} />}
                     <Text style={styles.sectionTitle}>Radar des performances</Text>
-                    <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 6 }}>
+                      <View style={{ flexDirection: 'row', borderWidth: 0.5, borderColor: grisSeparateur, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, gap: 14, fontSize: 9, color: '#666' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Svg width={10} height={10}><Rect width={10} height={10} fill="#2563eb" fillOpacity={0.4} rx={1.5} /></Svg>
+                          <Text style={{ marginLeft: 3, fontSize: 9 }}>Athlète</Text>
+                        </View>
+                        {showNorms && radarData.some(d => d.normPct !== null) && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Svg width={10} height={10}><Rect width={10} height={10} fill="#06b6d4" fillOpacity={0.4} rx={1.5} /></Svg>
+                            <Text style={{ marginLeft: 3, fontSize: 9 }}>Norme</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <View style={{ alignItems: 'center' }}>
                       <Svg width={340} height={280}>
                         {[25, 50, 75, 100].map((pct) => (
                           <Polygon
@@ -469,18 +483,6 @@ function BilanViewPageInner() {
                           ))
                         })}
                       </Svg>
-                      <View style={{ flexDirection: 'row', gap: 16, marginTop: 4, fontSize: 9, color: '#666' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Svg width={12} height={12}><Rect width={12} height={12} fill="#2563eb" fillOpacity={0.4} rx={2} /></Svg>
-                          <Text style={{ marginLeft: 3 }}>Athlète</Text>
-                        </View>
-                        {showNorms && radarData.some(d => d.normPct !== null) && (
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Svg width={12} height={12}><Rect width={12} height={12} fill="#06b6d4" fillOpacity={0.4} rx={2} /></Svg>
-                            <Text style={{ marginLeft: 3 }}>Norme</Text>
-                          </View>
-                        )}
-                      </View>
                     </View>
                   </View>
                 )
@@ -675,7 +677,7 @@ function BilanViewPageInner() {
           </View>
 
             <View style={styles.footer} fixed>
-              <Text style={styles.footerLine1} render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) => `${pageNumber} sur ${totalPages}`} />
+              <Text style={styles.footerLine1} render={({ pageNumber, totalPages }) => `${pageNumber} sur ${totalPages}`}></Text>
               <Text style={styles.footerLine2}>PhysioData — Bilan de {athlete?.lastName?.toUpperCase()} {athlete?.firstName}</Text>
             </View>
           </Page>
