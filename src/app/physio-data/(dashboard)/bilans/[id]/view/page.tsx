@@ -210,7 +210,7 @@ function BilanViewPageInner() {
       const grisSecond = '#53636B'
       const grisSeparateur = '#D5DDE0'
       const styles = StyleSheet.create({
-        page: { padding: 49, fontSize: 11, fontFamily: 'Helvetica', color: grisTexte, lineHeight: 1.15 },
+        page: { padding: 49, fontSize: 11, fontFamily: 'Helvetica', color: grisTexte },
         headerRow: { flexDirection: 'row', marginBottom: 24 },
         headerLeft: { width: 90 },
         verticalSeparator: { width: 1, backgroundColor: grisSeparateur, marginHorizontal: 12 },
